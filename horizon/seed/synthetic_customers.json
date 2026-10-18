@@ -1,0 +1,1606 @@
+[
+  {
+    "customer_id": "SYN-CMB-0001",
+    "name_masked": "某制造业企业A（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.5,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo01",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0002",
+    "name_masked": "某制造业企业B（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.5,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo02",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0003",
+    "name_masked": "某制造业企业C（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo03",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0004",
+    "name_masked": "某制造业企业D（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo04",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0005",
+    "name_masked": "某制造业企业E（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo05",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0006",
+    "name_masked": "某制造业企业F（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo06",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0007",
+    "name_masked": "某制造业企业G（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo07",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0008",
+    "name_masked": "某制造业企业H（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.7,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo08",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0009",
+    "name_masked": "某制造业企业I（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo09",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0010",
+    "name_masked": "某制造业企业J（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo10",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0011",
+    "name_masked": "某制造业企业K（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo11",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0012",
+    "name_masked": "某制造业企业L（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo12",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0013",
+    "name_masked": "某制造业企业M（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo01",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0014",
+    "name_masked": "某制造业企业N（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo02",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0015",
+    "name_masked": "某制造业企业O（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo03",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0016",
+    "name_masked": "某制造业企业P（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo04",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0017",
+    "name_masked": "某制造业企业Q（合成）",
+    "business_line": "CMB",
+    "segment": "大湾区制造业中小微企业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo05",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0018",
+    "name_masked": "某制造业企业R（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.72,
+    "products": [
+      "流动资金贷款",
+      "跨境结算"
+    ],
+    "relationship_manager": "rm.demo06",
+    "subsidy_eligible": true
+  },
+  {
+    "customer_id": "SYN-CMB-0019",
+    "name_masked": "某有跨境结算需客户19（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 6.1,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-CMB-0020",
+    "name_masked": "某零售商户客户20（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.4,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-CMB-0021",
+    "name_masked": "某有跨境结算需客户21（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 2.8,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-CMB-0022",
+    "name_masked": "某零售商户客户22（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 2.3,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-CMB-0023",
+    "name_masked": "某有跨境结算需客户23（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 7.0,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-CMB-0024",
+    "name_masked": "某零售商户客户24（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 6.5,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-CMB-0025",
+    "name_masked": "某有跨境结算需客户25（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 8.5,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-CMB-0026",
+    "name_masked": "某零售商户客户26（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 1.0,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-CMB-0027",
+    "name_masked": "某有跨境结算需客户27（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 4.1,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-CMB-0028",
+    "name_masked": "某零售商户客户28（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 0.5,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-CMB-0029",
+    "name_masked": "某有跨境结算需客户29（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 2.2,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-CMB-0030",
+    "name_masked": "某零售商户客户30（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 4.9,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-CMB-0031",
+    "name_masked": "某有跨境结算需客户31（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.4,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-CMB-0032",
+    "name_masked": "某零售商户客户32（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 2.0,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-CMB-0033",
+    "name_masked": "某有跨境结算需客户33（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 6.2,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-CMB-0034",
+    "name_masked": "某零售商户客户34（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 5.3,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-CMB-0035",
+    "name_masked": "某有跨境结算需客户35（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 2.3,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-CMB-0036",
+    "name_masked": "某零售商户客户36（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 5.7,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-CMB-0037",
+    "name_masked": "某有跨境结算需客户37（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 7.7,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-CMB-0038",
+    "name_masked": "某零售商户客户38（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 0.3,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-CMB-0039",
+    "name_masked": "某有跨境结算需客户39（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 7.7,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-CMB-0040",
+    "name_masked": "某零售商户客户40（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 6.7,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-CMB-0041",
+    "name_masked": "某有跨境结算需客户41（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "HK",
+    "loan_balance_cny_yi": 3.4,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-CMB-0042",
+    "name_masked": "某零售商户客户42（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 1.6,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-CMB-0043",
+    "name_masked": "某有跨境结算需客户43（合成）",
+    "business_line": "CMB",
+    "segment": "有跨境结算需求的外贸客户",
+    "region": "GD",
+    "loan_balance_cny_yi": 9.1,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-CMB-0044",
+    "name_masked": "某零售商户客户44（合成）",
+    "business_line": "CMB",
+    "segment": "零售商户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 3.3,
+    "products": [
+      "贸易融资",
+      "现金管理"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GBM-0045",
+    "name_masked": "某大型跨境集团客户45（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 3.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GBM-0046",
+    "name_masked": "某金融机构同业客户46（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 3.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GBM-0047",
+    "name_masked": "某大型跨境集团客户47（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 24.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-GBM-0048",
+    "name_masked": "某金融机构同业客户48（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 17.4,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-GBM-0049",
+    "name_masked": "某大型跨境集团客户49（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 23.1,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-GBM-0050",
+    "name_masked": "某金融机构同业客户50（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 21.0,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-GBM-0051",
+    "name_masked": "某大型跨境集团客户51（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 15.6,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-GBM-0052",
+    "name_masked": "某金融机构同业客户52（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 27.6,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-GBM-0053",
+    "name_masked": "某大型跨境集团客户53（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 11.1,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-GBM-0054",
+    "name_masked": "某金融机构同业客户54（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 15.9,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-GBM-0055",
+    "name_masked": "某大型跨境集团客户55（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 23.7,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-GBM-0056",
+    "name_masked": "某金融机构同业客户56（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 18.0,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-GBM-0057",
+    "name_masked": "某大型跨境集团客户57（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 24.6,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GBM-0058",
+    "name_masked": "某金融机构同业客户58（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 16.8,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GBM-0059",
+    "name_masked": "某大型跨境集团客户59（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 20.4,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-GBM-0060",
+    "name_masked": "某金融机构同业客户60（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 1.8,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-GBM-0061",
+    "name_masked": "某大型跨境集团客户61（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 6.9,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-GBM-0062",
+    "name_masked": "某金融机构同业客户62（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 8.7,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-GBM-0063",
+    "name_masked": "某大型跨境集团客户63（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 2.7,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-GBM-0064",
+    "name_masked": "某金融机构同业客户64（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 7.2,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-GBM-0065",
+    "name_masked": "某大型跨境集团客户65（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 3.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-GBM-0066",
+    "name_masked": "某金融机构同业客户66（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 8.4,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-GBM-0067",
+    "name_masked": "某大型跨境集团客户67（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "HK",
+    "loan_balance_cny_yi": 18.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-GBM-0068",
+    "name_masked": "某金融机构同业客户68（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "ZH",
+    "loan_balance_cny_yi": 10.8,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-GBM-0069",
+    "name_masked": "某大型跨境集团客户69（合成）",
+    "business_line": "GBM",
+    "segment": "大型跨境集团",
+    "region": "GD",
+    "loan_balance_cny_yi": 10.8,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GBM-0070",
+    "name_masked": "某金融机构同业客户70（合成）",
+    "business_line": "GBM",
+    "segment": "金融机构同业",
+    "region": "SZ",
+    "loan_balance_cny_yi": 6.3,
+    "products": [
+      "银团贷款",
+      "债券承销"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-WPB-0071",
+    "name_masked": "某高净值个人客户71（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 2.7,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-WPB-0072",
+    "name_masked": "某跨境理财客户客户72（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 8.9,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-WPB-0073",
+    "name_masked": "某高净值个人客户73（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 6.2,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-WPB-0074",
+    "name_masked": "某跨境理财客户客户74（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 5.9,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-WPB-0075",
+    "name_masked": "某高净值个人客户75（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 1.8,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-WPB-0076",
+    "name_masked": "某跨境理财客户客户76（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 7.0,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-WPB-0077",
+    "name_masked": "某高净值个人客户77（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 1.7,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-WPB-0078",
+    "name_masked": "某跨境理财客户客户78（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 3.7,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-WPB-0079",
+    "name_masked": "某高净值个人客户79（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 9.4,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-WPB-0080",
+    "name_masked": "某跨境理财客户客户80（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 6.2,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-WPB-0081",
+    "name_masked": "某高净值个人客户81（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 5.4,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-WPB-0082",
+    "name_masked": "某跨境理财客户客户82（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 6.6,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-WPB-0083",
+    "name_masked": "某高净值个人客户83（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 8.0,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-WPB-0084",
+    "name_masked": "某跨境理财客户客户84（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 7.4,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-WPB-0085",
+    "name_masked": "某高净值个人客户85（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 2.3,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-WPB-0086",
+    "name_masked": "某跨境理财客户客户86（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 0.5,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-WPB-0087",
+    "name_masked": "某高净值个人客户87（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 3.1,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-WPB-0088",
+    "name_masked": "某跨境理财客户客户88（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 2.7,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-WPB-0089",
+    "name_masked": "某高净值个人客户89（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 2.2,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-WPB-0090",
+    "name_masked": "某跨境理财客户客户90（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 9.0,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-WPB-0091",
+    "name_masked": "某高净值个人客户91（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 8.4,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-WPB-0092",
+    "name_masked": "某跨境理财客户客户92（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 3.1,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-WPB-0093",
+    "name_masked": "某高净值个人客户93（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "HK",
+    "loan_balance_cny_yi": 6.3,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-WPB-0094",
+    "name_masked": "某跨境理财客户客户94（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "ZH",
+    "loan_balance_cny_yi": 3.9,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-WPB-0095",
+    "name_masked": "某高净值个人客户95（合成）",
+    "business_line": "WPB",
+    "segment": "高净值个人",
+    "region": "GD",
+    "loan_balance_cny_yi": 8.7,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-WPB-0096",
+    "name_masked": "某跨境理财客户客户96（合成）",
+    "business_line": "WPB",
+    "segment": "跨境理财客户",
+    "region": "SZ",
+    "loan_balance_cny_yi": 4.5,
+    "products": [
+      "跨境理财通",
+      "按揭"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GTB-0097",
+    "name_masked": "某进出口企业客户97（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 2.7,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GTB-0098",
+    "name_masked": "某跨境电商客户98（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 2.5,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GTB-0099",
+    "name_masked": "某进出口企业客户99（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 5.4,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-GTB-0100",
+    "name_masked": "某跨境电商客户100（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 2.6,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-GTB-0101",
+    "name_masked": "某进出口企业客户101（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 5.6,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-GTB-0102",
+    "name_masked": "某跨境电商客户102（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 8.5,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-GTB-0103",
+    "name_masked": "某进出口企业客户103（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 3.9,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-GTB-0104",
+    "name_masked": "某跨境电商客户104（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 2.2,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-GTB-0105",
+    "name_masked": "某进出口企业客户105（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 9.5,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-GTB-0106",
+    "name_masked": "某跨境电商客户106（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 4.9,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-GTB-0107",
+    "name_masked": "某进出口企业客户107（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 1.0,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-GTB-0108",
+    "name_masked": "某跨境电商客户108（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 0.6,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-GTB-0109",
+    "name_masked": "某进出口企业客户109（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 1.2,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GTB-0110",
+    "name_masked": "某跨境电商客户110（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 6.0,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo02"
+  },
+  {
+    "customer_id": "SYN-GTB-0111",
+    "name_masked": "某进出口企业客户111（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 7.6,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo03"
+  },
+  {
+    "customer_id": "SYN-GTB-0112",
+    "name_masked": "某跨境电商客户112（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 4.1,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo04"
+  },
+  {
+    "customer_id": "SYN-GTB-0113",
+    "name_masked": "某进出口企业客户113（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 0.8,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo05"
+  },
+  {
+    "customer_id": "SYN-GTB-0114",
+    "name_masked": "某跨境电商客户114（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 3.7,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo06"
+  },
+  {
+    "customer_id": "SYN-GTB-0115",
+    "name_masked": "某进出口企业客户115（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 9.5,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo07"
+  },
+  {
+    "customer_id": "SYN-GTB-0116",
+    "name_masked": "某跨境电商客户116（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 5.1,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo08"
+  },
+  {
+    "customer_id": "SYN-GTB-0117",
+    "name_masked": "某进出口企业客户117（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 9.2,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo09"
+  },
+  {
+    "customer_id": "SYN-GTB-0118",
+    "name_masked": "某跨境电商客户118（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 8.2,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo10"
+  },
+  {
+    "customer_id": "SYN-GTB-0119",
+    "name_masked": "某进出口企业客户119（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "HK",
+    "loan_balance_cny_yi": 0.3,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo11"
+  },
+  {
+    "customer_id": "SYN-GTB-0120",
+    "name_masked": "某跨境电商客户120（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "ZH",
+    "loan_balance_cny_yi": 6.9,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo12"
+  },
+  {
+    "customer_id": "SYN-GTB-0121",
+    "name_masked": "某进出口企业客户121（合成）",
+    "business_line": "GTB",
+    "segment": "进出口企业",
+    "region": "GD",
+    "loan_balance_cny_yi": 6.5,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo01"
+  },
+  {
+    "customer_id": "SYN-GTB-0122",
+    "name_masked": "某跨境电商客户122（合成）",
+    "business_line": "GTB",
+    "segment": "跨境电商",
+    "region": "SZ",
+    "loan_balance_cny_yi": 5.2,
+    "products": [
+      "信用证",
+      "保理"
+    ],
+    "relationship_manager": "rm.demo02"
+  }
+]

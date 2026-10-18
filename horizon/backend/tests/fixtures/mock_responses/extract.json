@@ -1,0 +1,28 @@
+{
+  "__default__": {
+    "title": "关于做好中小微企业贷款贴息工作的通知",
+    "issuing_bodies": ["广东省财政厅"],
+    "doc_number": "粤财金〔2026〕12号",
+    "published_at": "2026-10-10",
+    "effective_at": "2026-11-01",
+    "expiry_at": "2026-12-31",
+    "applicable_entities_text": "本通知适用于广东省内依法设立的政策性银行、国有大型商业银行、股份制商业银行、城市商业银行、农村商业银行及村镇银行",
+    "applicable_scope": "domestic_only",
+    "targets": [{"name": "政策性银行、国有大型商业银行、股份制商业银行、城市商业银行、农村商业银行及村镇银行", "category": "bank"}],
+    "amounts": [{"value": 500, "currency": "CNY", "unit": "万元", "description": "单个企业年度贴息上限", "quote": "单个企业年度贴息金额最高 500 万元"}],
+    "deadlines": [
+      {"date": "2026-11-01", "description": "贴息开始执行", "quote": "自 2026 年 11 月 1 日起执行"},
+      {"date": "2026-12-31", "description": "贴息截止", "quote": "至 2026 年 12 月 31 日止"}
+    ],
+    "obligations": [{"actor": "经办银行", "action": "直接抵扣企业应付利息", "condition": "企业无需另行申报", "quote": "贴息资金通过上述经办银行直接抵扣企业应付利息，企业无需另行申报"}],
+    "incentives": [{"beneficiary": "制造业中小微企业", "benefit": "按不超过 LPR 的 30% 给予贴息", "condition": "贷款符合条件", "quote": "对符合条件的制造业中小微企业贷款，按不超过 LPR 的 30% 给予贴息"}],
+    "themes": ["贷款与贴息"],
+    "summary_zh": "广东省对符合条件的制造业中小微企业贷款按不超过 LPR 的 30% 给予贴息，单户年度最高 500 万元；适用范围为广东省内依法设立的各类内资银行。",
+    "evidence": [
+      {"field": "applicable_scope", "quote": "本通知适用于广东省内依法设立的政策性银行、国有大型商业银行、股份制商业银行、城市商业银行、农村商业银行及村镇银行", "paragraph_index": 1},
+      {"field": "effective_at", "quote": "自 2026 年 11 月 1 日起执行", "paragraph_index": 3},
+      {"field": "amounts", "quote": "单个企业年度贴息金额最高 500 万元", "paragraph_index": 0}
+    ],
+    "confidence": 0.9
+  }
+}

@@ -1,0 +1,44 @@
+# 阿里云 ECS 生产 compose（10 §2 目标架构）
+# 用法：cp .env.production .env && docker compose -f deploy/docker-compose.prod.yml up -d
+# 安全组：仅 443 对办公网/VPN 开放；8000 只允许内网（见 deploy/runbook.md）
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - web
+      - api
+
+  web:
+    build:
+      context: ../frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://horizon.internal.example.com/api/v1}
+      HORIZON_API_KEY: ${API_KEY}
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      LLM_PROVIDER: ${LLM_PROVIDER:-dashscope}
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-oss}
+    volumes:
+      - horizon-storage:/data/storage
+    # 不暴露 8000 到公网；FC 定时触发走内网 + X-Job-Token
+    expose:
+      - "8000"
+
+volumes:
+  horizon-storage:

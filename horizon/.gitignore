@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+*.db
+*.db-wal
+*.db-shm
+storage/
+node_modules/
+.next/
+.npm-cache/
+.env
+.DS_Store

@@ -1,0 +1,10 @@
+storage
+__pycache__
+*.pyc
+*.db
+*.db-shm
+*.db-wal
+.venv
+*.egg-info
+tests
+.pytest_cache

@@ -1,0 +1,84 @@
+[
+  {
+    "code": "hkma_press",
+    "name": "香港金管局 · 新闻稿",
+    "org": "香港金融管理局",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "rss",
+    "url": "https://www.hkma.gov.hk/chi/other-information/rss/rss_press-release.xml",
+    "config": {"entry_page": "https://www.hkma.gov.hk/chi/news-and-media/press-releases/", "verified_at": "2026-10-17"},
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
+  },
+  {
+    "code": "hkma_circular",
+    "name": "香港金管局 · 指引及通告",
+    "org": "香港金融管理局",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "rss",
+    "url": "https://www.hkma.gov.hk/chi/other-information/rss/rss_circulars.xml",
+    "config": {"extra_channels": ["https://www.hkma.gov.hk/chi/other-information/rss/rss_guidelines.xml"], "verified_at": "2026-10-17"},
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
+  },
+  {
+    "code": "gia_today",
+    "name": "香港政府新闻公报",
+    "org": "香港特别行政区政府",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.info.gov.hk/gia/general/today.htm",
+    "config": {"item_url_regex": "/gia/general/\\d{6}/\\d{2}/P\\d+\\.htm", "max_pages": 1, "verified_at": "2026-10-17"},
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
+  },
+  {
+    "code": "newsgov_fin",
+    "name": "政府新闻网 · 财经频道",
+    "org": "香港特别行政区政府新闻处",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "rss",
+    "url": "https://www.news.gov.hk/tc/categories/finance/html/articlelist.rss.xml",
+    "config": {"rss_url_en": "https://www.news.gov.hk/en/categories/finance/html/articlelist.rss.xml", "verified_at": "2026-10-17"},
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
+  },
+  {
+    "code": "fstb",
+    "name": "财经事务及库务局 · 新闻公报",
+    "org": "财经事务及库务局",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.fstb.gov.hk/sc/news/press/index.php",
+    "config": {
+      "item_url_regex": "isd\\.gov\\.hk/TuniS//www\\.info\\.gov\\.hk/gia/general/\\d{6}/\\d{2}/P\\d+\\.htm",
+      "note": "链接经 ISD 繁简转换代理，canonicalize_url 已还原为 info.gov.hk 真实地址",
+      "verified_at": "2026-10-17"
+    },
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
+  },
+  {
+    "code": "gd_gov",
+    "name": "广东省人民政府 · 政策文件（粤府/粤府办等）",
+    "org": "广东省人民政府",
+    "jurisdiction": "GD",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.gd.gov.cn/zwgk/wjk/qbwj/",
+    "config": {
+      "item_url_regex": "/zwgk/wjk/qbwj/[a-z]+/content/post_\\d+\\.html",
+      "pagination_pattern": "index_{n}.html",
+      "max_pages": 2,
+      "note": "用例 1 来源；栏目 ybh/yf/yfb/yfh/yfl",
+      "verified_at": "2026-10-17"
+    },
+    "lang": "zh-Hans",
+    "poll_interval_min": 30
+  }
+]

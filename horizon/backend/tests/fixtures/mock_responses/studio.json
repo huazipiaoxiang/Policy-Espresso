@@ -1,0 +1,95 @@
+{
+  "__default__": {
+    "title": "大湾区金融政策 2.0 研讨建议书（mock）",
+    "disclaimer": "本文件由 AI 辅助生成，仅供内部研讨，未经政策与合规审核不得对外。",
+    "baseline": [
+      {"theme": "市场准入与牌照", "current_state": "CEPA 补充协议已取消港资金融机构在粤设立外资银行的资产规模要求", "key_instruments": ["《关于修订〈CEPA服务贸易协议〉的协议》二、金融领域开放"]},
+      {"theme": "跨境理财通", "current_state": "跨境理财通已建立闭环账户与额度管理机制", "key_instruments": ["《粤港澳大湾区\"跨境理财通\"业务试点实施细则》"]}
+    ],
+    "gaps": [
+      {"theme": "数据跨境", "gap": "大湾区银行跨境数据流动仍以标准合同与安全评估为主，缺少行业便利化安排", "benchmark": "新加坡金融数据跨境便利化安排（示例对标，来源待补）"}
+    ],
+    "proposals": [
+      {
+        "id": "P-01",
+        "theme": "市场准入与牌照",
+        "tier": "渐进",
+        "current_basis": [{"doc": "《关于修订〈CEPA服务贸易协议〉的协议》", "clause": "二、金融领域开放", "quote": "在粤港澳大湾区范围内，取消香港金融机构在广东设立外资银行、外资证券公司、外资保险公司的资产规模要求"}],
+        "non_conflict_argument": "延续既有开放方向，不新设准入负面清单外事项",
+        "draft_clause": "适用主体为香港持牌金融机构；条件为实缴资本与合规记录达标；程序为按现有设立审批通道办理；监管分工为地方金融管理部门初审、总局备案。",
+        "impact": {"on_hk": "巩固国际金融中心地位", "on_hsbc": "汇丰(中国)可扩大在大湾区布局", "on_industry": "提升大湾区金融供给密度"},
+        "risks": [{"risk": "局部竞争加剧", "mitigation": "错位发展跨境与财富业务", "likelihood": "mid"}],
+        "kpis": ["新设港资银行营业性机构数量", "大湾区外资银行资产规模增速"],
+        "precedents": ["CEPA 服务贸易协议既有开放条款"]
+      },
+      {
+        "id": "P-02",
+        "theme": "人民币国际化",
+        "tier": "渐进",
+        "current_basis": [{"doc": "《关于金融支持粤港澳大湾区建设的意见》", "clause": "二、跨境人民币业务", "quote": "支持大湾区内的银行开展跨境人民币贷款、贸易融资、资产转让业务"}],
+        "non_conflict_argument": "在既有跨境人民币试点框架内扩大品种",
+        "draft_clause": "适用主体为大湾区内地九市银行；条件为真实贸易背景；程序为按现行跨境人民币结算报送；监管分工为人民银行分支机构监测。",
+        "impact": {"on_hk": "扩大离岸人民币资金池", "on_hsbc": "贸易融资与现金管理业务增长", "on_industry": "降低企业汇兑成本"},
+        "risks": [{"risk": "跨境资金异常流动", "mitigation": "强化宏观审慎管理", "likelihood": "low"}],
+        "kpis": ["大湾区跨境人民币结算量", "参与银行数量"],
+        "precedents": ["跨境人民币结算试点"]
+      },
+      {
+        "id": "P-03",
+        "theme": "债券与资本市场",
+        "tier": "渐进",
+        "current_basis": [{"doc": "《关于金融支持粤港澳大湾区建设的意见》", "clause": "三、资本市场互联互通", "quote": "推动大湾区债券市场互联互通，支持符合条件的大湾区企业在香港上市融资"}],
+        "non_conflict_argument": "延续债券通与互联互通机制",
+        "draft_clause": "适用主体为符合条件的大湾区企业与金融机构；条件为信息披露达标；程序为按现行上市审核；监管分工为两地监管机构按既有备忘录合作。",
+        "impact": {"on_hk": "提升债市与股票市场深度", "on_hsbc": "债券承销与托管业务机会", "on_industry": "拓宽融资渠道"},
+        "risks": [{"risk": "市场波动传导", "mitigation": "完善跨境监管协同", "likelihood": "mid"}],
+        "kpis": ["大湾区企业赴港上市家数", "债券通年交易量"],
+        "precedents": ["深港通、债券通"]
+      },
+      {
+        "id": "P-04",
+        "theme": "跨境理财通",
+        "tier": "渐进",
+        "current_basis": [{"doc": "《粤港澳大湾区\"跨境理财通\"业务试点实施细则》", "clause": "一、试点范围", "quote": "支持粤港澳大湾区居民个人跨境投资理财，建立跨境理财通机制"}],
+        "non_conflict_argument": "在试点框架内优化产品与额度机制",
+        "draft_clause": "适用主体为大湾区内地九市符合条件的居民；条件为完成风险测评；程序为通过闭环账户办理；监管分工为三地监管机构按现有协调机制。",
+        "impact": {"on_hk": "巩固财富管理枢纽", "on_hsbc": "WPB 跨境理财业务增长", "on_industry": "丰富居民资产配置"},
+        "risks": [{"risk": "投资者适当性执行不到位", "mitigation": "强化销售端合规检查", "likelihood": "mid"}],
+        "kpis": ["跨境理财通参与人数", "南北向通资金规模"],
+        "precedents": ["跨境理财通 2024 年优化措施"]
+      },
+      {
+        "id": "P-05",
+        "theme": "专业资格互认",
+        "tier": "渐进",
+        "current_basis": [{"doc": "《内地与香港关于建立更紧密经贸关系的安排》主协议", "clause": "第十八条 专业资格互认", "quote": "双方鼓励双方专业机构在共同确定的专业领域开展资格互认合作"}],
+        "non_conflict_argument": "延续 CEPA 资格互认授权框架",
+        "draft_clause": "适用主体为两地共同认可的专业机构；条件为建立统一能力标准；程序为机构间协议加主管部门备案；监管分工为两地专业主管部门。",
+        "impact": {"on_hk": "专业服务输出扩大", "on_hsbc": "人才流动便利", "on_industry": "提升服务贸易规模"},
+        "risks": [{"risk": "标准差异引发争议", "mitigation": "先试点后推广", "likelihood": "low"}],
+        "kpis": ["互认专业领域数量", "互认资格持证人数"],
+        "precedents": ["建筑、会计、法律领域既有互认"]
+      },
+      {
+        "id": "P-06",
+        "theme": "跨境理财通",
+        "tier": "突破",
+        "current_basis": [{"doc": "《粤港澳大湾区\"跨境理财通\"业务试点实施细则》", "clause": "二、额度管理", "quote": "个体额度暂定为人民币 100 万元"}],
+        "non_conflict_argument": "额度调整属试点优化事项，但突破现行上限需监管评估，故列突破档",
+        "draft_clause": "建议研究在风险可控前提下突破现行个体额度上限：适用主体为符合更高资产门槛的投资者；条件为完成进阶风险测评；程序为监管专项评估后分步实施；监管分工为三地监管机构联合审议。",
+        "impact": {"on_hk": "扩大南向通资金规模", "on_hsbc": "高净值客户业务增长", "on_industry": "提升市场深度"},
+        "risks": [{"risk": "跨境资金流动规模超预期", "mitigation": "设置动态额度与熔断机制", "likelihood": "high"}],
+        "kpis": ["南向通月均资金净流入", "高净值客户覆盖率"],
+        "precedents": ["额度历次优化先例"]
+      }
+    ],
+    "boundary_check": [
+      {"proposal_id": "P-01", "status": "pass", "issue": "", "suggestion": ""},
+      {"proposal_id": "P-02", "status": "pass", "issue": "", "suggestion": ""},
+      {"proposal_id": "P-03", "status": "pass", "issue": "", "suggestion": ""},
+      {"proposal_id": "P-04", "status": "pass", "issue": "", "suggestion": ""},
+      {"proposal_id": "P-05", "status": "pass", "issue": "", "suggestion": ""},
+      {"proposal_id": "P-06", "status": "warn", "issue": "建议突破现行个体额度上限，属试点突破事项", "suggestion": "需三地监管机构专项评估并明确立法/审批程序后方可推进"}
+    ]
+  }
+}

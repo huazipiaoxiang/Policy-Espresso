@@ -1,0 +1,32 @@
+{
+  "__default__": {
+    "scores": {
+      "relevance": {"score": 5, "reason": "直接涉及大湾区制造业贷款贴息，汇丰(中国)有对应产品", "evidence_ids": []},
+      "exposure": {"score": 4, "reason": "CMB 大湾区制造业贷款余额约 12.4 亿（合成数据）", "evidence_ids": []},
+      "urgency": {"score": 5, "reason": "2026-11-01 生效，距今约 14 天", "evidence_ids": []},
+      "certainty": {"score": 5, "reason": "已正式印发，非征求意见稿", "evidence_ids": []},
+      "actionability": {"score": 4, "reason": "可在生效前完成客户沟通与定价方案", "evidence_ids": []},
+      "differential": {"score": 5, "reason": "适用主体限内资银行，外资行被排除", "evidence_ids": []},
+      "compliance": {"score": 2, "reason": "无额外报备要求", "evidence_ids": []}
+    },
+    "direction": "negative",
+    "transmission_chain": [
+      "贴息仅覆盖内资行 → 内资行实际融资成本低约 50-100bps",
+      "→ 价格敏感型制造业客户比价",
+      "→ 汇丰(中国)大湾区 CMB 贷款续作率下降",
+      "→ 利息收入与客户关系双损失"
+    ],
+    "affected": {
+      "business_lines": ["CMB", "GTB"],
+      "segments": ["大湾区制造业中小微企业", "有跨境结算需求的外贸客户"],
+      "exposure_range": {"low": 7.4, "high": 14.9, "currency": "CNY", "unit": "亿", "basis": "合成数据集口径：18 户符合贴息条件客群贷款余额合计 12.4 亿元，区间取 0.6–1.2 倍", "confidence": 0.5}
+    },
+    "recommended_actions": [
+      {"owner": "CMB 大湾区团队", "action": "72 小时内对 Top 50 客户做定向沟通，说明综合服务价值", "deadline": "2026-10-20"},
+      {"owner": "公共事务", "action": "通过行业协会反馈外资行纳入诉求，参考 2023 年先例", "deadline": "2026-11-15"}
+    ],
+    "case_links": [{"case_id": "c_gd_2023", "similarity": 0.91, "takeaway": "同类政策曾导致数十亿贷款流失，推动纳入后扭转"}],
+    "unknowns": ["缺真实客户敞口与同业定价数据", "缺市级配套细则信息"],
+    "confidence": 0.78
+  }
+}

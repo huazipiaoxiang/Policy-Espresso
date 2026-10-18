@@ -1,0 +1,8 @@
+# CodeBuddy 会话记忆（敏感，不提交）
+.ai-memory/
+
+# macOS
+.DS_Store
+
+# 项目压缩包备份
+horizon/horizon.zip

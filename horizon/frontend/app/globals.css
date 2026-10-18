@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CURE Design Token（docs/08 §1.1）：深色默认，dark class 切换 */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #fbfbfa;
+  --border: #e4e4e0;
+  --border-strong: #d0d0cb;
+  --text: #1a1a18;
+  --text-2: #5f5f5a;
+  --text-3: #8a8a84;
+  --accent: #0e7490;
+  --accent-weak: rgba(14, 116, 144, 0.08);
+  --p0: #d92d20;
+  --p1: #c2410c;
+  --p2: #a16207;
+  --p3: #64748b;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b91c1c;
+  --info: #1d4ed8;
+}
+
+.dark {
+  --bg: #0d0f12;
+  --surface: #14171c;
+  --surface-2: #1a1e24;
+  --border: #262b33;
+  --border-strong: #343a44;
+  --text: #e7e9ec;
+  --text-2: #9aa2ac;
+  --text-3: #6b7480;
+  --accent: #22d3ee;
+  --accent-weak: rgba(34, 211, 238, 0.12);
+  --p0: #ff4d4f;
+  --p1: #ff9f43;
+  --p2: #eab308;
+  --p3: #64748b;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 深色模式不用阴影，用边框分层（08 §1.4） */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.section-label {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

@@ -1,0 +1,10 @@
+{
+  "__default__": {
+    "is_financial_policy": true,
+    "policy_type": "circular",
+    "jurisdictions": ["GD"],
+    "themes": ["贷款与贴息"],
+    "reason": "制造业贷款贴息政策，涉及银行经办范围",
+    "confidence": 0.95
+  }
+}
