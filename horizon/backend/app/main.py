@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import (
-    alerts, analytics, audit, business_map, cases, documents, health, internal, jobs, policies, review, settings, sources, stream, studio,
+    alerts, analytics, audit, business_map, cases, chat, documents, health, internal, jobs, policies, review, settings, sources, stream, studio,
 )
 from app.core.config import get_settings
 from app.core.errors import ApiError, api_error_handler
@@ -53,3 +53,4 @@ app.include_router(studio.router, prefix="/api/v1")
 app.include_router(stream.router, prefix="/api/v1")
 app.include_router(internal.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")

@@ -1,5 +1,6 @@
 import KpiStat from "@/components/KpiStat";
 import PolicyList from "@/components/PolicyList";
+import RadarClient from "@/components/RadarClient";
 import Topbar from "@/components/Topbar";
 import { getOverview } from "@/lib/api";
 
@@ -8,7 +9,7 @@ export default async function RadarPage() {
   const overview = await getOverview();
 
   return (
-    <>
+    <RadarClient>
       <Topbar
         sourcesTotal={overview?.sources_total ?? 0}
         sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
@@ -46,6 +47,6 @@ export default async function RadarPage() {
           </aside>
         </div>
       </main>
-    </>
+    </RadarClient>
   );
 }
