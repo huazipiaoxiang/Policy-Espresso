@@ -1,13 +1,11 @@
-import EmptyState from "@/components/EmptyState";
 import KpiStat from "@/components/KpiStat";
-import PolicyRow from "@/components/PolicyRow";
+import PolicyList from "@/components/PolicyList";
 import Topbar from "@/components/Topbar";
-import { getOverview, getPolicies } from "@/lib/api";
+import { getOverview } from "@/lib/api";
 
-// 雷达总览（08 §3.1）：KPI 条 + 政策流 + 侧栏（待审队列/数据源健康）
+// 雷达总览（08 §3.1）：KPI 条 + 政策流（分页） + 侧栏（待审队列/数据源健康）
 export default async function RadarPage() {
-  const [overview, policies] = await Promise.all([getOverview(), getPolicies()]);
-  const items = policies?.items ?? [];
+  const overview = await getOverview();
 
   return (
     <>
@@ -20,7 +18,7 @@ export default async function RadarPage() {
         <section className="flex gap-4">
           <KpiStat label="今日新增" value={overview?.today_new ?? 0} hint="vs 昨日 —" />
           <KpiStat label="待审" value={overview?.pending_review ?? 0} hint="0 项超 SLA" tone="accent" />
-          <KpiStat label="P0 / P1" value={overview?.p0_p1_open ?? 0} hint="未闭环" tone="danger" />
+          <KpiStat label="P0 / P1" value={overview?.p0_p1_open ?? 0} hint="未完成" tone="danger" />
           <KpiStat
             label="平均响应"
             value={overview?.avg_response_min != null ? `${overview.avg_response_min}min` : "—"}
@@ -29,24 +27,7 @@ export default async function RadarPage() {
         </section>
 
         <div className="mt-4 grid grid-cols-12 gap-4">
-          <section className="card col-span-8">
-            <div className="flex h-10 items-center justify-between border-b border-[var(--border)] px-3">
-              <span className="section-label">政策流 · 按优先级</span>
-              <span className="text-[11px] text-[var(--text-3)]">{items.length} 条</span>
-            </div>
-            {items.length === 0 ? (
-              <div className="p-6">
-                <EmptyState
-                  title="暂无新增政策"
-                  hint="最近一次抓取：—（Phase 1 接入 6 个数据源后此处展示政策流）"
-                  action="下一步：make seed && make crawl"
-                />
-              </div>
-            ) : (
-              items.map((p) => <PolicyRow key={p.id} policy={p} />)
-            )}
-          </section>
-
+          <PolicyList />
           <aside className="col-span-4 space-y-4">
             <div className="card p-3">
               <div className="section-label">待审队列</div>

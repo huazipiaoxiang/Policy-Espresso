@@ -33,7 +33,7 @@ app = FastAPI(title="HORIZON 政策雷达", version="0.1.0", lifespan=lifespan)
 app.add_exception_handler(ApiError, api_error_handler)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
