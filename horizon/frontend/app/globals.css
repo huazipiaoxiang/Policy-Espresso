@@ -2,25 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CURE Design Token（docs/08 §1.1）：深色默认，dark class 切换 */
+/* HORIZON Design Tokens — HSBC Red Theme (aligned with Policy Espresso V8.4 prototype) */
 :root {
-  --bg: #f7f7f5;
+  --bg: #f7f8fa;
   --surface: #ffffff;
-  --surface-2: #fbfbfa;
-  --border: #e4e4e0;
-  --border-strong: #d0d0cb;
-  --text: #1a1a18;
-  --text-2: #5f5f5a;
-  --text-3: #8a8a84;
-  --accent: #0e7490;
-  --accent-weak: rgba(14, 116, 144, 0.08);
-  --p0: #d92d20;
-  --p1: #c2410c;
+  --surface-2: #f2f3f5;
+  --border: #e5e6e9;
+  --border-strong: #d0d2d6;
+  --text: #25272b;
+  --text-2: #555b64;
+  --text-3: #727780;
+  --accent: #db0011;
+  --accent-weak: rgba(219, 0, 17, 0.08);
+  --p0: #db0011;
+  --p1: #a66b1c;
   --p2: #a16207;
   --p3: #64748b;
-  --ok: #15803d;
-  --warn: #b45309;
-  --danger: #b91c1c;
+  --ok: #1b7755;
+  --warn: #a66b1c;
+  --danger: #db0011;
   --info: #1d4ed8;
 }
 
@@ -33,8 +33,8 @@
   --text: #e7e9ec;
   --text-2: #9aa2ac;
   --text-3: #6b7480;
-  --accent: #22d3ee;
-  --accent-weak: rgba(34, 211, 238, 0.12);
+  --accent: #ff4d4f;
+  --accent-weak: rgba(255, 77, 79, 0.12);
   --p0: #ff4d4f;
   --p1: #ff9f43;
   --p2: #eab308;

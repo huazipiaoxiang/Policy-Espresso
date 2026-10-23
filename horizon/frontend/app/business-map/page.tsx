@@ -1,5 +1,4 @@
 import HeatmapMatrix from "@/components/HeatmapMatrix";
-import Topbar from "@/components/Topbar";
 import { getBusinessMap, getOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +8,7 @@ export default async function BusinessMapPage() {
   const [overview, data] = await Promise.all([getOverview(), getBusinessMap()]);
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2">
           <h1 className="text-[16px] font-semibold">业务图谱</h1>
           <span className="text-[12px] text-[var(--text-3)]">
@@ -44,6 +37,5 @@ export default async function BusinessMapPage() {
           <div className="card p-8 text-center text-[12px] text-[var(--text-3)]">API 未连接</div>
         )}
       </main>
-    </>
   );
 }

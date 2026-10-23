@@ -60,13 +60,22 @@ const REASON_CODES = [
 ];
 
 // 审核台（08 §3.3）：左列表 + 右详情；J/K 移动，Enter 打开，a 通过，x 驳回
+const TABS = [
+  { value: "my", label: "我的任务" },
+  { value: "all", label: "全部记录" },
+  { value: "second", label: "待复审" },
+  { value: "supervisor", label: "待主管签批" },
+  { value: "completed", label: "已完成" },
+];
+
 export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTaskItem[] }) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState("my");
   const [tasks, setTasks] = useState(initialTasks);
   const [activeId, setActiveId] = useState(initialTasks[0]?.id ?? "");
   const [detail, setDetail] = useState<ReviewTaskDetail | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [reasonCode, setReasonCode] = useState("insufficient_evidence");
+  const [reasonCode, setReasonCode] = useState("insufficient_e_evidence");
   const [note, setNote] = useState("");
   const [toast, setToast] = useState("");
 
@@ -150,6 +159,21 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
         <div className="flex h-10 items-center border-b border-[var(--border)] px-3">
           <span className="section-label">待审（{tasks.length}）</span>
           <span className="ml-auto text-[10px] text-[var(--text-3)]">J/K 切换</span>
+        </div>
+        <div className="flex border-b border-[var(--border)]">
+          {TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`flex-1 px-2 py-2 text-[11px] transition ${
+                activeTab === tab.value
+                  ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
+                  : "text-[var(--text-3)] hover:text-[var(--text-2)]"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
         <ul className="max-h-[560px] overflow-y-auto">
           {tasks.map((t) => (

@@ -6,7 +6,7 @@ import Pagination from "@/components/Pagination";
 import PolicyRow from "@/components/PolicyRow";
 import type { PolicyItem } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8001/api/v1";
 const API_KEY = process.env.HORIZON_API_KEY ?? "dev-local-key";
 const PAGE_SIZE = 20;
 

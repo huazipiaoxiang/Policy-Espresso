@@ -17,13 +17,22 @@ router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(
 def list_policies(
     page: int = 1,
     page_size: int = 20,
+    q: str | None = None,
     status: str | None = None,
     priority: str | None = None,
     jurisdiction: str | None = None,
     theme: str | None = None,
+    scope: str | None = None,
     db: Session = Depends(get_db),
 ):
     stmt = select(Policy).order_by(Policy.published_at.desc().nullslast())
+    if q:
+        search_pattern = f"%{q}%"
+        stmt = stmt.where(
+            (Policy.title.ilike(search_pattern)) |
+            (Policy.issuing_body.ilike(search_pattern)) |
+            (Policy.summary_zh.ilike(search_pattern))
+        )
     if status:
         stmt = stmt.where(Policy.status == status)
     if priority:
@@ -32,6 +41,8 @@ def list_policies(
         stmt = stmt.where(Policy.jurisdiction == jurisdiction)
     if theme:
         stmt = stmt.where(Policy.themes.contains(theme))
+    if scope:
+        stmt = stmt.where(Policy.target_entity_status == scope)
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()
     total = db.query(Policy).count()
     return Page(items=items, total=total, page=page, page_size=page_size)
@@ -123,3 +134,17 @@ def dispatch_policy(policy_id: str, db: Session = Depends(get_db), actor: str = 
     from app.domain import review as review_domain
 
     return review_domain.dispatch_policy(db, policy_id, actor=actor)
+
+
+@router.post("/{policy_id}/restore")
+def restore_policy(policy_id: str, db: Session = Depends(get_db), actor: str = Depends(require_api_key)):
+    """恢复低相关政策：target_entity_status → high，status → pending_review。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    if policy.target_entity_status not in ("low", "excluded"):
+        raise ApiError("NOT_LOW", "该政策非低相关性", 422)
+    policy.target_entity_status = "high"
+    policy.status = "pending_review"
+    db.commit()
+    return {"status": "ok", "policy_id": policy.id, "target_entity_status": policy.target_entity_status, "policy_status": policy.status}

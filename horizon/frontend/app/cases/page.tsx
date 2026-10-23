@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Topbar from "@/components/Topbar";
 import { getCases, getOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -23,13 +22,7 @@ export default async function CasesPage({ searchParams }: { searchParams: { q?: 
   const items = cases?.items ?? [];
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <form className="mb-4 flex items-center gap-2" action="/cases">
           <input
             name="q"
@@ -74,6 +67,5 @@ export default async function CasesPage({ searchParams }: { searchParams: { q?: 
           )}
         </div>
       </main>
-    </>
   );
 }

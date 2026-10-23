@@ -34,7 +34,7 @@ from app.domain import scoring, state_machine
 from app.domain.business_map import slice_for_themes
 from app.domain.case_match import match_cases
 from app.domain.exposure import aggregate_exposure
-from app.domain.scope_rules import detect_scope, entity_status_from_scope
+from app.domain.scope_rules import detect_scope, entity_relevance_from_scope
 
 log = get_logger("jobs.analyze")
 
@@ -104,7 +104,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
 
     # ---- P3 适用范围（规则 + LLM 双通道）----
     rule = detect_scope(doc.content_text)
-    rule_hint = f"规则通道建议：{rule.suggestion}；命中：{[h.quote for h in rule.hits[:5]]}"
+    rule_hint = f"规则通道建议：{rule.relevance}；命中：{[h.quote for h in rule.hits[:5]]}"
     scope = ScopeChain(provider).run(content_text=doc.content_text, rule_hint=rule_hint)
     _log_llm(db, scope, provider_name)
     db.commit()
@@ -156,20 +156,20 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         ))
 
     # 适用范围判定入库（每实体一行；规则/LLM 冲突记 conflict）
-    entity_status: dict[str, str] = {}
+    entity_relevance: dict[str, str] = {}
     llm_by_entity = {r["entity_id"]: r for r in s.get("results", []) if r.get("entity_id") in ("hsbc_hk", "hsbc_cn")}
     for entity_id in ("hsbc_hk", "hsbc_cn"):
         llm_r = llm_by_entity.get(entity_id)
-        llm_result = (llm_r or {}).get("result", "not_mentioned")
-        rule_result = entity_status_from_scope(entity_id, rule.suggestion)
-        conflict = bool(rule.hits) and llm_result != rule_result
+        llm_relevance = (llm_r or {}).get("relevance", "not_mentioned")
+        rule_relevance = entity_relevance_from_scope(entity_id, rule.relevance)
+        conflict = bool(rule.hits) and llm_relevance != rule_relevance
         db.add(ScopeJudgement(
-            policy_id=policy.id, entity_id=entity_id, result=llm_result,
+            policy_id=policy.id, entity_id=entity_id, result=llm_relevance,
             rule_hits=[{"category": h.category, "quote": h.quote,
                         "span_start": h.span_start, "span_end": h.span_end} for h in rule.hits],
             llm_reason=(llm_r or {}).get("reason", ""), conflict=conflict,
         ))
-        entity_status[entity_id] = llm_result
+        entity_relevance[entity_id] = llm_relevance
 
     # scope 链路证据入库（field=scope.{entity}）
     for r in s.get("results", []):
@@ -182,7 +182,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
                 ))
 
     primary = "hsbc_hk" if jurisdiction in ("HK", "MO") else "hsbc_cn"
-    policy.target_entity_status = entity_status.get(primary, "not_mentioned")
+    policy.target_entity_status = entity_relevance.get(primary, "not_mentioned")
     policy.foreign_bank_differential = bool(s.get("foreign_bank_differential"))
     policy.group_affiliate_mention = s.get("group_affiliate_mention") or rule.group_affiliate_mention
 
@@ -204,7 +204,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         "incentives": policy.incentives, "summary_zh": policy.summary_zh,
     }
     scope_judgement = {
-        "entity_status": entity_status,
+        "entity_relevance": entity_relevance,
         "foreign_bank_differential": policy.foreign_bank_differential,
         "differential_note": s.get("differential_note", ""),
         "group_affiliate_mention": policy.group_affiliate_mention,

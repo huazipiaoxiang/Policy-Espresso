@@ -1,6 +1,5 @@
 import Link from "next/link";
 import EmptyState from "@/components/EmptyState";
-import Topbar from "@/components/Topbar";
 import { getCase } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +9,9 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
   const item = await getCase(params.id);
   if (!item) {
     return (
-      <>
-        <Topbar />
-        <main className="mx-auto max-w-content px-6 pt-[72px]">
-          <EmptyState title="案例不存在或 API 未连接" hint="请确认后端已启动" action="返回案例库" />
-        </main>
-      </>
+      <main className="mx-auto max-w-content px-6 py-6">
+        <EmptyState title="案例不存在或 API 未连接" hint="请确认后端已启动" action="返回案例库" />
+      </main>
     );
   }
 
@@ -26,9 +22,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
   ];
 
   return (
-    <>
-      <Topbar />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2 text-[12px] text-[var(--text-3)]">
           <Link href="/cases" className="hover:text-[var(--text-2)]">案例库</Link>
           <span>/</span>
@@ -77,6 +71,5 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
           )}
         </article>
       </main>
-    </>
   );
 }

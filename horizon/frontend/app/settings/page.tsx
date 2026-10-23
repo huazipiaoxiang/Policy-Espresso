@@ -1,4 +1,3 @@
-import Topbar from "@/components/Topbar";
 import { getSettings, getOverview, type SystemSettings } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -40,28 +39,19 @@ export default async function SettingsPage() {
 
   if (!settings) {
     return (
-      <>
-        <Topbar />
-        <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
-          <h1 className="text-[16px] font-semibold">设置</h1>
-          <div className="card mt-3 p-8 text-center text-[12px] text-[var(--text-3)]">
-            无法加载系统设置（后端未就绪或鉴权失败）。请确认 API 已启动并配置 HORIZON_API_KEY。
-          </div>
-        </main>
-      </>
+      <main className="mx-auto max-w-content px-6 pb-10 py-6">
+        <h1 className="text-[16px] font-semibold">设置</h1>
+        <div className="card mt-3 p-8 text-center text-[12px] text-[var(--text-3)]">
+          无法加载系统设置（后端未就绪或鉴权失败）。请确认 API 已启动并配置 HORIZON_API_KEY。
+        </div>
+      </main>
     );
   }
 
   const dbOk = settings.runtime.db === "ok";
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2">
           <h1 className="text-[16px] font-semibold">设置</h1>
           <span className="text-[12px] text-[var(--text-3)]">
@@ -117,6 +107,5 @@ export default async function SettingsPage() {
           </Card>
         </div>
       </main>
-    </>
   );
 }

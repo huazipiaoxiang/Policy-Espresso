@@ -1,7 +1,5 @@
 import Link from "next/link";
 import PolicyTable from "@/components/PolicyTable";
-import Topbar from "@/components/Topbar";
-import { getOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,41 +7,41 @@ const FILTERS: { label: string; href: string }[] = [
   { label: "全部", href: "/policies" },
   { label: "待审", href: "/policies?status=pending_review" },
   { label: "P0/P1", href: "/policies?priority=P0" },
+  { label: "低相关", href: "/policies?scope=low" },
 ];
 
-// 政策列表（08 §3.2 的入口）
+// 政策库 — 基于 Policy Espresso V8.4 原型
 export default async function PoliciesPage({
   searchParams,
 }: {
-  searchParams: { status?: string; priority?: string };
+  searchParams: { status?: string; priority?: string; scope?: string };
 }) {
-  const overview = await getOverview();
-
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
-        <div className="mb-3 flex items-center gap-2">
-          <h1 className="text-[16px] font-semibold">政策库</h1>
-          <div className="ml-auto flex gap-1.5">
-            {FILTERS.map((f) => (
-              <Link
-                key={f.label}
-                href={f.href}
-                className="rounded-btn border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-2)] hover:text-[var(--text)]"
-              >
-                {f.label}
-              </Link>
-            ))}
-          </div>
+    <main className="mx-auto max-w-content px-6 py-6">
+      <div className="mb-4 flex items-start justify-between">
+        <div>
+          <div className="text-[11px] font-semibold tracking-wider text-[var(--accent)] uppercase">Policy Repository</div>
+          <h1 className="text-[28px] font-bold tracking-tight mt-1">政策库</h1>
+          <p className="text-[13px] text-[var(--text-3)] mt-1">所有已采集政策记录，含排除、异常与未评估项</p>
         </div>
+        <div className="flex gap-1.5">
+          {FILTERS.map((f) => (
+            <Link
+              key={f.label}
+              href={f.href}
+              className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] text-[var(--text-2)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
+            >
+              {f.label}
+            </Link>
+          ))}
+        </div>
+      </div>
 
-        <PolicyTable initialStatus={searchParams.status} initialPriority={searchParams.priority} />
-      </main>
-    </>
+      <PolicyTable
+        initialStatus={searchParams.status}
+        initialPriority={searchParams.priority}
+        initialScope={searchParams.scope}
+      />
+    </main>
   );
 }

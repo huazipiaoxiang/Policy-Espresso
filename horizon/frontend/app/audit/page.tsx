@@ -1,4 +1,3 @@
-import Topbar from "@/components/Topbar";
 import { getAudit, getOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +25,7 @@ export default async function AuditPage() {
   const items = audit?.items ?? [];
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2">
           <h1 className="text-[16px] font-semibold">审计日志</h1>
           <span className="text-[12px] text-[var(--text-3)]">共 {audit?.total ?? 0} 条（只追加，保留 ≥7 年）</span>
@@ -83,6 +76,5 @@ export default async function AuditPage() {
           </table>
         </div>
       </main>
-    </>
   );
 }

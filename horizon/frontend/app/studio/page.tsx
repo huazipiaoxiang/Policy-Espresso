@@ -1,6 +1,5 @@
 import StudioConsole from "@/components/StudioConsole";
 import StudioCreateForm from "@/components/StudioCreateForm";
-import Topbar from "@/components/Topbar";
 import { getCorpus, getOverview, getProposal, getStudioProjects, getStudioProposals } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -25,13 +24,7 @@ export default async function StudioPage() {
   }
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2">
           <h1 className="text-[16px] font-semibold">政策 2.0 工作台</h1>
           <span className="text-[12px] text-[var(--text-3)]">CEPA 主题语料 → 条款演化 → 建议书生成 → 边界校验 → 双审</span>
@@ -50,6 +43,5 @@ export default async function StudioPage() {
           )}
         </div>
       </main>
-    </>
   );
 }

@@ -1,4 +1,3 @@
-import Topbar from "@/components/Topbar";
 import { getOverview } from "@/lib/api";
 import { getSources } from "@/lib/api";
 
@@ -18,13 +17,7 @@ export default async function SourcesPage() {
   };
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 flex items-center gap-2">
           <h1 className="text-[16px] font-semibold">数据源健康</h1>
           <span className="text-[12px] text-[var(--text-3)]">
@@ -81,6 +74,5 @@ export default async function SourcesPage() {
           </table>
         </div>
       </main>
-    </>
   );
 }

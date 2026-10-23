@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import Topbar from "@/components/Topbar";
 import { getDocument, getVersionDiff } from "@/lib/api";
 import type { DiffItem } from "@/lib/api";
 
@@ -45,9 +44,7 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
   const diffs = await Promise.all(doc.versions.map((v) => getVersionDiff(doc.id, v.version_no)));
 
   return (
-    <>
-      <Topbar />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <div className="mb-3 text-[12px] text-[var(--text-3)]">
           <Link href="/documents" className="hover:text-[var(--text)]">
             ← 文档流
@@ -123,6 +120,5 @@ export default async function DocumentDetailPage({ params }: { params: Promise<{
           </pre>
         </section>
       </main>
-    </>
   );
 }

@@ -1,4 +1,3 @@
-import Topbar from "@/components/Topbar";
 import { getAlerts, getOverview } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -9,13 +8,7 @@ export default async function AlertsPage() {
   const items = alerts?.items ?? [];
 
   return (
-    <>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
+    <main className="mx-auto max-w-content px-6 pb-10 py-6">
         <h1 className="mb-3 text-[16px] font-semibold">预警分发</h1>
         <div className="space-y-3">
           {items.map((a) => (
@@ -47,6 +40,5 @@ export default async function AlertsPage() {
           )}
         </div>
       </main>
-    </>
   );
 }

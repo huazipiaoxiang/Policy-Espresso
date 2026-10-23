@@ -1,7 +1,6 @@
 import KpiStat from "@/components/KpiStat";
 import PolicyList from "@/components/PolicyList";
 import RadarClient from "@/components/RadarClient";
-import Topbar from "@/components/Topbar";
 import { getOverview } from "@/lib/api";
 
 // 雷达总览（08 §3.1）：KPI 条 + 政策流（分页） + 侧栏（待审队列/数据源健康）
@@ -10,13 +9,14 @@ export default async function RadarPage() {
 
   return (
     <RadarClient>
-      <Topbar
-        sourcesTotal={overview?.sources_total ?? 0}
-        sourcesUnhealthy={overview?.sources_unhealthy ?? 0}
-        pendingReview={overview?.pending_review ?? 0}
-      />
-      <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
-        <section className="flex gap-4">
+      <main className="mx-auto max-w-content px-6 py-6">
+        <div className="mb-4">
+          <div className="text-[11px] font-semibold tracking-wider text-[var(--accent)] uppercase">Overview</div>
+          <h1 className="text-[28px] font-bold tracking-tight mt-1">总览 Dashboard</h1>
+          <p className="text-[13px] text-[var(--text-3)] mt-1">政策管线状态、待办任务与异常概览</p>
+        </div>
+
+        <section className="grid grid-cols-4 gap-4">
           <KpiStat label="今日新增" value={overview?.today_new ?? 0} hint="vs 昨日 —" />
           <KpiStat label="待审" value={overview?.pending_review ?? 0} hint="0 项超 SLA" tone="accent" />
           <KpiStat label="P0 / P1" value={overview?.p0_p1_open ?? 0} hint="未完成" tone="danger" />
