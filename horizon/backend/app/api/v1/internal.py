@@ -24,7 +24,7 @@ def trigger_crawl(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    """FC 定时抓取入口（30min）。ECS 内 APScheduler 与 FC 二选一，避免双跑。"""
+    """FC 每日抓取并分析入口；与 APScheduler 双触发时按日幂等。"""
     _check_token(x_job_token, settings)
     crawl_all()
     return {"status": "ok", "job": "crawl_all"}
@@ -36,7 +36,7 @@ def trigger_analyze(
     db: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    """FC 定时分析入口（5min）。"""
+    """手动/FC 补偿分析入口；文档级原子认领避免重复分析。"""
     from app.jobs.scheduler import analyze_all_pending
 
     _check_token(x_job_token, settings)

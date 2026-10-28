@@ -10,6 +10,8 @@ sys.path.insert(0, str(BACKEND_DIR))
 os.environ.setdefault("DATABASE_URL", f"sqlite:///{BACKEND_DIR}/tests/test_horizon.db")
 os.environ.setdefault("LLM_PROVIDER", "mock")
 os.environ.setdefault("API_KEY", "test-key")
+# 本地 backend/.env 可能开启离线规则兜底；测试按用例显式切换该开关，这里统一归零保证确定性。
+os.environ["LLM_OFFLINE_RULES"] = "false"
 
 TEST_DB = BACKEND_DIR / "tests" / "test_horizon.db"
 
@@ -19,6 +21,9 @@ def _fresh_db():
     if TEST_DB.exists():
         TEST_DB.unlink()
     yield
+    from app.db.session import engine
+
+    engine.dispose()
     if TEST_DB.exists():
         TEST_DB.unlink()
 
@@ -39,7 +44,9 @@ def client():
     from app.db.session import engine
     from app.main import app
 
+    Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     with TestClient(app) as c:
         c.headers.update({"X-API-Key": "test-key"})
         yield c
+    engine.dispose()

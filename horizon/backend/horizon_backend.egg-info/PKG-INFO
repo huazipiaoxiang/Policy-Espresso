@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: HORIZON 政策雷达 Agent — 后端
 Requires-Python: >=3.11
 Requires-Dist: fastapi>=0.115
+Requires-Dist: python-multipart>=0.0.9
 Requires-Dist: uvicorn[standard]>=0.30
 Requires-Dist: sqlalchemy>=2.0
 Requires-Dist: alembic>=1.13
@@ -14,6 +15,11 @@ Requires-Dist: structlog>=24.1
 Requires-Dist: apscheduler<4,>=3.10
 Requires-Dist: feedparser>=6.0
 Requires-Dist: trafilatura>=1.12
+Requires-Dist: pdfplumber>=0.11
+Requires-Dist: python-docx>=1.1
+Requires-Dist: openpyxl>=3.1
+Requires-Dist: xlrd>=2.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+Requires-Dist: reportlab>=4.0; extra == "dev"

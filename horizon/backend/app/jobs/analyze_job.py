@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, time, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.ai.chains.alert import AlertChain, validate_alert_md
@@ -75,9 +75,12 @@ def _audit(db: Session, action: str, obj_type: str, obj_id: str, before: dict, a
 def analyze_document(db: Session, doc: Document) -> Policy | None:
     """分析单篇文档。返回 Policy 或 None（非金融/低置信/无正文）。"""
     from app.ai.provider import get_provider
+    from app.core.config import get_settings
 
     provider = get_provider()
     provider_name = provider.name
+    # mock provider 的样例应答对任意输入返回同一条政策，离线规则模式改用原文派生结果
+    offline = bool(get_settings().llm_offline_rules) and provider_name == "mock"
 
     if not doc.content_text or len(doc.content_text.strip()) < 50:
         doc.status = "needs_full_text"  # T1-N4：付费墙/仅标题，进待补资料
@@ -86,10 +89,25 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         return None
 
     # ---- P1 分类 ----
-    classify = ClassifyChain(provider).run(title=doc.title, content_text=doc.content_text)
-    _log_llm(db, classify, provider_name)
-    db.commit()
-    c = classify.parsed
+    if offline:
+        from app.ingest.gate1 import gate1_pass
+
+        passed, keywords = gate1_pass(doc.title, doc.content_text)
+        hit_note = "规则通道 gate-1 命中：" + "、".join(keywords[:5]) if keywords else "规则通道 gate-1 未命中"
+        c = {
+            "is_financial_policy": passed,
+            "policy_type": "",
+            "jurisdictions": [doc.source.jurisdiction] if doc.source else [],
+            "themes": [],
+            "reason": hit_note,
+            "confidence": 1.0 if passed else 0.0,
+        }
+        classify = None
+    else:
+        classify = ClassifyChain(provider).run(title=doc.title, content_text=doc.content_text)
+        _log_llm(db, classify, provider_name)
+        db.commit()
+        c = classify.parsed
     if not c.get("is_financial_policy") or float(c.get("confidence", 0)) < 0.6:
         doc.status = "processed"
         db.commit()
@@ -97,29 +115,43 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         return None
 
     # ---- P2 抽取 ----
-    extract = ExtractChain(provider).run(content_text=doc.content_text)
-    _log_llm(db, extract, provider_name)
-    db.commit()
-    e = extract.parsed
+    if offline:
+        from app.domain import offline_fallback
+
+        jurisdiction_hint = (doc.source.jurisdiction if doc.source else "") or ""
+        e = offline_fallback.offline_extract(
+            doc_title=doc.title, content_text=doc.content_text,
+            source_name=getattr(doc.source, "org", "") or getattr(doc.source, "name", ""),
+            jurisdiction=jurisdiction_hint,
+        )
+        e["policy_type"] = offline_fallback.detect_policy_type(doc.title, doc.content_text)
+        extract = None
+    else:
+        extract = ExtractChain(provider).run(content_text=doc.content_text)
+        _log_llm(db, extract, provider_name)
+        db.commit()
+        e = extract.parsed
 
     # ---- P3 适用范围（规则 + LLM 双通道）----
     rule = detect_scope(doc.content_text)
-    rule_hint = f"规则通道建议：{rule.relevance}；命中：{[h.quote for h in rule.hits[:5]]}"
-    scope = ScopeChain(provider).run(content_text=doc.content_text, rule_hint=rule_hint)
-    _log_llm(db, scope, provider_name)
-    db.commit()
-    s = scope.parsed
+    if offline:
+        s = offline_fallback.offline_scope(rule)
+        scope = None
+    else:
+        rule_hint = f"规则通道建议：{rule.relevance}；命中：{[h.quote for h in rule.hits[:5]]}"
+        scope = ScopeChain(provider).run(content_text=doc.content_text, rule_hint=rule_hint)
+        _log_llm(db, scope, provider_name)
+        db.commit()
+        s = scope.parsed
 
     jurisdiction = (c.get("jurisdictions") or [doc.source.jurisdiction if doc.source else ""])[0] or ""
 
-    # 幂等：清旧分析产物
+    # 幂等：重跑前清理所有依赖旧分析结果的关联记录。
     existing = db.scalar(select(Policy).where(Policy.document_id == doc.id))
     if existing:
-        db.query(Evidence).filter(Evidence.policy_id == existing.id).delete()
-        db.query(Assessment).filter(Assessment.policy_id == existing.id).delete()
-        db.query(ScopeJudgement).filter(ScopeJudgement.policy_id == existing.id).delete()
-        db.query(ReviewTask).filter(ReviewTask.policy_id == existing.id).delete()
-        db.delete(existing)
+        from app.domain.policy_admin import delete_policy_records
+
+        delete_policy_records(db, existing)
         db.commit()
 
     policy = Policy(
@@ -131,7 +163,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         effective_at=_parse_date(e.get("effective_at")),
         expiry_at=_parse_date(e.get("expiry_at")),
         jurisdiction=jurisdiction,
-        policy_type=c.get("policy_type", "other"),
+        policy_type=c.get("policy_type") or e.get("policy_type", "other"),
         themes=e.get("themes") or [],
         applicable_entities_text=e.get("applicable_entities_text") or "",
         applicable_scope=e.get("applicable_scope", "unclear"),
@@ -143,17 +175,21 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         confidence=float(e.get("confidence", 0.0)),
         status="draft",
         priority="P3",
-        prompt_version=f"{classify.prompt_version}+{extract.prompt_version}+{scope.prompt_version}",
+        prompt_version=(
+            "offline-rules@v1" if offline else
+            f"{classify.prompt_version}+{extract.prompt_version}+{scope.prompt_version}"
+        ),
     )
     db.add(policy)
     db.flush()  # policy.id 至此可用
 
     # 证据入库（span 已在链路内校验可定位）
-    for item in extract.evidence:
-        db.add(Evidence(
-            policy_id=policy.id, document_id=doc.id, span_start=item["span_start"],
-            span_end=item["span_end"], quote=item["quote"], field_name=item.get("field", ""),
-        ))
+    if extract:
+        for item in extract.evidence:
+            db.add(Evidence(
+                policy_id=policy.id, document_id=doc.id, span_start=item["span_start"],
+                span_end=item["span_end"], quote=item["quote"], field_name=item.get("field", ""),
+            ))
 
     # 适用范围判定入库（每实体一行；规则/LLM 冲突记 conflict）
     entity_relevance: dict[str, str] = {}
@@ -210,14 +246,28 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         "group_affiliate_mention": policy.group_affiliate_mention,
         "ambiguity": s.get("ambiguity", []),
     }
-    impact = ImpactChain(provider).run(
-        content_text=doc.content_text, policy_card=policy_card, scope_judgement=scope_judgement,
-        similar_cases=similar_cases, business_map_slice=slice_for_themes(policy.themes),
-        exposure_context={"synthetic_exposure": exposure},
-    )
-    _log_llm(db, impact, provider_name)
-    db.commit()
-    i = impact.parsed
+    if offline:
+        from app.domain import offline_fallback
+
+        i = offline_fallback.offline_impact(
+            policy.themes,
+            relevance_by_entity=entity_relevance,
+            policy_type=policy.policy_type,
+            effective_at=policy.effective_at,
+            foreign_bank_differential=policy.foreign_bank_differential,
+            differential_quotes=[h.quote for h in rule.hits if h.category == "low"],
+            exposure=exposure,
+        )
+        impact = None
+    else:
+        impact = ImpactChain(provider).run(
+            content_text=doc.content_text, policy_card=policy_card, scope_judgement=scope_judgement,
+            similar_cases=similar_cases, business_map_slice=slice_for_themes(policy.themes),
+            exposure_context={"synthetic_exposure": exposure},
+        )
+        _log_llm(db, impact, provider_name)
+        db.commit()
+        i = impact.parsed
 
     raw_scores = i.get("scores") or {}
     dim_scores = {dim: (raw_scores.get(dim) or {}).get("score") for dim in scoring.DIMENSIONS}
@@ -251,13 +301,18 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         recommended_actions=i.get("recommended_actions") or [],
         case_links=case_links,
         confidence=float(i.get("confidence", 0.0)),
-        model=impact.model,
-        prompt_version=impact.prompt_version,
+        model=impact.model if impact else "offline-rules",
+        prompt_version=impact.prompt_version if impact else "offline@v1",
     )
     if len(null_dims) >= 5:
         assessment.confidence = min(assessment.confidence, 0.3)  # low_confidence，不进审核队列
         log.info("assessment_low_confidence", policy_id=policy.id, null_dims=null_dims)
     db.add(assessment)
+
+    if offline:
+        # 离线规则通道不评抽取置信度（offline_extract 返回 0），详情页“分析可靠程度”
+        # 以影响分析置信度为准（高/中相关 0.5，低相关 0.4，≥5 个空维度钳制到 ≤0.3）
+        policy.confidence = assessment.confidence
 
     policy.score_total = score_result.score_total
     policy.priority = score_result.priority
@@ -275,17 +330,24 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         "recommended_actions": assessment.recommended_actions, "case_links": assessment.case_links,
         "unknowns": i.get("unknowns", []), "confidence": assessment.confidence,
     }
-    alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
-    _log_llm(db, alert_chain, provider_name)
-    errors = validate_alert_md(alert_chain.text)
+    if offline:
+        from app.domain import offline_fallback
+
+        alert_text = offline_fallback.offline_alert(policy, entity_relevance)
+        errors = validate_alert_md(alert_text)
+    else:
+        alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
+        _log_llm(db, alert_chain, provider_name)
+        alert_text = alert_chain.text
+        errors = validate_alert_md(alert_text)
     if errors:
         log.warning("alert_invalid", policy_id=policy.id, errors=errors)
     db.add(Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
-                 body_md=alert_chain.text, channel_scope={"default": "inapp"}, status="draft"))
+                 body_md=alert_text, channel_scope={"default": "inapp"}, status="draft"))
 
     # ---- 进审核队列（恒生仅点名等场景不产生预警/不进队列）----
-    relevant = any(v in ("covered", "excluded") for v in entity_status.values())
-    if relevant and assessment.confidence > 0.3:
+    relevant = any(v in ("high", "medium") for v in entity_relevance.values())
+    if relevant and (offline or assessment.confidence > 0.3):
         policy.status = state_machine.transition(policy.status, "pending_review")
         _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"}, {"status": "pending_review"})
         db.add(ReviewTask(
@@ -301,25 +363,36 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     doc.status = "processed"
     db.commit()
     log.info("analyzed", doc_id=doc.id, policy_id=policy.id, priority=policy.priority,
-             score=policy.score_total, entity_status=entity_status)
+             score=policy.score_total, entity_relevance=entity_relevance)
     return policy
 
 
 def analyze_pending(db: Session, *, limit: int = 10) -> dict:
-    """处理待分析文档（scheduler analyze_pending 每 5 分钟）。"""
-    docs = db.scalars(
-        select(Document).where(Document.status == "new", Document.duplicate_of.is_(None)).limit(limit)
+    """原子认领 new 文档后分析；changed 文档由 ingest 重新置为 new。"""
+    doc_ids = db.scalars(
+        select(Document.id).where(Document.status == "new", Document.duplicate_of.is_(None)).limit(limit)
     ).all()
-    stats = {"analyzed": 0, "skipped": 0, "failed": 0}
-    for doc in docs:
+    stats = {"analyzed": 0, "skipped": 0, "failed": 0, "errors": []}
+    for doc_id in doc_ids:
+        # 多 worker 同时触发时，仅一个 worker 能将 new 原子改为 processing。
+        claimed = db.execute(
+            update(Document).where(Document.id == doc_id, Document.status == "new").values(status="processing")
+        ).rowcount
+        db.commit()
+        if not claimed:
+            continue
         try:
+            doc = db.get(Document, doc_id)
             policy = analyze_document(db, doc)
             stats["analyzed" if policy else "skipped"] += 1
         except Exception as e:
-            stats["failed"] += 1
+            db.rollback()
+            doc = db.get(Document, doc_id)
             doc.status = "failed"
+            stats["failed"] += 1
+            stats["errors"].append(f"{doc_id}: {type(e).__name__}: {e}")
             db.commit()
-            log.error("analyze_failed", doc_id=doc.id, error=f"{type(e).__name__}: {e}")
+            log.error("analyze_failed", doc_id=doc_id, error=f"{type(e).__name__}: {e}")
     return stats
 
 

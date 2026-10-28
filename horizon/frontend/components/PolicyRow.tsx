@@ -1,3 +1,4 @@
+import { RELEVANCE_LABELS } from "./ScopeChip";
 import type { PolicyItem } from "@/lib/api";
 
 // 政策行组件 — 基于 Policy Espresso V8.4 原型
@@ -40,13 +41,7 @@ function StatusBadge({ label, value }: { label: string; value: string | undefine
 
 export default function PolicyRow({ policy }: { policy: PolicyItem }) {
   const isLowRelevance = policy.target_entity_status === "low";
-
-  // 映射后端相关性到显示文本
-  const relevanceStatus = policy.target_entity_status === "high" ? "高相关" :
-                          policy.target_entity_status === "medium" ? "中相关" :
-                          policy.target_entity_status === "low" ? "低相关" :
-                          policy.target_entity_status === "not_mentioned" ? "未提及" :
-                          policy.target_entity_status === "na" ? "不适用" : policy.target_entity_status;
+  const relevanceStatus = RELEVANCE_LABELS[policy.target_entity_status]?.text ?? policy.target_entity_status;
 
   return (
     <div className={`relative flex items-center gap-3 border-b border-[var(--border)] px-3 py-2.5 hover:bg-[var(--surface-2)] ${isLowRelevance ? "opacity-60" : ""}`}>

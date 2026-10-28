@@ -22,10 +22,6 @@ from app.ingest.normalize import normalize_html
 
 log = get_logger("ingest.pipeline")
 
-# 已入库文档的变更检测回溯窗口：发布超过 7 天的不再重抓（省钱）
-RECHECK_WINDOW = timedelta(days=7)
-
-
 def _existing_by_canonical(db: Session, canonical_url: str) -> Document | None:
     return db.scalar(select(Document).where(Document.canonical_url == canonical_url))
 
@@ -89,6 +85,8 @@ def ingest_document(db: Session, source: Source, raw, ref) -> tuple[Document | N
         existing.simhash = new_simhash
         existing.title = norm.title or existing.title
         existing.fetched_at = datetime.now(timezone.utc)
+        # 内容变更必须重新进入分析队列；重复源仍由 duplicate_of 排除。
+        existing.status = "new"
         if norm.attachments:
             existing.attachments = enrich_attachments(norm.attachments)
         db.flush()
@@ -136,17 +134,8 @@ def crawl_source(db: Session, source: Source) -> dict:
         log.info("crawl_capped", source=source.code, cap=cap)
         refs = refs[:cap]
 
-    now = datetime.now(timezone.utc)
     for ref in refs:
         canonical = dedupe.canonicalize_url(ref.url)
-        existing = _existing_by_canonical(db, canonical)
-        # 已存在且超出回溯窗口 → 跳过（不变更重抓）
-        if existing is not None:
-            published = existing.published_at
-            if published is not None and published.tzinfo is None:
-                published = published.replace(tzinfo=timezone.utc)  # SQLite 读回为 naive，按 UTC 处理
-            if published is None or published < now - RECHECK_WINDOW:
-                continue
         try:
             fetch_url = dedupe.rewrite_fetch_url(ref.url)
             if fetch_url != ref.url:

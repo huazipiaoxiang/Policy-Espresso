@@ -7,11 +7,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_api_key
+from app.core.security import require_api_key, require_roles
 from app.db.models import AuditLog, LLMCallLog
 from app.db.session import get_db
 
-router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key), Depends(require_roles("admin"))])
 
 
 @router.get("/audit")

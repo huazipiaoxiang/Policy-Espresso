@@ -75,7 +75,7 @@ def test_case1_full_acceptance(client):
         # T1-02
         assert p.applicable_scope == "domestic_only"
         # T1-03 hsbc_cn excluded + 证据可定位
-        assert judgements["hsbc_cn"].result == "excluded"
+        assert judgements["hsbc_cn"].result == "low"
         scope_ev = [e for e in evidence if e.field_name.startswith("scope.")]
         assert scope_ev, "适用范围判定必须带证据"
         from app.ai.evidence import locate_quote
@@ -126,13 +126,11 @@ def test_case1_full_acceptance(client):
             assert section in alert.body_md
         assert len(alert.body_md) <= 350
         assert validate_alert_md(alert.body_md) == []
-        # T1-17 pending_review + 审核任务 + SLA
-        assert p.status == "pending_review"
-        assert tasks and tasks[0].level == 1
-        sla = tasks[0].sla_due_at.replace(tzinfo=timezone.utc)
-        assert 3 <= (sla - datetime.now(timezone.utc)).total_seconds() / 3600 <= 25
+        # 低相关政策保留分析结果，但不自动进入审核队列。
+        assert p.status == "ai_checked"
+        assert not tasks
         # T1-18 未审核分发 409
-        resp = client.post(f"/api/v1/policies/{p.id}/dispatch")
+        resp = client.post(f"/api/v1/policies/{p.id}/dispatch", headers={"X-Demo-Role": "publisher"})
         assert resp.status_code == 409 and resp.json()["error"]["code"] == "NOT_APPROVED"
 
 
@@ -170,7 +168,7 @@ def test_case1_reverse_all_banks_covered(client):
         j = {x.entity_id: x for x in db.scalars(select(ScopeJudgement).where(ScopeJudgement.policy_id == p.id))}
         a = db.scalars(select(Assessment).where(Assessment.policy_id == p.id)).one()
         tasks = db.scalars(select(ReviewTask).where(ReviewTask.policy_id == p.id)).all()
-        assert j["hsbc_cn"].result == "covered"
+        assert j["hsbc_cn"].result == "high"
         assert p.foreign_bank_differential is False
         assert p.priority not in ("P0", "P1")
         assert a.score_total < 70

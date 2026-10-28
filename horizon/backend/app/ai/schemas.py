@@ -109,10 +109,10 @@ SCOPE_SCHEMA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["entity_id", "result", "reason", "evidence"],
+                "required": ["entity_id", "relevance", "reason", "evidence"],
                 "properties": {
                     "entity_id": {"type": "string", "enum": ["hsbc_hk", "hsbc_cn"]},
-                    "result": {"type": "string", "enum": ["covered", "excluded", "not_mentioned", "na"]},
+                    "relevance": {"type": "string", "enum": ["high", "medium", "low", "not_mentioned", "na"]},
                     "reason": {"type": "string"},
                     "evidence": {"type": "array", "items": _EVIDENCE_ITEM},
                     "confidence": {"type": "number"},

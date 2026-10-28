@@ -2,79 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { DemoRole, ROLE_CONFIG } from "@/lib/auth";
 
-// 导航结构 — 基于 Policy Espresso V8.4 原型
-const NAV_OPERATIONS = [
-  { label: "总览", href: "/radar", icon: "▦" },
-  { label: "审核工作台", href: "/review", icon: "≡" },
-  { label: "政策库", href: "/policies", icon: "▤" },
-  { label: "文档库", href: "/documents", icon: "▧" },
-  { label: "业务图谱", href: "/business-map", icon: "▦" },
-  { label: "发布中心", href: "/publications", icon: "▣" },
-];
-
-const NAV_CONSUMER = [
-  { label: "为你推荐", href: "/for-you", icon: "⌂" },
-  { label: "政策库", href: "/policies", icon: "▤" },
-  { label: "文档库", href: "/documents", icon: "▧" },
-  { label: "业务图谱", href: "/business-map", icon: "▦" },
-  { label: "我的订阅", href: "/subscriptions", icon: "☆" },
-];
-
-const NAV_ADMIN = [
-  { label: "系统概览", href: "/health", icon: "◷" },
-  { label: "数据源", href: "/sources", icon: "▥" },
-  { label: "Agent 与规则", href: "/rules", icon: "⌘" },
-  { label: "审计日志", href: "/audit", icon: "≡" },
-  { label: "系统设置", href: "/settings", icon: "⚙" },
-];
-
-const NAV_MAP: Record<string, typeof NAV_OPERATIONS> = {
-  operations: NAV_OPERATIONS,
-  consumer: NAV_CONSUMER,
-  admin: NAV_ADMIN,
-};
-
-function NavItem({ item }: { item: (typeof NAV_OPERATIONS)[number] }) {
+export default function Sidebar({ role }: { role: DemoRole }) {
   const pathname = usePathname();
-  const active = pathname === item.href;
-  return (
-    <Link
-      href={item.href}
-      className={`relative flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] transition-colors ${
-        active
-          ? "bg-[var(--accent-weak)] text-[var(--accent)] font-semibold"
-          : "text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-      }`}
-    >
-      {active && <span className="absolute left-0 top-1.5 h-6 w-0.5 rounded bg-[var(--accent)]" />}
-      <span className="w-4 text-center">{item.icon}</span>
-      <span>{item.label}</span>
-    </Link>
-  );
-}
-
-export default function Sidebar({ role = "operations" }: { role?: string }) {
-  const navItems = NAV_MAP[role] ?? NAV_OPERATIONS;
+  const config = ROLE_CONFIG[role];
 
   return (
-    <aside className="fixed left-0 top-0 flex h-full w-[232px] flex-col border-r border-[var(--border)] bg-[var(--surface)]">
-      <div className="flex h-14 items-center gap-2.5 border-b border-[var(--border)] px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded bg-[var(--accent)] text-white font-bold text-sm clip-diamond">
-          PE
-        </div>
+    <aside className="side">
+      <div className="brand">
+        <div className="mark">✦</div>
         <div>
-          <div className="text-[15px] font-semibold tracking-tight">Policy Espresso</div>
-          <div className="text-[10px] text-[var(--text-3)]">政策智能平台</div>
+          <strong>Policy Espresso</strong>
+          <small>监管政策智能分析平台</small>
         </div>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
-        {navItems.map((item) => (
-          <NavItem key={item.label} item={item} />
-        ))}
+      <div style={{ fontSize: "10px", color: "#9ca1a9", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", margin: "0 10px -18px" }}>
+        当前工作空间
+      </div>
+      <div style={{ fontSize: "12px", fontWeight: 700, color: "#4b525c", margin: "0 10px -12px" }}>
+        {config.label}
+      </div>
+      <nav className="nav">
+        {config.nav.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return (
+            <Link key={item.id} href={item.href} className={active ? "active" : ""}>
+              <span className="ico">{item.icon}</span>
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
-      <div className="border-t border-[var(--border)] px-4 py-3 text-[11px] text-[var(--text-3)]">
-        v8.4 · 演示原型
+      <div className="sidebar-foot">
+        演示范围：香港 · 中国内地 · 大湾区
+        <br />
+        当前角色仅显示已授权的功能和操作。
       </div>
     </aside>
   );

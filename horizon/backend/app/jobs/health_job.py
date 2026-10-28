@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from threading import Lock
 
 from sqlalchemy import func, select
 
@@ -13,6 +14,7 @@ from app.db.models import Document, JobRun, Source
 from app.db.session import SessionLocal
 
 log = get_logger("jobs.health")
+_health_lock = Lock()
 
 _WINDOW = timedelta(days=7)
 
@@ -57,30 +59,45 @@ def compute_source_health(db, source: Source) -> dict:  # noqa: ANN001
 
 def run_health_check() -> dict:
     """每小时任务体：遍历启用源计算健康指标。"""
-    with SessionLocal() as db:
-        job = JobRun(job_type="health", run_window=datetime.now(timezone.utc).strftime("%Y%m%d%H"),
-                     status="running")
-        db.add(job)
-        db.commit()
-        summary: dict[str, dict] = {}
-        try:
-            sources = db.scalars(select(Source).where(Source.enabled.is_(True))).all()
-            for src in sources:
-                summary[src.code] = compute_source_health(db, src)
-                for alert in summary[src.code]["alerts"]:
-                    log.warning("source_health_alert", source=src.code, alert=alert)
+    if not _health_lock.acquire(blocking=False):
+        log.info("health_check_skipped_already_running")
+        return {"status": "already_running"}
+    try:
+        with SessionLocal() as db:
+            job = JobRun(job_type="health", run_window=datetime.now(timezone.utc).strftime("%Y%m%d%H"),
+                         status="running")
+            db.add(job)
             db.commit()
-            job.status = "ok"
-            job.stats = {"sources": len(summary)}
-        except Exception as e:
-            db.rollback()
-            job.status = "failed"
-            job.error = f"{type(e).__name__}: {e}"
-            log.error("health_check_failed", error=str(e))
-        finally:
-            job.finished_at = datetime.now(timezone.utc)
-            db.commit()
-        return summary
+            summary: dict[str, dict] = {}
+            errors: list[str] = []
+            try:
+                sources = db.scalars(select(Source).where(Source.enabled.is_(True))).all()
+                for src in sources:
+                    try:
+                        summary[src.code] = compute_source_health(db, src)
+                        db.commit()
+                        for alert in summary[src.code]["alerts"]:
+                            log.warning("source_health_alert", source=src.code, alert=alert)
+                    except Exception as exc:
+                        db.rollback()
+                        error = f"{src.code}: {type(exc).__name__}: {exc}"
+                        errors.append(error)
+                        summary[src.code] = {"alerts": [], "error": error}
+                        log.error("source_health_check_failed", source=src.code, error=str(exc))
+                job.status = "failed" if errors else "ok"
+                job.stats = {"sources": len(sources), "succeeded": len(sources) - len(errors), "failed": len(errors)}
+                job.error = "; ".join(errors[-3:]) or None
+            except Exception as e:
+                db.rollback()
+                job.status = "failed"
+                job.error = f"{type(e).__name__}: {e}"
+                log.error("health_check_failed", error=str(e))
+            finally:
+                job.finished_at = datetime.now(timezone.utc)
+                db.commit()
+            return summary
+    finally:
+        _health_lock.release()
 
 
 if __name__ == "__main__":

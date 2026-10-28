@@ -3,11 +3,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_api_key
+from app.core.security import require_api_key, require_roles
 from app.db.models import Alert
 from app.db.session import get_db
 
-router = APIRouter(prefix="/alerts", tags=["alerts"], dependencies=[Depends(require_api_key)])
+router = APIRouter(
+    prefix="/alerts", tags=["alerts"],
+    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "analyst", "approver", "publisher"))],
+)
 
 
 @router.get("")

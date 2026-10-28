@@ -5,6 +5,7 @@ description = "HORIZON 政策雷达 Agent — 后端"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.30",
     "sqlalchemy>=2.0",
     "alembic>=1.13",
@@ -16,13 +17,16 @@ dependencies = [
     "feedparser>=6.0",
     "trafilatura>=1.12",
     "pdfplumber>=0.11",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+    "reportlab>=4.0",  # 文档导出 PDF（内置 CID 中文字体）
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
-    "reportlab>=4.0",  # 仅用于生成测试用 PDF fixture
 ]
 
 # 后续追加：Phase 5：psycopg[binary] / pgvector

@@ -2,16 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import * as echarts from "echarts";
+import { SCORE_DIMENSION_LABELS } from "@/lib/labels";
 
-const DIM_LABELS: Record<string, string> = {
-  relevance: "相关性",
-  exposure: "暴露规模",
-  urgency: "紧迫性",
-  certainty: "确定性",
-  actionability: "可行动性",
-  differential: "差异化",
-  compliance: "合规敏感",
-};
+const DIM_LABELS = SCORE_DIMENSION_LABELS;
 
 // ScoreRadar（08 §4）：8 轴雷达，null 轴虚线留空
 export default function ScoreRadar({

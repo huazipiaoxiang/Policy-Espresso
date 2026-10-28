@@ -1,10 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Countdown from "./Countdown";
 import PriorityBadge from "./PriorityBadge";
-import ScopeChip from "./ScopeChip";
+import ScopeChip, { RELEVANCE_LABELS } from "./ScopeChip";
+import { useAuth } from "./AuthProvider";
+import { API_BASE, demoApiHeaders } from "@/lib/auth";
+import { DECISION_LABELS, DIRECTION_LABELS, POLICY_STATUS_LABELS, TASK_STATUS_LABELS, analysisModelLabel, impactScoreLabel } from "@/lib/labels";
 
 export interface ReviewTaskItem {
   id: string;
@@ -43,6 +47,7 @@ export interface ReviewTaskDetail {
     recommended_actions: { owner: string; action: string; deadline: string }[];
     case_links: { case_id: string; similarity: number; takeaway: string }[];
     confidence: number;
+    model: string;
   } | null;
   evidence_count: number;
   scope_conflict: boolean;
@@ -61,27 +66,38 @@ const REASON_CODES = [
 
 // 审核台（08 §3.3）：左列表 + 右详情；J/K 移动，Enter 打开，a 通过，x 驳回
 const TABS = [
-  { value: "my", label: "我的任务" },
-  { value: "all", label: "全部记录" },
-  { value: "second", label: "待复审" },
-  { value: "supervisor", label: "待主管签批" },
-  { value: "completed", label: "已完成" },
+  { value: "all", label: "全部待办" },
+  { value: "first", label: "一级审核" },
+  { value: "second", label: "二级审核" },
 ];
 
 export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTaskItem[] }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("my");
+  const { role } = useAuth();
+  const [activeTab, setActiveTab] = useState("all");
   const [tasks, setTasks] = useState(initialTasks);
   const [activeId, setActiveId] = useState(initialTasks[0]?.id ?? "");
   const [detail, setDetail] = useState<ReviewTaskDetail | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [reasonCode, setReasonCode] = useState("insufficient_e_evidence");
+  const [reasonCode, setReasonCode] = useState("insufficient_evidence");
   const [note, setNote] = useState("");
   const [toast, setToast] = useState("");
+  const visibleTasks = useMemo(() => tasks.filter((task) =>
+    activeTab === "all" || (activeTab === "first" ? task.level === 1 : task.level === 2)
+  ), [activeTab, tasks]);
 
   const loadDetail = useCallback(async (taskId: string) => {
-    const resp = await fetch(`/api/proxy/review-tasks/${taskId}`);
+    const resp = await fetch(`${API_BASE}/review-tasks/${taskId}`, { headers: demoApiHeaders() });
     if (resp.ok) setDetail(await resp.json());
+  }, []);
+
+  const reloadTasks = useCallback(async () => {
+    const resp = await fetch(`${API_BASE}/review-tasks`, { headers: demoApiHeaders() });
+    if (!resp.ok) return;
+    const body = await resp.json();
+    setTasks(body.items || []);
+    setActiveId(body.items?.[0]?.id || "");
+    if (!body.items?.length) setDetail(null);
   }, []);
 
   useEffect(() => {
@@ -92,6 +108,7 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
     const resp = await fn();
     if (resp.ok) {
       setToast("已提交，服务端已确认");
+      await reloadTasks();
       router.refresh();
       setTimeout(() => setToast(""), 2500);
     } else {
@@ -102,20 +119,20 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
   };
 
   const approve = (taskId: string) =>
-    act(() => fetch(`/api/proxy/review-tasks/${taskId}/decision`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+    act(() => fetch(`${API_BASE}/review-tasks/${taskId}/decision`, {
+      method: "POST", headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ action: "approve" }),
     }));
 
   const requestInfo = (taskId: string) =>
-    act(() => fetch(`/api/proxy/review-tasks/${taskId}/decision`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+    act(() => fetch(`${API_BASE}/review-tasks/${taskId}/decision`, {
+      method: "POST", headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ action: "request_info", note: note || "需补充材料" }),
     }));
 
   const reject = (taskId: string) =>
-    act(() => fetch(`/api/proxy/review-tasks/${taskId}/decision`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+    act(() => fetch(`${API_BASE}/review-tasks/${taskId}/decision`, {
+      method: "POST", headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ action: "reject", reason_code: reasonCode, note }),
     })).then(() => setRejectOpen(false));
 
@@ -124,18 +141,18 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      const idx = tasks.findIndex((t) => t.id === activeId);
+      const idx = visibleTasks.findIndex((t) => t.id === activeId);
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
-        setActiveId(tasks[Math.min(idx + 1, tasks.length - 1)]?.id ?? activeId);
+        setActiveId(visibleTasks[Math.min(idx + 1, visibleTasks.length - 1)]?.id ?? activeId);
       } else if (e.key === "k" || e.key === "ArrowUp") {
         e.preventDefault();
-        setActiveId(tasks[Math.max(idx - 1, 0)]?.id ?? activeId);
+        setActiveId(visibleTasks[Math.max(idx - 1, 0)]?.id ?? activeId);
       } else if (e.key === "Enter" && activeId) {
-        router.push(`/policies/${tasks[idx]?.policy_id}`);
-      } else if (e.key === "a" && activeId) {
+        router.push(`/policies/${visibleTasks[idx]?.policy_id}`);
+      } else if (e.key === "a" && activeId && role !== "publisher") {
         approve(activeId);
-      } else if (e.key === "x" && activeId) {
+      } else if (e.key === "x" && activeId && role !== "publisher") {
         setRejectOpen(true);
       }
     };
@@ -157,14 +174,18 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
       {/* 左：任务列表 */}
       <section className="card col-span-3 overflow-hidden">
         <div className="flex h-10 items-center border-b border-[var(--border)] px-3">
-          <span className="section-label">待审（{tasks.length}）</span>
+          <span className="section-label">待审（{visibleTasks.length}）</span>
           <span className="ml-auto text-[10px] text-[var(--text-3)]">J/K 切换</span>
         </div>
         <div className="flex border-b border-[var(--border)]">
           {TABS.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
+              onClick={() => {
+                setActiveTab(tab.value);
+                const level = tab.value === "first" ? 1 : tab.value === "second" ? 2 : null;
+                setActiveId((level ? tasks.find((task) => task.level === level) : tasks[0])?.id || "");
+              }}
               className={`flex-1 px-2 py-2 text-[11px] transition ${
                 activeTab === tab.value
                   ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
@@ -176,7 +197,8 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
           ))}
         </div>
         <ul className="max-h-[560px] overflow-y-auto">
-          {tasks.map((t) => (
+          {visibleTasks.length === 0 && <li className="p-6 text-center text-[12px] text-[var(--text-3)]">此分类暂无待办</li>}
+          {visibleTasks.map((t) => (
             <li key={t.id}>
               <button
                 onClick={() => setActiveId(t.id)}
@@ -190,7 +212,7 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
                 </span>
                 <span className="line-clamp-2 text-[12px] leading-4">{t.policy_title}</span>
                 <span className="text-[10px] text-[var(--text-3)]">
-                  L{t.level} · {t.status} · {t.target_entity_status}
+                  L{t.level} · {TASK_STATUS_LABELS[t.status] ?? t.status} · {RELEVANCE_LABELS[t.target_entity_status]?.text ?? t.target_entity_status}
                   {t.foreign_bank_differential ? " · ⚠外资行差异" : ""}
                 </span>
               </button>
@@ -205,7 +227,7 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
           <>
             <div className="card p-4">
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-[14px] font-semibold">{detail.policy.title}</span>
+                <Link href={`/policies/${detail.policy.id}`} className="text-[14px] font-semibold">{detail.policy.title}</Link>
                 <ScopeChip status={detail.policy.target_entity_status} />
                 {detail.policy.foreign_bank_differential && (
                   <span className="rounded-full border border-[var(--p0)] px-1.5 text-[10px] text-[var(--p0)]">⚠ 外资行差异</span>
@@ -214,20 +236,21 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
                   <span className="rounded-full border border-[var(--warn)] px-1.5 text-[10px] text-[var(--warn)]">⚠ 双通道冲突</span>
                 )}
                 <span className="ml-auto text-[11px] text-[var(--text-3)]">
-                  状态 {detail.policy.status} · L{detail.task.level} · 证据 {detail.evidence_count} 条
+                  状态 {POLICY_STATUS_LABELS[detail.policy.status] ?? detail.policy.status} · L{detail.task.level} · 证据 {detail.evidence_count} 条
                 </span>
               </div>
               <p className="font-serif text-[13px] leading-6 text-[var(--text-2)]">{detail.policy.summary_zh}</p>
               {detail.assessment && (
                 <div className="mt-2 grid grid-cols-2 gap-2 text-[12px] text-[var(--text-2)]">
-                  <div>方向：{detail.assessment.direction} · 综合分 {detail.assessment.score_total} · 置信度 {detail.assessment.confidence}</div>
+                  <div>方向：{DIRECTION_LABELS[detail.assessment.direction] ?? detail.assessment.direction} · 综合分 {impactScoreLabel(detail.assessment.score_total, 1, false)} · 可靠度 {detail.assessment.confidence > 0 ? detail.assessment.confidence : "未评定"} · 分析来源 {analysisModelLabel(detail.assessment.model)}</div>
                   <div>业务线：{detail.assessment.affected.business_lines.join(" / ")}</div>
                 </div>
               )}
               {detail.previous_decisions.length > 0 && (
                 <div className="mt-2 rounded-md bg-[var(--surface-2)] px-2.5 py-1.5 text-[11px] text-[var(--text-3)]">
                   上一审核意见：{detail.previous_decisions.at(-1)?.actor} ·{" "}
-                  {detail.previous_decisions.at(-1)?.action} · {detail.previous_decisions.at(-1)?.note || "无备注"}
+                  {DECISION_LABELS[detail.previous_decisions.at(-1)?.action ?? ""] ?? detail.previous_decisions.at(-1)?.action} ·{" "}
+                  {detail.previous_decisions.at(-1)?.note || "无备注"}
                 </div>
               )}
             </div>
@@ -248,7 +271,7 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
             </div>
 
             {/* 动作栏 */}
-            <div className="card flex flex-wrap items-center gap-2 p-3">
+            {role !== "publisher" ? <div className="card flex flex-wrap items-center gap-2 p-3">
               <button
                 onClick={() => approve(detail.task.id)}
                 className="rounded-btn bg-[var(--accent)] px-4 py-1.5 text-[13px] font-medium text-[var(--bg)]"
@@ -269,9 +292,9 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
               </button>
               <span className="ml-auto text-[11px] text-[var(--text-3)]">快捷键：j/k 移动 · Enter 打开政策 · a 通过 · x 驳回</span>
               {toast && <span className="w-full text-[12px] text-[var(--accent)]">{toast}</span>}
-            </div>
+            </div> : <div className="card p-3 text-[12px] text-[var(--text-3)]">发布者可查看审核依据，但不能代替审核员作决定。</div>}
 
-            {rejectOpen && (
+            {rejectOpen && role !== "publisher" && (
               <div className="card space-y-2 p-4">
                 <div className="section-label">驳回原因（必填）</div>
                 <div className="flex flex-wrap gap-2">

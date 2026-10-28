@@ -53,7 +53,7 @@
 |---|---|---|---|
 | classify | 标题+前 2000 字 | 是否金融政策、类型、地域、置信度 | 置信度<0.6 转人工队列 |
 | extract | 全文（长文分段+合并） | 12 字段 + 证据 span | Schema 校验失败重试 1 次，再失败落 dead_letter |
-| scope | 适用主体段落 + 实体清单 | covered/excluded/not_mentioned + 理由 | 规则与 LLM 冲突 → needs_review |
+| scope | 适用主体段落 + 实体清单 | high/medium/low/not_mentioned + 理由 | 规则与 LLM 冲突 → needs_review |
 | impact | 抽取结果 + 检索上下文 | 8 维分数 + 传导链 + 暴露区间 + 动作 | 缺证据的维度强制置 null 并标注 |
 | case | 新政策 + Top5 相似案例 | 相似度、可借鉴应对、差异点 | 无相似案例则显式声明"无先例" |
 | studio | 主题语料 + 约束 | 建议书结构化 JSON | 边界校验不过则退回重写 |

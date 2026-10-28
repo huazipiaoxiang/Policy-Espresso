@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.errors import not_found
-from app.core.security import require_api_key
+from app.core.errors import ApiError, not_found
+from app.core.security import require_api_key, require_roles
 from app.db.models import Assessment, Evidence, Policy, ReviewDecision, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import review as review_domain
@@ -49,21 +49,35 @@ def _task_view(task: ReviewTask, policy: Policy | None) -> dict:
 
 
 @router.get("/review-tasks")
-def list_review_tasks(status: str | None = None, db: Session = Depends(get_db)):
+def list_review_tasks(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    role: str = Depends(require_roles("analyst", "approver", "publisher")),
+):
     stmt = select(ReviewTask).order_by(ReviewTask.sla_due_at.asc().nullslast())
     if status:
         stmt = stmt.where(ReviewTask.status == status)
     else:
         stmt = stmt.where(ReviewTask.status.in_(["pending", "claimed"]))
+    if role == "analyst":
+        stmt = stmt.where(ReviewTask.level == 1)
+    elif role == "approver":
+        stmt = stmt.where(ReviewTask.level == 2)
     tasks = db.scalars(stmt).all()
     return {"items": [_task_view(t, db.get(Policy, t.policy_id)) for t in tasks]}
 
 
 @router.get("/review-tasks/{task_id}")
-def get_review_task(task_id: str, db: Session = Depends(get_db)):
+def get_review_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    role: str = Depends(require_roles("analyst", "approver", "publisher")),
+):
     task = db.get(ReviewTask, task_id)
     if not task:
         raise not_found("审核任务", task_id)
+    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
+        raise ApiError("FORBIDDEN", "当前角色不能查看该级别的审核任务", 403)
     policy = db.get(Policy, task.policy_id)
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == task.policy_id)).first()
     evidence_count = db.query(Evidence).filter(Evidence.policy_id == task.policy_id).count()
@@ -94,6 +108,7 @@ def get_review_task(task_id: str, db: Session = Depends(get_db)):
                 "affected": assessment.affected,
                 "recommended_actions": assessment.recommended_actions,
                 "case_links": assessment.case_links, "confidence": assessment.confidence,
+                "model": assessment.model,
             }
             if assessment else None
         ),
@@ -109,21 +124,50 @@ def get_review_task(task_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/policies/{policy_id}/submit-review")
-def submit_review(policy_id: str, body: SubmitBody, db: Session = Depends(get_db), actor: str = Depends(require_api_key)):
+def submit_review(
+    policy_id: str,
+    body: SubmitBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    role: str = Depends(require_roles("analyst")),
+):
+    if body.level != 1:
+        raise ApiError("FORBIDDEN", "初级审核员只能提交一级审核任务", 403)
     task = review_domain.submit_review(
-        db, policy_id, level=body.level, assignee=body.assignee, actor=actor, note=body.note,
+        db, policy_id, level=1, assignee=actor, actor=actor, note=body.note,
     )
     return {"task_id": task.id, "sla_due_at": task.sla_due_at, "status": task.status}
 
 
 @router.post("/review-tasks/{task_id}/claim")
-def claim_task(task_id: str, db: Session = Depends(get_db), actor: str = Depends(require_api_key)):
+def claim_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    role: str = Depends(require_roles("analyst", "approver")),
+):
+    task = db.get(ReviewTask, task_id)
+    if not task:
+        raise not_found("审核任务", task_id)
+    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
+        raise ApiError("FORBIDDEN", "当前角色不能领取该级别的审核任务", 403)
     task = review_domain.claim_task(db, task_id, actor=actor)
     return {"task_id": task.id, "status": task.status, "assignee": task.assignee}
 
 
 @router.post("/review-tasks/{task_id}/decision")
-def decide(task_id: str, body: DecisionBody, db: Session = Depends(get_db), actor: str = Depends(require_api_key)):
+def decide(
+    task_id: str,
+    body: DecisionBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    role: str = Depends(require_roles("analyst", "approver")),
+):
+    task = db.get(ReviewTask, task_id)
+    if not task:
+        raise not_found("审核任务", task_id)
+    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
+        raise ApiError("FORBIDDEN", "当前角色不能处理该级别的审核任务", 403)
     return review_domain.decide(
         db, task_id, actor=actor, action=body.action,
         reason_code=body.reason_code, note=body.note, field_diffs=body.field_diffs,
@@ -131,5 +175,10 @@ def decide(task_id: str, body: DecisionBody, db: Session = Depends(get_db), acto
 
 
 @router.post("/review-tasks/batch")
-def batch_decide(body: BatchBody, db: Session = Depends(get_db), actor: str = Depends(require_api_key)):
+def batch_decide(
+    body: BatchBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    role: str = Depends(require_roles("analyst")),
+):
     return review_domain.batch_decide(db, body.task_ids, actor=actor, action=body.action)

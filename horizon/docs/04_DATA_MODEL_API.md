@@ -67,7 +67,7 @@ studio_project 1─n proposal 1─n proposal_section
 | themes | array[str] | 主题标签（受控词表） |
 | applicable_entities_text | text | 原文适用主体表述 |
 | applicable_scope | enum | `all / domestic_only / foreign_included / qualified_only / unclear` |
-| target_entity_status | enum | `covered / excluded / not_mentioned / na` |
+| target_entity_status | enum | `high / medium / low / not_mentioned / na` |
 | foreign_bank_differential | bool | **外资行差异标记** |
 | group_affiliate_mention | json | `{mentioned, entities[], note}`：原文是否点名恒生等集团其他成员。**仅作提示，不参与判定、不触发预警** |
 | amounts | json | `[{value, currency, unit, description, span}]` |
@@ -126,7 +126,7 @@ studio_project 1─n proposal 1─n proposal_section
 > 强约束：`quote` 必须等于 `content_text[span_start:span_end]`（做空白/全半角归一化后比较），否则整条证据作废。
 
 ### scope_judgement
-`id, policy_id, entity_id, result(covered/excluded/not_mentioned), rule_hit[], llm_reason, conflict(bool), evidence_ids[]`
+`id, policy_id, entity_id, result(high/medium/low/not_mentioned/na), rule_hit[], llm_reason, conflict(bool), evidence_ids[]`
 
 ### case（历史案例库）
 `id, title, year, jurisdiction, themes[], policy_summary, impact, hsbc_response, outcome, lessons[], source_refs[], embedding`

@@ -13,7 +13,8 @@ def test_auth_required(client):
 
 
 def test_sources_crud(client):
-    resp = client.post("/api/v1/sources", json={
+    admin = {"X-Demo-Role": "admin"}
+    resp = client.post("/api/v1/sources", headers=admin, json={
         "code": "hkma_press", "name": "香港金管局 · 新闻稿", "jurisdiction": "HK",
         "adapter": "rss", "url": "https://www.hkma.gov.hk/",
     })
@@ -21,15 +22,15 @@ def test_sources_crud(client):
     src = resp.json()
     assert src["code"] == "hkma_press"
 
-    dup = client.post("/api/v1/sources", json={
+    dup = client.post("/api/v1/sources", headers=admin, json={
         "code": "hkma_press", "name": "x", "jurisdiction": "HK", "adapter": "rss", "url": "https://x",
     })
     assert dup.status_code == 409
 
-    listed = client.get("/api/v1/sources").json()
+    listed = client.get("/api/v1/sources", headers=admin).json()
     assert listed["total"] >= 1
 
-    patched = client.patch(f"/api/v1/sources/{src['id']}", json={"enabled": False})
+    patched = client.patch(f"/api/v1/sources/{src['id']}", headers=admin, json={"enabled": False})
     assert patched.json()["enabled"] is False
 
 
@@ -50,7 +51,7 @@ def test_dispatch_blocked_until_approved(client):
         db.commit()
         pid = policy.id
 
-    resp = client.post(f"/api/v1/policies/{pid}/dispatch")
+    resp = client.post(f"/api/v1/policies/{pid}/dispatch", headers={"X-Demo-Role": "publisher"})
     assert resp.status_code == 409
     body = resp.json()
     assert body["error"]["code"] == "NOT_APPROVED"

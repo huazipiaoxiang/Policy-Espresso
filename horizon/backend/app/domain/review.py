@@ -57,7 +57,7 @@ def submit_review(db: Session, policy_id: str, *, level: int, assignee: str, act
         raise ApiError("MISSING_REQUIRED", "缺少以下必填项，无法提交审核", 422, {"missing": missing})
 
     before = policy.status
-    policy.status = state_machine.transition(before, "pending_review")
+    policy.status = _transition(before, "pending_review")
     task = ReviewTask(
         policy_id=policy_id, level=level, assignee=assignee,
         sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS.get(policy.priority, 72)),
@@ -94,6 +94,27 @@ def claim_task(db: Session, task_id: str, actor: str) -> ReviewTask:
     return task
 
 
+def _transition(current: str, target: str) -> str:
+    """状态机转移：重复通过按幂等处理，其余非法转移返回 409 而不是 500。"""
+    if current == target:
+        return current
+    try:
+        return state_machine.transition(current, target)
+    except state_machine.InvalidTransitionError as exc:
+        raise ApiError("INVALID_TRANSITION", f"政策当前状态为 {current}，该审核决定与已有审核结论冲突", 409,
+                       {"from": current, "to": target, "detail": str(exc)})
+
+
+def _open_task_exists(db: Session, policy_id: str, level: int) -> bool:
+    return db.scalars(
+        select(ReviewTask.id).where(
+            ReviewTask.policy_id == policy_id,
+            ReviewTask.level == level,
+            ReviewTask.status.in_(["pending", "claimed"]),
+        )
+    ).first() is not None
+
+
 def decide(
     db: Session,
     task_id: str,
@@ -108,6 +129,10 @@ def decide(
     task = db.get(ReviewTask, task_id)
     if not task:
         raise ApiError("NOT_FOUND", "审核任务不存在", 404, {"id": task_id})
+    if task.status not in ("pending", "claimed"):
+        raise ApiError("TASK_ALREADY_DECIDED", f"任务状态为 {task.status}，不能重复审核", 409)
+    if task.status == "claimed" and task.assignee != actor:
+        raise ApiError("TASK_ASSIGNED_TO_OTHER", "该任务已由其他审核员领取", 409)
     if action not in ("approve", "reject", "request_info"):
         raise ApiError("BAD_ACTION", "action 须为 approve/reject/request_info", 422)
     if action == "reject" and (not reason_code or reason_code not in state_machine.REJECT_REASON_CODES):
@@ -126,32 +151,33 @@ def decide(
     if action == "approve":
         task.status = "approved"
         levels_required = state_machine.required_review_levels(policy.priority)
-        approved_count = (
-            db.query(ReviewDecision)
-            .join(ReviewTask, ReviewDecision.task_id == ReviewTask.id)
-            .filter(ReviewTask.policy_id == policy.id, ReviewDecision.action == "approve")
-            .count()
-            + 1
-        )
-        if approved_count < levels_required:
+        # 按"已通过的审核级别"计数，同一级重复通过不会凑够双签
+        approved_levels = set(db.scalars(
+            select(ReviewTask.level)
+            .join(ReviewDecision, ReviewDecision.task_id == ReviewTask.id)
+            .where(ReviewTask.policy_id == policy.id, ReviewDecision.action == "approve")
+            .distinct()
+        ))
+        approved_levels.add(task.level)
+        if len(approved_levels) < levels_required:
             # 双签未完成：生成下一级任务，policy 留在 in_review
-            next_task = ReviewTask(
-                policy_id=policy.id, level=task.level + 1, assignee="reviewer.l2",
-                sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS.get(policy.priority, 72)),
-                status="pending",
-            )
-            db.add(next_task)
+            if not _open_task_exists(db, policy.id, task.level + 1):
+                db.add(ReviewTask(
+                    policy_id=policy.id, level=task.level + 1, assignee="reviewer.l2",
+                    sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS.get(policy.priority, 72)),
+                    status="pending",
+                ))
             new_status = before_status  # 仍在审
         else:
-            new_status = state_machine.transition(before_status, "approved")
+            new_status = _transition(before_status, "approved")
             policy.status = new_status
     elif action == "reject":
         task.status = "rejected"
-        new_status = state_machine.transition(before_status, "rejected")
+        new_status = _transition(before_status, "rejected")
         policy.status = new_status
     else:  # request_info
         task.status = "needs_info"
-        new_status = state_machine.transition(before_status, "needs_info")
+        new_status = _transition(before_status, "needs_info")
         policy.status = new_status
 
     db.add(ReviewDecision(

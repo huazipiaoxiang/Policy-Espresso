@@ -1,5 +1,5 @@
 def test_settings_snapshot(client):
-    resp = client.get("/api/v1/settings")
+    resp = client.get("/api/v1/settings", headers={"X-Demo-Role": "admin"})
     assert resp.status_code == 200
     body = resp.json()
 
@@ -28,7 +28,7 @@ def test_settings_snapshot(client):
 
 def test_settings_no_secret_leak(client):
     """密钥类字段绝不返回明文（只返回 bool / 是否配置）。"""
-    resp = client.get("/api/v1/settings")
+    resp = client.get("/api/v1/settings", headers={"X-Demo-Role": "admin"})
     body = resp.json()
 
     # 密钥配置状态只用布尔表达

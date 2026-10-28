@@ -7,11 +7,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.schemas import AnalyticsOverview
-from app.core.security import require_api_key
+from app.core.security import require_api_key, require_roles
 from app.db.models import Document, JobRun, Policy, Source
 from app.db.session import get_db
 
-router = APIRouter(prefix="/analytics", tags=["analytics"], dependencies=[Depends(require_api_key)])
+router = APIRouter(
+    prefix="/analytics", tags=["analytics"],
+    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "analyst", "approver", "publisher"))],
+)
 
 TZ_HK = ZoneInfo("Asia/Hong_Kong")
 
@@ -38,7 +41,7 @@ def overview(db: Session = Depends(get_db)):
         )
     ) or 0
     sources_total = db.scalar(select(func.count(Source.id))) or 0
-    unhealthy = len([s for s in db.scalars(select(Source)).all() if (s.health or {}).get("consecutive_fail", 0) >= 3])
+    unhealthy = len([s for s in db.scalars(select(Source)).all() if (s.health or {}).get("consecutive_fail", 0) > 0])
     last_crawl = db.scalar(
         select(func.max(JobRun.finished_at)).where(JobRun.job_type == "crawl", JobRun.status == "ok")
     )

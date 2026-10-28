@@ -80,6 +80,9 @@ class PolicyOut(BaseModel):
     priority: str
     score_total: float
     prompt_version: str = ""
+    impacted_domains: list[str] = Field(default_factory=list)
+    review_completed_at: datetime | None = None
+    dispatched_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

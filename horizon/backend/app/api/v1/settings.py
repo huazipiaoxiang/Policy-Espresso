@@ -13,10 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.ai.provider import get_provider
 from app.core.config import Settings, get_settings
-from app.core.security import require_api_key
+from app.core.security import require_api_key, require_roles
 from app.db.session import get_db
 
-router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(require_api_key), Depends(require_roles("admin"))])
 
 
 def _mask_webhook(value: str) -> str:

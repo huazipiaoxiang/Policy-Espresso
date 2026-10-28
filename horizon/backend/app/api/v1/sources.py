@@ -5,11 +5,13 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.schemas import Page, SourceCreate, SourceOut, SourcePatch
 from app.core.errors import ApiError, not_found
-from app.core.security import require_api_key
-from app.db.models import Source
+from app.core.security import require_api_key, require_roles
+from app.db.models import JobRun, Source
 from app.db.session import get_db
+from app.ingest.pipeline import is_circuit_open
+from app.jobs.crawl_job import run_source_now
 
-router = APIRouter(prefix="/sources", tags=["sources"], dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/sources", tags=["sources"], dependencies=[Depends(require_api_key), Depends(require_roles("admin"))])
 
 
 @router.get("", response_model=Page[SourceOut])
@@ -43,12 +45,18 @@ def patch_source(source_id: str, body: SourcePatch, db: Session = Depends(get_db
     return src
 
 
-@router.post("/{source_id}/run", status_code=202)
+@router.post("/{source_id}/run")
 def run_source(source_id: str, db: Session = Depends(get_db)):
     src = db.get(Source, source_id)
     if not src:
         raise not_found("数据源", source_id)
-    from app.jobs.crawl_job import enqueue_crawl
-
-    job_id = enqueue_crawl(db, src)
-    return {"job_id": job_id, "status": "queued"}
+    if not src.enabled:
+        raise ApiError("SOURCE_DISABLED", f"「{src.name}」已停用，请先启用后再抓取", 409)
+    if is_circuit_open(src):
+        raise ApiError("CIRCUIT_OPEN", f"「{src.name}」连续失败后处于熔断冷却中，请稍后再试", 409)
+    if db.scalar(select(JobRun).where(
+        JobRun.source_id == src.id, JobRun.job_type == "crawl", JobRun.status == "running",
+    )):
+        raise ApiError("CRAWL_RUNNING", f"「{src.name}」上一轮抓取还没有结束，请等待完成后再试", 409)
+    result = run_source_now(db, src)
+    return {"status": "failed" if result["failed"] else "ok", **result}

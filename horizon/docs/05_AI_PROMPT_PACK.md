@@ -102,13 +102,13 @@
 ]
 </entities>
 
-任务：判断政策对每个实体是 covered / excluded / not_mentioned / na，并说明依据。
+任务：判断政策对每个实体的相关性是 high / medium / low / not_mentioned / na，并说明依据。
 
 输出：
 {
   "results": [{
     "entity_id": "hsbc_cn",
-    "result": "excluded",
+    "result": "low",
     "reason": "政策第2条将适用对象限定为'广东省内依法设立的中资商业银行'，外商独资法人银行不在列举范围内",
     "evidence": [{"quote":"逐字片段","paragraph_index":2}],
     "confidence": 0.9
@@ -124,11 +124,12 @@
 }
 
 判定规则：
-- 出现"中资/国有/股份制/城商行/农商行/境内法人银行（且未提外资）"等限定 → excluded。
-- 出现"外资银行/境外机构/所有持牌银行/不区分资本来源" → covered。
-- 只说"银行"未限定 → covered，但 confidence ≤0.6 并在 ambiguity 说明。
-- 政策为香港本地规例 → hsbc_hk covered，hsbc_cn na（除跨境条款）。
-- 不得因为"汇丰是国际银行"就推断 covered，必须看文本。
+- 出现"中资/国有/股份制/城商行/农商行/境内法人银行（且未提外资）"等限定 → low。
+- 出现"外资银行/境外机构/所有持牌银行/不区分资本来源" → high。
+- 出现"合资格机构/符合条件的银行"等需个案判断的限定 → medium。
+- 只说"银行"未限定 → high，但 confidence ≤0.6 并在 ambiguity 说明。
+- 政策为香港本地规例 → hsbc_hk high，hsbc_cn na（除跨境条款）。
+- 不得因为"汇丰是国际银行"就推断 high，必须看文本。
 - **只判定清单内的两个实体。原文提及恒生银行或其他集团附属公司时，不新增判定对象、
   不改变上述两实体的结果，只把 group_affiliate_mention.mentioned 置 true 并列出名称。**
   例：政策只点名"恒生银行"而未提汇丰 → 两个实体均 not_mentioned，group_affiliate_mention=true，

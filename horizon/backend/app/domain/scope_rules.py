@@ -64,6 +64,13 @@ def detect_scope(text: str) -> RuleScopeResult:
         for m in re.finditer(pattern, text):
             hits.append(RuleHit(category=category, pattern=pattern, span_start=m.start(), span_end=m.end(), quote=m.group()))
 
+    low_spans = [(hit.span_start, hit.span_end) for hit in hits if hit.category == "low"]
+    hits = [
+        hit for hit in hits
+        if hit.category != "high_generic"
+        or not any(start <= hit.span_start and hit.span_end <= end for start, end in low_spans)
+    ]
+
     mentioned = [name for name in GROUP_AFFILIATE_NAMES if name in text]
     affiliate = {
         "mentioned": bool(mentioned),

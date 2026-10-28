@@ -1,358 +1,129 @@
 "use client";
 
-import { useState } from "react";
-
-const THEMES = [
-  "跨境理财通", "大湾区金融", "反洗钱", "资本充足率", "流动性管理",
-  "消费者保护", "数字银行", "绿色金融", "风险管理", "合规监管",
-];
-
-const JURISDICTIONS = [
-  { value: "hk", label: "香港" },
-  { value: "cn", label: "中国大陆" },
-  { value: "gb", label: "英国" },
-  { value: "sg", label: "新加坡" },
-];
-
-const BUSINESS_LINES = [
-  "零售银行", "商业银行", "投资银行", "财富管理", "环球市场",
-  "风险管理", "合规部门", "运营部门",
-];
-
-interface Subscription {
-  id: string;
-  type: "theme" | "jurisdiction" | "business_line";
-  value: string;
-  label: string;
-  notify_email: boolean;
-  notify_wecom: boolean;
-}
+import { useEffect, useState } from "react";
+import {
+  DEFAULT_SUBSCRIPTIONS,
+  MARKET_OPTIONS,
+  TOPIC_OPTIONS,
+  loadSubscriptions,
+  saveSubscriptions,
+  type SubscriptionPreferences,
+} from "@/lib/subscriptions";
 
 export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([
-    { id: "1", type: "theme", value: "跨境理财通", label: "#跨境理财通", notify_email: true, notify_wecom: false },
-    { id: "2", type: "jurisdiction", value: "hk", label: "香港", notify_email: true, notify_wecom: true },
-    { id: "3", type: "business_line", value: "财富管理", label: "财富管理", notify_email: false, notify_wecom: true },
-  ]);
+  const [preferences, setPreferences] = useState<SubscriptionPreferences>(DEFAULT_SUBSCRIPTIONS);
+  const [ready, setReady] = useState(false);
+  const [notice, setNotice] = useState("");
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addType, setAddType] = useState<"theme" | "jurisdiction" | "business_line">("theme");
-  const [addValue, setAddValue] = useState("");
+  useEffect(() => {
+    setPreferences(loadSubscriptions());
+    setReady(true);
+  }, []);
 
-  const handleAdd = () => {
-    if (!addValue) return;
-    const newSub: Subscription = {
-      id: String(Date.now()),
-      type: addType,
-      value: addValue,
-      label: addType === "theme" ? `#${addValue}` : addValue,
-      notify_email: true,
-      notify_wecom: false,
-    };
-    setSubscriptions([...subscriptions, newSub]);
-    setShowAddModal(false);
-    setAddValue("");
-  };
+  const selectedTopics = preferences.topics;
+  const selectedMarkets = preferences.markets;
+  const selectedTopicLabels = TOPIC_OPTIONS.filter((topic) => selectedTopics.includes(topic.value)).map((topic) => topic.label);
+  const selectedMarketLabels = MARKET_OPTIONS.filter((market) => selectedMarkets.includes(market.value)).map((market) => market.label);
 
-  const handleRemove = (id: string) => {
-    setSubscriptions(subscriptions.filter((s) => s.id !== id));
-  };
+  function toggleValue(key: "topics" | "markets", value: string) {
+    setNotice("");
+    setPreferences((current) => ({
+      ...current,
+      [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
+    }));
+  }
 
-  const toggleNotify = (id: string, channel: "email" | "wecom") => {
-    setSubscriptions(
-      subscriptions.map((s) =>
-        s.id === id
-          ? { ...s, [channel === "email" ? "notify_email" : "notify_wecom"]: !s[channel === "email" ? "notify_email" : "notify_wecom"] }
-          : s
-      )
-    );
-  };
-
-  const themeSubs = subscriptions.filter((s) => s.type === "theme");
-  const jurisdictionSubs = subscriptions.filter((s) => s.type === "jurisdiction");
-  const businessLineSubs = subscriptions.filter((s) => s.type === "business_line");
+  function save() {
+    saveSubscriptions(preferences);
+    setNotice("偏好已保存，“为你推荐”将按这些主题和市场匹配已发布政策。");
+  }
 
   return (
-    <main className="mx-auto max-w-content px-6 pb-10 pt-[72px]">
-      <div className="mb-6">
-        <div className="mb-1 text-[10px] uppercase tracking-wider text-[var(--text-3)]">My Subscriptions</div>
-        <h1 className="text-[20px] font-semibold">我的订阅</h1>
-        <p className="mt-1 text-[13px] text-[var(--text-2)]">
-          订阅感兴趣的主题、地区或业务线，系统将推送相关政策更新
-        </p>
-      </div>
-
-      <div className="mb-6 grid grid-cols-3 gap-4">
-        <div className="card p-4">
-          <div className="mb-2 text-[11px] text-[var(--text-3)]">主题订阅</div>
-          <div className="font-mono text-[28px] font-semibold">{themeSubs.length}</div>
-        </div>
-        <div className="card p-4">
-          <div className="mb-2 text-[11px] text-[var(--text-3)]">地区订阅</div>
-          <div className="font-mono text-[28px] font-semibold">{jurisdictionSubs.length}</div>
-        </div>
-        <div className="card p-4">
-          <div className="mb-2 text-[11px] text-[var(--text-3)]">业务线订阅</div>
-          <div className="font-mono text-[28px] font-semibold">{businessLineSubs.length}</div>
+    <div className="content">
+      <div className="pagehead">
+        <div>
+          <div className="eyebrow">MY SUBSCRIPTIONS</div>
+          <h1>我的订阅</h1>
+          <p className="sub">管理个人关注主题和政策通知偏好</p>
         </div>
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[16px] font-semibold">订阅管理</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-[12px] text-white hover:bg-[var(--accent)]/90"
-        >
-          + 新增订阅
-        </button>
-      </div>
-
-      {themeSubs.length > 0 && (
-        <div className="mb-6">
-          <div className="mb-3 text-[13px] font-medium text-[var(--text-2)]">主题</div>
-          <div className="space-y-2">
-            {themeSubs.map((sub) => (
-              <div key={sub.id} className="card flex items-center gap-3 p-3">
-                <span className="rounded-full bg-[var(--accent)]/10 px-2.5 py-1 text-[12px] text-[var(--accent)]">
-                  {sub.label}
-                </span>
-                <div className="ml-auto flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_email}
-                      onChange={() => toggleNotify(sub.id, "email")}
-                      className="rounded"
-                    />
-                    邮件
-                  </label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_wecom}
-                      onChange={() => toggleNotify(sub.id, "wecom")}
-                      className="rounded"
-                    />
-                    企业微信
-                  </label>
-                  <button
-                    onClick={() => handleRemove(sub.id)}
-                    className="text-[11px] text-[var(--danger)] hover:underline"
-                  >
-                    取消订阅
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {jurisdictionSubs.length > 0 && (
-        <div className="mb-6">
-          <div className="mb-3 text-[13px] font-medium text-[var(--text-2)]">地区</div>
-          <div className="space-y-2">
-            {jurisdictionSubs.map((sub) => (
-              <div key={sub.id} className="card flex items-center gap-3 p-3">
-                <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-2)]">
-                  {sub.label}
-                </span>
-                <div className="ml-auto flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_email}
-                      onChange={() => toggleNotify(sub.id, "email")}
-                      className="rounded"
-                    />
-                    邮件
-                  </label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_wecom}
-                      onChange={() => toggleNotify(sub.id, "wecom")}
-                      className="rounded"
-                    />
-                    企业微信
-                  </label>
-                  <button
-                    onClick={() => handleRemove(sub.id)}
-                    className="text-[11px] text-[var(--danger)] hover:underline"
-                  >
-                    取消订阅
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {businessLineSubs.length > 0 && (
-        <div className="mb-6">
-          <div className="mb-3 text-[13px] font-medium text-[var(--text-2)]">业务线</div>
-          <div className="space-y-2">
-            {businessLineSubs.map((sub) => (
-              <div key={sub.id} className="card flex items-center gap-3 p-3">
-                <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-[12px] text-[var(--text-2)]">
-                  {sub.label}
-                </span>
-                <div className="ml-auto flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_email}
-                      onChange={() => toggleNotify(sub.id, "email")}
-                      className="rounded"
-                    />
-                    邮件
-                  </label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-                    <input
-                      type="checkbox"
-                      checked={sub.notify_wecom}
-                      onChange={() => toggleNotify(sub.id, "wecom")}
-                      className="rounded"
-                    />
-                    企业微信
-                  </label>
-                  <button
-                    onClick={() => handleRemove(sub.id)}
-                    className="text-[11px] text-[var(--danger)] hover:underline"
-                  >
-                    取消订阅
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {subscriptions.length === 0 && (
-        <div className="card p-12 text-center">
-          <div className="mb-2 text-[14px] text-[var(--text-2)]">暂无订阅</div>
-          <div className="text-[12px] text-[var(--text-3)]">
-            点击上方"新增订阅"按钮，开始订阅感兴趣的内容
-          </div>
-        </div>
-      )}
-
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="card w-[480px] p-6">
-            <h3 className="mb-4 text-[16px] font-semibold">新增订阅</h3>
-            <div className="mb-4">
-              <label className="mb-2 block text-[12px] text-[var(--text-2)]">订阅类型</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setAddType("theme")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-[12px] ${
-                    addType === "theme"
-                      ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                  }`}
-                >
-                  主题
-                </button>
-                <button
-                  onClick={() => setAddType("jurisdiction")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-[12px] ${
-                    addType === "jurisdiction"
-                      ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                  }`}
-                >
-                  地区
-                </button>
-                <button
-                  onClick={() => setAddType("business_line")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-[12px] ${
-                    addType === "business_line"
-                      ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                  }`}
-                >
-                  业务线
-                </button>
-              </div>
+      {notice && <div className="info" role="status" style={{ marginBottom: 16 }}>{notice}</div>}
+      <div className="subscription-layout">
+        <div className="panel">
+          <div className="panelhead"><h2>我的关注主题</h2><small>{selectedTopics.length} 个已选</small></div>
+          <div className="sectionbody">
+            <p className="sub" style={{ marginBottom: 4 }}>选择你关注的政策主题，“为你推荐”将匹配具有相同主题标签的已发布政策</p>
+            <div className="subscription-list">
+              {TOPIC_OPTIONS.map((topic) => (
+                <label className="sub-option" key={topic.value}>
+                  <input type="checkbox" checked={selectedTopics.includes(topic.value)} onChange={() => toggleValue("topics", topic.value)} disabled={!ready} />
+                  {topic.label}
+                </label>
+              ))}
             </div>
-            <div className="mb-4">
-              <label className="mb-2 block text-[12px] text-[var(--text-2)]">选择</label>
-              {addType === "theme" && (
-                <div className="flex flex-wrap gap-2">
-                  {THEMES.map((theme) => (
-                    <button
-                      key={theme}
-                      onClick={() => setAddValue(theme)}
-                      className={`rounded-full border px-3 py-1 text-[12px] ${
-                        addValue === theme
-                          ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                      }`}
-                    >
-                      #{theme}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {addType === "jurisdiction" && (
-                <div className="flex flex-wrap gap-2">
-                  {JURISDICTIONS.map((j) => (
-                    <button
-                      key={j.value}
-                      onClick={() => setAddValue(j.value)}
-                      className={`rounded-full border px-3 py-1 text-[12px] ${
-                        addValue === j.value
-                          ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                      }`}
-                    >
-                      {j.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {addType === "business_line" && (
-                <div className="flex flex-wrap gap-2">
-                  {BUSINESS_LINES.map((bl) => (
-                    <button
-                      key={bl}
-                      onClick={() => setAddValue(bl)}
-                      className={`rounded-full border px-3 py-1 text-[12px] ${
-                        addValue === bl
-                          ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                          : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-2)]"
-                      }`}
-                    >
-                      {bl}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleAdd}
-                disabled={!addValue}
-                className="flex-1 rounded-md bg-[var(--accent)] px-4 py-2 text-[13px] text-white hover:bg-[var(--accent)]/90 disabled:opacity-50"
+            {selectedTopics.length > 0 ? (
+              <div className="note-line">已选 {selectedTopics.length} 个主题：{selectedTopicLabels.map((label) => <span className="topic-chip" key={label} style={{ marginLeft: 6 }}>{label}</span>)}</div>
+            ) : (
+              <div className="empty-state" style={{ marginTop: 14 }}>尚未选择任何关注主题<br /><small>请从上方列表中勾选感兴趣的主题</small></div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panelhead"><h2>我的业务与通知</h2><small>个人偏好设置</small></div>
+          <div className="sectionbody">
+            <div style={{ marginBottom: 18 }}>
+              <label className="form-label" htmlFor="business-area">业务领域</label>
+              <select
+                id="business-area"
+                className="filter"
+                style={{ width: "100%", marginTop: 6 }}
+                value={preferences.businessArea}
+                onChange={(event) => { setNotice(""); setPreferences((current) => ({ ...current, businessArea: event.target.value })); }}
               >
-                确认订阅
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setAddValue("");
-                }}
-                className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-[13px] text-[var(--text-2)] hover:bg-[var(--surface)]"
-              >
-                取消
-              </button>
+                <option>财富管理与零售银行</option>
+                <option>工商金融</option>
+                <option>环球银行及资本市场</option>
+                <option>合规与风险管理</option>
+              </select>
             </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <span className="form-label">关注市场</span>
+              <div className="rowflex" style={{ marginTop: 6 }}>
+                {MARKET_OPTIONS.map((market) => (
+                  <label className="sub-option" key={market.value} style={{ padding: "8px 10px" }}>
+                    <input type="checkbox" checked={selectedMarkets.includes(market.value)} onChange={() => toggleValue("markets", market.value)} disabled={!ready} />
+                    {market.label}
+                  </label>
+                ))}
+              </div>
+              {selectedMarketLabels.length > 0 && <div style={{ marginTop: 8 }}>{selectedMarketLabels.map((label) => <span className="topic-chip" key={label}>{label}</span>)}</div>}
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <span className="form-label">邮件通知</span>
+              <div className="rowflex" style={{ marginTop: 6, padding: "12px 14px", border: "1px solid #e6e8eb", borderRadius: 7, justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>每日政策速递</div>
+                  <div style={{ fontSize: 11, color: "#8b929c", marginTop: 2 }}>保存通知偏好；当前尚未接入邮件发送服务</div>
+                </div>
+                <button
+                  className="btn"
+                  style={{ padding: "6px 14px", fontSize: 12, background: preferences.emailNotify ? "var(--red)" : "#fff", color: preferences.emailNotify ? "#fff" : "#363a42", borderColor: preferences.emailNotify ? "var(--red)" : "#d7d9de" }}
+                  onClick={() => { setNotice(""); setPreferences((current) => ({ ...current, emailNotify: !current.emailNotify })); }}
+                >
+                  {preferences.emailNotify ? "已开启" : "已关闭"}
+                </button>
+              </div>
+            </div>
+
+            <div className="note-line">偏好只保存在当前浏览器。点击保存后，“为你推荐”会使用已保存的主题和市场。</div>
+            <div style={{ marginTop: 16 }}><button className="btn primary" onClick={save} disabled={!ready}>保存偏好设置</button></div>
           </div>
         </div>
-      )}
-    </main>
+      </div>
+    </div>
   );
 }

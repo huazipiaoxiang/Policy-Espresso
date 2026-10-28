@@ -166,7 +166,7 @@
 | 组件 | 关键 props | 说明 |
 |---|---|---|
 | `PriorityBadge` | `level, score` | P0–P3，色 + 文字 + 图标三重编码 |
-| `ScopeChip` | `status: covered/excluded/not_mentioned` | "被排除"必须带 ⚠ 图标 |
+| `ScopeChip` | `status: high/medium/low/not_mentioned/na` | 标签固定中文：高相关 / 中相关 / 低相关 / 未提及 / 不适用 |
 | `ScoreRadar` | `scores: Record<string, number\|null>` | 8 轴雷达，null 轴虚线 |
 | `EvidenceQuote` | `quote, docId, span, field` | 引用块 + 定位按钮 |
 | `TransmissionChain` | `steps: string[]` | 竖向箭头列表，每步可挂证据 |

@@ -42,11 +42,11 @@ class FakeProvider:
             if self.scene == "n1":
                 parsed = {
                     "results": [
-                        {"entity_id": "hsbc_cn", "result": "covered",
+                        {"entity_id": "hsbc_cn", "relevance": "high",
                          "reason": "适用辖内所有银行业金融机构，外商独资法人银行在内",
                          "evidence": [{"quote": "本通知适用于辖内所有银行业金融机构。", "paragraph_index": 0}],
                          "confidence": 0.85},
-                        {"entity_id": "hsbc_hk", "result": "na", "reason": "境外机构", "evidence": [], "confidence": 0.9},
+                        {"entity_id": "hsbc_hk", "relevance": "na", "reason": "境外机构", "evidence": [], "confidence": 0.9},
                     ],
                     "foreign_bank_differential": False,
                     "group_affiliate_mention": {"mentioned": False, "entities": [], "note": ""},
@@ -54,11 +54,11 @@ class FakeProvider:
             else:  # n7
                 parsed = {
                     "results": [
-                        {"entity_id": "hsbc_cn", "result": "not_mentioned",
+                        {"entity_id": "hsbc_cn", "relevance": "not_mentioned",
                          "reason": "原文仅点名恒生银行，未提及汇丰实体",
                          "evidence": [{"quote": "本通告适用于恒生银行在广州地区的业务试点安排。", "paragraph_index": 0}],
                          "confidence": 0.9},
-                        {"entity_id": "hsbc_hk", "result": "not_mentioned", "reason": "原文未提及", "evidence": [], "confidence": 0.9},
+                        {"entity_id": "hsbc_hk", "relevance": "not_mentioned", "reason": "原文未提及", "evidence": [], "confidence": 0.9},
                     ],
                     "foreign_bank_differential": False,
                     "differential_note": "",

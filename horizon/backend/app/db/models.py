@@ -200,7 +200,7 @@ class ScopeJudgement(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("sj"))
     policy_id: Mapped[str] = mapped_column(ForeignKey("policy.id"), index=True)
     entity_id: Mapped[str] = mapped_column(String(32))  # hsbc_hk / hsbc_cn
-    result: Mapped[str] = mapped_column(String(24))  # covered/excluded/not_mentioned/na
+    result: Mapped[str] = mapped_column(String(24))  # high/medium/low/not_mentioned/na
     rule_hits: Mapped[list] = mapped_column(JSON, default=list)
     llm_reason: Mapped[str] = mapped_column(Text, default="")
     conflict: Mapped[bool] = mapped_column(Boolean, default=False)

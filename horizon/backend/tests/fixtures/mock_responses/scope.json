@@ -3,14 +3,14 @@
     "results": [
       {
         "entity_id": "hsbc_cn",
-        "result": "excluded",
+        "relevance": "low",
         "reason": "适用范围列举政策性银行、国有大型商业银行、股份制商业银行、城市商业银行、农村商业银行及村镇银行，均为内资银行，外商独资法人银行不在列举范围",
         "evidence": [{"quote": "本通知适用于广东省内依法设立的政策性银行、国有大型商业银行、股份制商业银行、城市商业银行、农村商业银行及村镇银行", "paragraph_index": 1}],
         "confidence": 0.92
       },
       {
         "entity_id": "hsbc_hk",
-        "result": "na",
+        "relevance": "na",
         "reason": "香港注册认可机构，不属于广东省内依法设立的银行业金融机构",
         "evidence": [],
         "confidence": 0.9

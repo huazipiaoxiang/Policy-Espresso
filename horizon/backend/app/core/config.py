@@ -8,8 +8,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./horizon.db"
+    scheduler_timezone: str = "Asia/Hong_Kong"
+    scheduler_heartbeat_cron: str = "0 8 * * mon"
 
     llm_provider: str = "mock"  # mock | ollama | dashscope
+    # 未接入真实 LLM 时改用离线规则派生政策内容，避免 mock 样例把每篇文档写成同一份内容
+    llm_offline_rules: bool = False
     llm_model_flash: str = "qwen-flash"
     llm_model_plus: str = "qwen-plus"
     llm_model_max: str = "qwen-max"
@@ -24,6 +28,8 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_key: str = "dev-local-key"
+    # 前端跨域白名单，逗号分隔；本地换端口（如 3002）在这里加，不用改代码
+    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
     tz_display: str = "Asia/Hong_Kong"
     log_level: str = "INFO"
     storage_dir: str = "./storage"
