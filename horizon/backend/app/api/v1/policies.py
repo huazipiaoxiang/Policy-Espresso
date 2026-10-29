@@ -11,7 +11,7 @@ from sqlalchemy.types import Text
 from app.api.v1.schemas import Page, PolicyOut
 from app.core.errors import ApiError, not_found, not_approved
 from app.core.security import get_demo_role, require_api_key, require_roles
-from app.db.models import Assessment, AuditLog, Document, Policy, ReviewDecision, ReviewTask, ScopeJudgement
+from app.db.models import Assessment, Document, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
 from app.domain.policy_admin import delete_policy
@@ -65,23 +65,9 @@ def _policy_filters(
 
 def _policy_view(db: Session, policy: Policy) -> dict:
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
-    review_completed_at = db.scalar(
-        select(func.max(ReviewDecision.created_at))
-        .join(ReviewTask, ReviewDecision.task_id == ReviewTask.id)
-        .where(ReviewTask.policy_id == policy.id, ReviewDecision.action == "approve")
-    )
-    dispatched_at = db.scalar(
-        select(func.max(AuditLog.at)).where(
-            AuditLog.object_type == "policy",
-            AuditLog.object_id == policy.id,
-            AuditLog.action == "dispatch",
-        )
-    )
     return {
         **PolicyOut.model_validate(policy).model_dump(),
         "impacted_domains": (assessment.affected.get("business_lines", []) if assessment else []),
-        "review_completed_at": review_completed_at,
-        "dispatched_at": dispatched_at,
     }
 
 

@@ -201,7 +201,7 @@ export default function DocumentDetailPage() {
                 </div>
                 <div className="field">
                   <small>发布日期</small>
-                  <strong>{doc.published_at ? new Date(doc.published_at).toLocaleDateString("zh-CN") : "—"}</strong>
+                  <strong>{doc.published_at ? doc.published_at.slice(0, 10) : "—"}</strong>
                 </div>
                 <div className="field">
                   <small>采集时间</small>

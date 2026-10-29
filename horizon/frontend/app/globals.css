@@ -229,6 +229,7 @@ a {
 }
 
 .btn {
+  display: inline-block;
   background: #fff;
   border: 1px solid #d7d9de;
   border-radius: 6px;

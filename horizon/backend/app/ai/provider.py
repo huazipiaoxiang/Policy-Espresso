@@ -30,8 +30,27 @@ class LLMProvider(Protocol):
         schema: dict | None,
         temperature: float = 0.1,
         max_tokens: int = 4096,
+        model: str | None = None,
         task: str = "",
     ) -> LLMResult: ...
+
+    def complete_messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict],
+        schema: dict | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 4096,
+        model: str | None = None,
+        task: str = "",
+    ) -> LLMResult:
+        """多轮对话调用（Chat Agent 循环用）。
+
+        与 complete 的唯一区别是 messages 为 [{"role","content"}...] 序列，
+        用于把工具观察结果按轮次回灌给模型。实现方必须支持。
+        """
+        ...
 
     def embed(self, texts: list[str]) -> list[list[float]]: ...
 

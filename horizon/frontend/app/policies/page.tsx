@@ -21,8 +21,6 @@ interface Policy {
   status: string;
   priority: string;
   score_total: number;
-  review_completed_at: string | null;
-  dispatched_at: string | null;
 }
 
 type TabKey = "all" | "today_new" | "pending_review" | "published" | "high_priority";
@@ -36,7 +34,7 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 function dateLabel(value: string | null) {
-  return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
+  return value ? value.slice(0, 10) : "—";
 }
 
 export default function PoliciesPage() {
@@ -199,10 +197,10 @@ export default function PoliciesPage() {
         </div>
         <div className="tablewrap">
           <table>
-            <thead><tr><th>政策名称</th><th>来源</th><th>影响 Domain</th><th>审核状态</th><th>发布日期</th><th>发布时间</th><th>操作</th></tr></thead>
+            <thead><tr><th>政策名称</th><th>来源</th><th>影响 Domain</th><th>审核状态</th><th>发布日期</th><th>操作</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : policies.length === 0 ? (
-                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>无匹配记录</td></tr>
+              {loading ? <tr><td colSpan={6} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : policies.length === 0 ? (
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>无匹配记录</td></tr>
               ) : policies.map((policy) => (
                 <tr key={policy.id}>
                   <td style={{ minWidth: 260 }}>
@@ -210,9 +208,8 @@ export default function PoliciesPage() {
                   </td>
                   <td>{policy.issuing_body || "—"}<br /><small>{JURISDICTION_LABELS[policy.jurisdiction] || policy.jurisdiction || "—"}</small></td>
                   <td><div className="rowflex">{policy.impacted_domains.length ? policy.impacted_domains.map((domain) => <span className="badge" key={domain}>{domain}</span>) : "—"}</div></td>
-                  <td><span className={`badge ${policy.status === "published" || policy.status === "approved" ? "green" : policy.status.includes("review") ? "amber" : ""}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span><br /><small>审核：{dateLabel(policy.review_completed_at)}</small></td>
+                  <td><span className={`badge ${policy.status === "published" || policy.status === "approved" ? "green" : policy.status.includes("review") ? "amber" : ""}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span></td>
                   <td style={{ whiteSpace: "nowrap" }}>{dateLabel(policy.published_at)}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>{dateLabel(policy.dispatched_at)}</td>
                   <td>
                     <div className="rowflex">
                       <Link href={`/policies/${policy.id}`} className="link">详情</Link>

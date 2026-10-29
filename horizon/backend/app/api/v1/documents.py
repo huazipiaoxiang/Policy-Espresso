@@ -183,6 +183,47 @@ async def upload_document(
     }
 
 
+@router.delete("/{doc_id}")
+def delete_document(
+    doc_id: str,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    _: str = Depends(require_roles("admin")),
+):
+    doc = db.get(Document, doc_id)
+    if not doc:
+        raise not_found("文档", doc_id)
+    policy = db.scalar(select(Policy).where(Policy.document_id == doc.id))
+    attachment_paths = [
+        att.get("path") if isinstance(att, dict) else ""
+        for att in (doc.attachments or [])
+    ]
+    before = {
+        "title": doc.title, "source_id": doc.source_id, "status": doc.status,
+        "policy_id": policy.id if policy else None,
+    }
+    db.query(DocumentVersion).filter(DocumentVersion.document_id == doc.id).delete(synchronize_session=False)
+    if policy:
+        delete_policy_records(db, policy)
+    db.delete(doc)
+    db.add(AuditLog(
+        actor=actor, action="delete_document", object_type="document", object_id=doc.id,
+        before=before, after={"deleted": True, "policy_deleted": bool(policy)},
+        reason="管理员删除原文，关联政策一并删除" if policy else "管理员删除原文",
+    ))
+    db.commit()
+
+    settings = get_settings()
+    storage_root = Path(settings.storage_dir).resolve()
+    for rel in attachment_paths:
+        if not rel:
+            continue
+        candidate = (storage_root / rel).resolve()
+        if candidate.is_relative_to(storage_root) and candidate.is_file():
+            candidate.unlink(missing_ok=True)
+    return {"status": "ok", "document_id": doc_id, "policy_deleted": bool(policy)}
+
+
 @router.get("/{doc_id}")
 def get_document(doc_id: str, db: Session = Depends(get_db)):
     doc = db.get(Document, doc_id)

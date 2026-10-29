@@ -201,6 +201,55 @@ def test_provider_no_answer_does_not_fall_back_to_extractive_answer(db):
     assert "找不到足够的可靠资料" in result.reply
 
 
+def test_grounded_partial_answer_with_valid_citations_is_surfaced(db):
+    """LLM 找到政策但缺少细节时置 no_answer=true：有引用支撑的诚实回答应被保留。"""
+    from types import SimpleNamespace
+
+    policy = add_policy(db)
+
+    class PartialAnswerProvider:
+        name = "partial-answer-test"
+
+        def complete(self, **kwargs):
+            return SimpleNamespace(
+                parsed={
+                    "reply": "该政策由示例监管机构发布，但证据未包含具体条款细节。",
+                    "citation_ids": [f"policy:{policy.id}"],
+                    "no_answer": True,
+                },
+                model="partial-answer-test",
+            )
+
+    result = generate_grounded_chat(
+        tools=ChatTools(db, "analyst"), provider=PartialAnswerProvider(),
+        question="帮我解读《虚拟银行监管新规》",
+    )
+    assert result.no_answer is False
+    assert result.citations[0]["policy_id"] == policy.id
+    assert "具体条款" in result.reply
+    assert "找不到足够的可靠资料" not in result.reply
+
+
+def test_policy_search_matches_document_content_text(db):
+    """原文正文中的条款（如贴息）必须可被检索命中，而不只匹配标题/摘要。
+
+    正文匹配词按文档频率筛选（2..50 篇），故每个关键词需出现在两篇文档中。
+    """
+    target = add_policy(db, title="某通知", summary="一般通知内容。")
+    target.document.content_text = "为支持实体经济发展，对符合条件的企业给予贷款贴息支持，年贴息率不超过1.5%。"
+    loan_decoy = add_policy(db, title="贷款指引")
+    loan_decoy.document.content_text = "本指引说明贷款业务的一般要求。"
+    subsidy_decoy = add_policy(db, title="贴息办法")
+    subsidy_decoy.document.content_text = "本文件不涉及贴息以外的内容。"
+    for index in range(22):
+        add_policy(db, title=f"其他政策 {index}")
+    db.commit()
+    result = ask(db, "贷款和贴息相关的政策有哪些？")
+    assert result.no_answer is False
+    assert result.citations[0]["policy_id"] == target.id
+    assert "贴息" in result.reply
+
+
 def test_empty_web_snippet_is_not_reliable_evidence(db, monkeypatch):
     from app.chat.tools import ChatEvidence
 
@@ -233,6 +282,119 @@ def test_web_search_adds_verifiable_external_sources(db, monkeypatch):
     result = ask(db, "联网查询最新支付监管新闻")
     assert "今日发布" in result.reply
     assert result.citations[0]["url"] == "https://regulator.example/latest"
+
+
+def test_time_relative_listing_questions_are_recognized():
+    """「今天新增的政策有哪些，帮我整理一下」应识别为列表类 + 今天入库意图。"""
+    from app.chat.service import _is_generic_listing, _time_intent
+
+    assert _is_generic_listing("今天新增的政策有哪些，帮我整理一下") is True
+    assert _is_generic_listing("最近有什么新政策") is True
+    assert _time_intent("今天新增的政策有哪些") == "today"
+    assert _time_intent("最近有什么新政策") == "recent"
+    assert _time_intent("虚拟银行监管新规是什么") == ""
+
+
+def test_search_recent_policies_orders_by_fetched_at(db):
+    from datetime import timedelta
+
+    older = add_policy(db, title="五天前入库的政策")
+    newer = add_policy(db, title="刚刚入库的政策")
+    older.document.fetched_at = datetime.now(timezone.utc) - timedelta(days=5)
+    newer.document.fetched_at = datetime.now(timezone.utc)
+    db.commit()
+
+    tools = ChatTools(db, "analyst")
+    result = tools.search_recent_policies()
+    assert result[0].title == "刚刚入库的政策"
+    assert "入库时间" in result[0].text
+    assert result[0].citation["policy_id"] == newer.id
+
+
+def test_today_new_policies_are_listed_not_rejected(db):
+    """「今天新增」是入库时间语义，不是政策发布日期；命中即列出，不 NO_ANSWER。"""
+    add_policy(db, title="今天入库的政策")
+    result = ask(db, "今天新增的政策有哪些，帮我整理一下")
+    assert result.no_answer is False
+    assert result.citations, "应列出新增政策而不是拒答"
+    assert "找不到足够的可靠资料" not in result.reply
+
+
+def test_yes_no_today_question_is_not_rejected_when_nothing_today(db):
+    """「今天有新增政策吗」——今天没有入库记录时也应如实作答，而不是 NO_ANSWER。"""
+    from datetime import timedelta
+
+    policy = add_policy(db, title="昨天入库的政策")
+    policy.document.fetched_at = datetime.now(timezone.utc) - timedelta(days=1)
+    db.commit()
+
+    result = ask(db, "今天有新增政策吗")
+    assert result.no_answer is False
+    assert "找不到足够的可靠资料" not in result.reply
+
+
+def test_reference_resolution_uses_history_citations():
+    from app.chat.service import _resolve_reference
+
+    history = [
+        {"role": "user", "content": "今天新增的政策有哪些"},
+        {"role": "assistant", "content": "列出的政策", "citations": [
+            {"id": "policy:p1", "type": "policy", "title": "政府推出新一批銀色債券"},
+            {"id": "policy:p2", "type": "policy", "title": "加強規管持牌放債人"},
+        ]},
+    ]
+    assert _resolve_reference("以上政策1如何帮到业务线", history) == "《政府推出新一批銀色債券》 以上政策1如何帮到业务线"
+    assert _resolve_reference("第2条的发文机构是什么", history).startswith("《加強規管持牌放債人》")
+    assert _resolve_reference("这些政策影响如何", history).startswith("《政府推出新一批銀色債券》")
+
+
+def test_reference_resolution_no_history_is_noop():
+    from app.chat.service import _resolve_reference
+
+    assert _resolve_reference("以上政策1如何", None) == "以上政策1如何"
+    assert _resolve_reference("虚拟银行监管新规是什么", []) == "虚拟银行监管新规是什么"
+
+
+def test_reference_resolution_steers_retrieval_to_specific_policy(db):
+    """「以上政策1」应精确命中上一轮第 1 条政策，而不是泛词命中的无关政策。"""
+    target = add_policy(db, title="政府推出新一批銀色債券")
+    add_policy(db, title="无关的另一个政策")
+    history = [
+        {"role": "assistant", "content": "列出的政策", "citations": [
+            {"id": f"policy:{target.id}", "type": "policy", "title": "政府推出新一批銀色債券"},
+        ]},
+    ]
+    result = generate_grounded_chat(
+        tools=ChatTools(db, "analyst"),
+        provider=MockProvider(),
+        question="以上政策1如何帮到业务线",
+        history=history,
+    )
+    assert result.no_answer is False
+    assert result.citations[0]["policy_id"] == target.id
+
+
+def test_duplicate_title_policies_are_deduplicated(db):
+    """同标题定期报告（如 HKMA 月度报告，每期标题相同）只保留一条，来源列表不重复。"""
+    add_policy(db, title="香港金融管理局月度报告")
+    add_policy(db, title="香港金融管理局月度报告")
+    result = ask(db, "《香港金融管理局月度报告》是什么")
+    assert result.no_answer is False
+    titles = [citation["title"] for citation in result.citations]
+    assert titles.count("香港金融管理局月度报告") == 1
+
+
+def test_response_citations_dedup_by_title():
+    from app.api.v1.chat import _citations
+
+    raw = [
+        {"id": "policy:a", "type": "policy", "title": "同一标题"},
+        {"id": "policy:b", "type": "policy", "title": "同一标题"},
+        {"id": "policy:c", "type": "policy", "title": "另一标题"},
+    ]
+    citations = _citations(raw)
+    assert len(citations) == 2
+    assert [c.title for c in citations] == ["同一标题", "另一标题"]
 
 
 def test_web_failure_is_explicit_and_never_fabricated(db, monkeypatch):

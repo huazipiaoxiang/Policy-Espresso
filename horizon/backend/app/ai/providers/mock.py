@@ -30,6 +30,9 @@ _FALLBACKS: dict[str, object] = {
     # 文本输出链路：满足 alert 六段结构校验，避免 mock 模式下分析因校验失败而中断
     "alert": "【一句话结论】mock：暂无法生成有效预警，需接入真实 AI 分析\n"
              "【影响对象】待定\n【机制】待定\n【建议动作】待人工复核\n【证据】无\n【置信度】低",
+    # Chat Agent：mock 不参与规划（无法从 prompt 反推用户问题），返回空结构让调用方走规则回退。
+    "chat_plan": {"standalone_question": "", "intent": "lookup", "queries": [], "needs_web": False},
+    "chat_answer": {"reply": "", "answer_mode": "general", "citation_ids": [], "followups": []},
 }
 
 
@@ -47,6 +50,7 @@ class MockProvider:
         schema: dict | None = None,
         temperature: float = 0.1,
         max_tokens: int = 4096,
+        model: str | None = None,
         task: str = "extract",
     ) -> LLMResult:
         digest = input_hash(system, user)
@@ -68,6 +72,27 @@ class MockProvider:
             latency_ms=1,
             model="mock-deterministic",
             raw={"mock": True, "input_hash": digest},
+        )
+
+    def complete_messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict],
+        schema: dict | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 4096,
+        model: str | None = None,
+        task: str = "",
+    ) -> LLMResult:
+        """多轮：展平为单条 user 文本后复用查表逻辑，保证 mock 行为确定且与轮次无关。"""
+        flattened = "\n\n".join(
+            f"[{str(message.get('role') or 'user')}] {str(message.get('content') or '')}"
+            for message in messages
+        )
+        return self.complete(
+            system=system, user=flattened, schema=schema,
+            temperature=temperature, max_tokens=max_tokens, model=model, task=task,
         )
 
     def _lookup(self, task: str, digest: str) -> dict | str | None:

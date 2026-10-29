@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { JURISDICTION_LABELS } from "@/lib/labels";
 
@@ -42,6 +43,9 @@ export default function DocumentsPage() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [busyId, setBusyId] = useState("");
+  const [notice, setNotice] = useState("");
   const pageSize = 20;
 
   const fetchDocuments = useCallback(async () => {
@@ -118,6 +122,30 @@ export default function DocumentsPage() {
     ? documents.filter((d) => d.title.toLowerCase().includes(search.trim().toLowerCase()))
     : documents;
 
+  async function removeDocument() {
+    const doc = deleteTarget;
+    if (!doc) return;
+    setBusyId(doc.id);
+    setNotice("");
+    try {
+      const response = await fetch(`${API_BASE}/documents/${doc.id}`, {
+        method: "DELETE",
+        headers: demoApiHeaders(),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error?.message || "删除失败");
+      }
+      setDeleteTarget(null);
+      setNotice(`文档「${doc.title}」已删除${doc.policy_id ? "，关联政策一并删除" : ""}`);
+      await fetchDocuments();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "删除失败");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const goToPage = (page: number) => {
@@ -167,6 +195,8 @@ export default function DocumentsPage() {
           {uploadResult && <div className="info" style={{ marginTop: 12 }}>{uploadResult}</div>}
         </div>
       </section>}
+
+      {notice && <div className="info" style={{ marginBottom: 18 }}>{notice}</div>}
 
       <div className="doc-intro">
         原文库收录所有从监管机构、官方网站等渠道采集的原始文件。每份文件经解析后生成对应的政策条目，
@@ -243,7 +273,7 @@ export default function DocumentsPage() {
                       <span style={{ color: "#8c929a", fontSize: "11px" }}>{doc.source_name || doc.source_id}</span>
                     </td>
                     <td style={{ whiteSpace: "nowrap", fontSize: "12px", color: "#6b7280" }}>
-                      {doc.published_at ? new Date(doc.published_at).toLocaleDateString("zh-CN") : "—"}
+                      {doc.published_at ? doc.published_at.slice(0, 10) : "—"}
                     </td>
                     <td>
                       <span className="badge">{doc.lang || "zh"}</span>
@@ -262,8 +292,11 @@ export default function DocumentsPage() {
                       {doc.attachments?.length || 0} 个
                     </td>
                     <td>
-                      <Link href={`/documents/${doc.id}`} className="link">原文 →</Link>
-                      {doc.policy_id && <Link href={`/policies/${doc.policy_id}`} className="link" style={{ marginLeft: 8 }}>政策 →</Link>}
+                      <div className="rowflex">
+                        <Link href={`/documents/${doc.id}`} className="link">原文 →</Link>
+                        {doc.policy_id && <Link href={`/policies/${doc.policy_id}`} className="link">政策 →</Link>}
+                        {role === "admin" && <button className="link" disabled={busyId === doc.id} onClick={() => setDeleteTarget(doc)} style={{ color: "var(--red)" }}>删除</button>}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -310,6 +343,26 @@ export default function DocumentsPage() {
       <p className="footnote">
         第 {currentPage}/{totalPages} 页，共 {total.toLocaleString()} 份文档。数据来自后端 API 实时抓取。
       </p>
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="删除原文"
+          confirmLabel="确认删除"
+          busy={busyId === deleteTarget.id}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={removeDocument}
+          acknowledgeLabel={`我已确认删除「${deleteTarget.title}」${deleteTarget.policy_id ? "及其关联政策" : ""}`}
+          description={<>
+            <p>文档编号：{deleteTarget.id}（{deleteTarget.source_name || deleteTarget.source_id}）</p>
+            {deleteTarget.policy_id ? (
+              <p>该文档已生成政策，删除后政策的 AI 分析、审核、预警和图谱关联会一并清除。</p>
+            ) : (
+              <p>删除后仅移除原文记录及其本地文件。</p>
+            )}
+            <p>此操作不可撤销，删除记录会写入审计日志。</p>
+          </>}
+        />
+      )}
     </main>
   );
 }

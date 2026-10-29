@@ -13,9 +13,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 function fmtTime(iso: string | null): string {
   if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("zh-HK", { timeZone: "Asia/Hong_Kong", dateStyle: "short" }).format(d);
+  return iso.slice(0, 10);
 }
 
 // 状态徽章颜色映射

@@ -12,7 +12,7 @@ class FakeProvider:
     def __init__(self, scene: str = "n1"):
         self.scene = scene
 
-    def complete(self, *, system, user, schema=None, temperature=0.1, max_tokens=4096, task=""):  # noqa: ANN001, ANN201
+    def complete(self, *, system, user, schema=None, temperature=0.1, max_tokens=4096, model=None, task=""):  # noqa: ANN001, ANN201
         if task == "classify":
             parsed = {"is_financial_policy": True, "policy_type": "circular",
                       "jurisdictions": ["GD"], "themes": ["贷款与贴息"],
@@ -92,6 +92,18 @@ class FakeProvider:
             text=json.dumps(parsed, ensure_ascii=False), parsed=parsed,
             usage={"prompt_tokens": 0, "completion_tokens": 0},
             latency_ms=1, model="fake",
+        )
+
+    def complete_messages(self, *, system, messages, schema=None, temperature=0.1,  # noqa: ANN001, ANN201
+                          max_tokens=4096, model=None, task=""):
+        """多轮：FakeProvider 不区分轮次，按最后一条 user 内容复用 complete 的场景分支。"""
+        last_user = ""
+        for message in messages:
+            if str(message.get("role") or "") == "user":
+                last_user = str(message.get("content") or "")
+        return self.complete(
+            system=system, user=last_user, schema=schema,
+            temperature=temperature, max_tokens=max_tokens, model=model, task=task,
         )
 
     def embed(self, texts):  # noqa: ANN001, ANN201

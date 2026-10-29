@@ -115,6 +115,28 @@ class DocumentVersion(Base):
     document: Mapped[Document] = relationship(back_populates="versions")
 
 
+class DocumentChunk(Base):
+    """正文切片 + 向量（app/search/ 的语义检索通道）。
+
+    embedding 为 float32 数组序列化后的 blob，与 Case.embedding 同约定：
+    PG 环境可换 pgvector，SQLite 下由进程内索引做余弦检索；为空表示该片未嵌入，
+    检索时自动跳过并降级为纯词法。content_hash 用于增量重建时跳过未变更文档。
+    """
+
+    __tablename__ = "document_chunk"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("dc"))
+    document_id: Mapped[str] = mapped_column(ForeignKey("document.id"), index=True)
+    policy_id: Mapped[str | None] = mapped_column(ForeignKey("policy.id"), nullable=True, index=True)
+    chunk_index: Mapped[int] = mapped_column(Integer, default=0)
+    text: Mapped[str] = mapped_column(Text, default="")
+    content_hash: Mapped[str] = mapped_column(String(64), index=True, default="")
+    embedding: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    embedded_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+
+    __table_args__ = (Index("uq_doc_chunk_doc_index", "document_id", "chunk_index", unique=True),)
+
+
 class Policy(Base):
     __tablename__ = "policy"
 

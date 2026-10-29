@@ -9,10 +9,16 @@ async function proxy(request: NextRequest, path: string[]) {
   const headers: Record<string, string> = { "X-API-Key": API_KEY };
   const role = request.headers.get("X-Demo-Role");
   if (role) headers["X-Demo-Role"] = role;
-  let body: string | undefined;
+  let body: BodyInit | undefined;
   if (request.method !== "GET" && request.method !== "HEAD") {
-    body = await request.text();
-    headers["Content-Type"] = "application/json";
+    const contentType = request.headers.get("content-type") ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      // 文件上传：按 multipart 原样转发，不能走 text()（会损坏二进制并丢失 boundary）
+      body = await request.formData();
+    } else {
+      body = await request.text();
+      headers["Content-Type"] = "application/json";
+    }
   }
   const resp = await fetch(url, { method: request.method, headers, body, cache: "no-store" });
   const contentType = resp.headers.get("content-type") ?? "application/json";
@@ -34,5 +40,9 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { path: string[] } }) {
+  return proxy(request, params.path);
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { path: string[] } }) {
   return proxy(request, params.path);
 }

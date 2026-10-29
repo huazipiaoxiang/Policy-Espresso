@@ -15,15 +15,44 @@ interface Citation {
   source_id?: string | null;
 }
 
+interface ChatStep {
+  round: number;
+  tool: string;
+  query: string;
+  hits: number;
+  note?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[];
   noAnswer?: boolean;
+  answerMode?: "grounded" | "mixed" | "general";
+  steps?: ChatStep[];
+  followups?: string[];
+  clarifyingQuestion?: string;
 }
 
 interface ChatPanelProps {
   onClose: () => void;
+}
+
+const MIN_WIDTH = 320;
+const MIN_HEIGHT = 320;
+const PANEL_EDGE_GAP = 24;
+// 多轮指代消解（「它什么时候发布」）需要更多上下文，但 outbound 仍要设上限。
+const HISTORY_TURNS = 6;
+const HISTORY_ASSISTANT_LIMIT = 1200;
+
+const ANSWER_MODE_LABEL: Record<string, string> = {
+  grounded: "依据：政策库记录",
+  mixed: "依据：政策库 + 通用知识",
+  general: "依据：通用知识",
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function safeCitationUrl(url?: string): string | null {
@@ -43,7 +72,39 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [panelSize, setPanelSize] = useState(() => ({
+    width: Math.min(380, window.innerWidth - PANEL_EDGE_GAP * 2),
+    height: Math.min(500, window.innerHeight - 96 - PANEL_EDGE_GAP),
+  }));
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{ startX: number; startY: number; width: number; height: number } | null>(null);
+
+  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    resizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      width: panelSize.width,
+      height: panelSize.height,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    document.body.style.userSelect = "none";
+  };
+
+  const moveResize = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeRef.current) return;
+    const { startX, startY, width, height } = resizeRef.current;
+    const maxWidth = Math.min(760, window.innerWidth - PANEL_EDGE_GAP);
+    const maxHeight = Math.min(1200, window.innerHeight - 96 - PANEL_EDGE_GAP);
+    setPanelSize({
+      width: clamp(width - (e.clientX - startX), MIN_WIDTH, maxWidth),
+      height: clamp(height - (e.clientY - startY), MIN_HEIGHT, maxHeight),
+    });
+  };
+
+  const endResize = () => {
+    resizeRef.current = null;
+    document.body.style.userSelect = "";
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,9 +133,13 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         headers,
         body: JSON.stringify({
           // Keep the mounted conversation intact, but bound outbound history.
-          messages: newMessages.slice(-3).map(({ role, content }) => ({
+          messages: newMessages.slice(-HISTORY_TURNS).map(({ role, content, citations }) => ({
             role,
-            content: role === "assistant" ? content.slice(0, 1000) : content,
+            content: role === "assistant" ? content.slice(0, HISTORY_ASSISTANT_LIMIT) : content,
+            // 带上上一轮的政策引用，后端据此消解「以上政策1 / 这条」这类指代
+            ...(role === "assistant" && Array.isArray(citations) && citations.length
+              ? { citations: citations.filter((citation) => citation.type === "policy") }
+              : {}),
           })),
         }),
       });
@@ -90,6 +155,10 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           content: data.reply,
           citations: Array.isArray(data.citations) ? data.citations : [],
           noAnswer: Boolean(data.no_answer),
+          answerMode: typeof data.answer_mode === "string" ? data.answer_mode : undefined,
+          steps: Array.isArray(data.steps) ? data.steps : [],
+          followups: Array.isArray(data.followups) ? data.followups : [],
+          clarifyingQuestion: typeof data.clarifying_question === "string" ? data.clarifying_question : "",
         },
       ]);
     } catch {
@@ -107,7 +176,30 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex h-[500px] w-[min(380px,calc(100vw-3rem))] flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl">
+    <div
+      className="fixed bottom-24 right-6 z-50 flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+      style={{ width: panelSize.width, height: panelSize.height }}
+    >
+      {/* Resize handle */}
+      <div
+        role="separator"
+        aria-label="拖拽调整面板大小"
+        aria-orientation="horizontal"
+        onPointerDown={startResize}
+        onPointerMove={moveResize}
+        onPointerUp={endResize}
+        onPointerCancel={endResize}
+        className="absolute -left-1.5 -top-1.5 z-10 flex h-7 w-7 cursor-nwse-resize touch-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-3)] shadow-md hover:text-[var(--text)]"
+        title="拖拽调整大小"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+          <circle cx="4.5" cy="4.5" r="1.5" />
+          <circle cx="11.5" cy="4.5" r="1.5" />
+          <circle cx="4.5" cy="11.5" r="1.5" />
+          <circle cx="11.5" cy="11.5" r="1.5" />
+        </svg>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-center gap-2">
@@ -139,7 +231,29 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
               {msg.noAnswer && (
                 <div className="mb-1 text-[11px] font-medium text-[var(--text-3)]">未找到可靠依据</div>
               )}
+              {!!msg.answerMode && !!ANSWER_MODE_LABEL[msg.answerMode] && (
+                <div className="mb-1 text-[11px] font-medium text-[var(--text-3)]">
+                  {ANSWER_MODE_LABEL[msg.answerMode]}
+                </div>
+              )}
               <div className="whitespace-pre-wrap">{msg.content}</div>
+              {!!msg.steps?.length && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[11px] text-[var(--text-3)] hover:text-[var(--text)]">
+                    检索过程（{msg.steps.length} 步）
+                  </summary>
+                  <ul className="mt-1 space-y-1">
+                    {msg.steps.map((step, stepIndex) => (
+                      <li key={`${step.tool}-${step.round}-${stepIndex}`} className="text-[11px] leading-4 text-[var(--text-3)]">
+                        <span className="mr-1">{step.round}.</span>
+                        <span className="text-[var(--text)]">{step.tool}</span>
+                        <span> · {step.query || "（空查询）"} · 命中 {step.hits} 条</span>
+                        {!!step.note && <div className="text-[10px]">{step.note}</div>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {!!msg.citations?.length && (
                 <div className="mt-2 border-t border-[var(--border)] pt-2">
                   <div className="mb-1 text-[11px] font-medium text-[var(--text-3)]">依据与来源</div>
@@ -167,13 +281,27 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                   </ul>
                 </div>
               )}
+              {!!msg.followups?.length && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {msg.followups.map((followup, followupIndex) => (
+                    <button
+                      key={`${followupIndex}-${followup.slice(0, 12)}`}
+                      type="button"
+                      onClick={() => setInput(followup)}
+                      className="rounded-full border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    >
+                      {followup}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex justify-start" role="status">
             <div className="rounded-lg bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text-3)]">
-              正在检索当前政策库...
+              正在检索当前政策库并组织回答...
             </div>
           </div>
         )}

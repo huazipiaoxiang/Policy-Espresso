@@ -21,6 +21,7 @@ dependencies = [
     "openpyxl>=3.1",
     "xlrd>=2.0",
     "reportlab>=4.0",  # 文档导出 PDF（内置 CID 中文字体）
+    "numpy>=1.26",  # Chat Agent 语义检索的向量余弦计算；缺失时自动降级为纯词法
 ]
 
 [project.optional-dependencies]

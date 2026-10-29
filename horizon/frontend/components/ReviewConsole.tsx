@@ -164,7 +164,11 @@ export default function ReviewConsole({ initialTasks }: { initialTasks: ReviewTa
     return (
       <div className="card p-8 text-center">
         <div className="text-[13px] text-[var(--text-2)]">待审队列已清空</div>
-        <div className="mt-1 text-[12px] text-[var(--text-3)]">新政策分析完成后将自动进入队列（SLA：P0 4h / P1 24h）</div>
+        <div className="mt-1 text-[12px] text-[var(--text-3)]">
+          {role === "approver"
+            ? "二级审核任务在初级审核员通过 P0/P1 政策后生成；当前没有待处理的二级审核任务。"
+            : "新政策分析完成后将自动进入队列（SLA：P0 4h / P1 24h）"}
+        </div>
       </div>
     );
   }

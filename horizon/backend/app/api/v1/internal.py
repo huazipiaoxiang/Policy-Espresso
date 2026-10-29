@@ -42,3 +42,21 @@ def trigger_analyze(
     _check_token(x_job_token, settings)
     analyze_all_pending()
     return {"status": "ok", "job": "analyze_pending"}
+
+
+@router.post("/jobs/embed")
+def trigger_embed(
+    x_job_token: str | None = Header(default=None),
+    limit: int = 0,
+    settings: Settings = Depends(get_settings),
+):
+    """重建正文切片与向量索引（Chat Agent 语义检索通道）。
+
+    未配置 SEARCH_VECTOR_ENABLED / 缺 numpy / 嵌入不可达时返回 disabled|numpy_missing，不报错。
+    limit>0 只处理最近抓取的 limit 篇，便于调试。
+    """
+    from app.jobs.embed_job import rebuild_chunks
+
+    _check_token(x_job_token, settings)
+    result = rebuild_chunks(limit=limit)
+    return {"job": "embed", **result}

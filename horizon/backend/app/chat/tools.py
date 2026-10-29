@@ -6,16 +6,17 @@ result limit and all role filtering happens here, before evidence is returned.
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Assessment, Document, Policy, ReviewTask, Source
 
-RESULT_LIMIT = 6
+RESULT_LIMIT = 8
 TEXT_LIMIT = 1200
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{1,63}|\b(?:p|d|s|a|rt)_[A-Za-z0-9_-]+\b", re.I)
 _CJK_RE = re.compile(r"[\u3400-\u9fff]+")
@@ -27,6 +28,13 @@ _GENERIC_BIGRAMS = {
     "关于", "有些", "一些", "有关", "哪些", "能否", "帮我", "查找", "查询",
     "请问", "信息", "情况", "动态", "通知", "公告", "规定", "办法", "意见",
 }
+
+_INTERPRET_WORDS = ("解读", "分析", "总结", "要点", "重点", "介绍", "内容", "是什么")
+INTERPRET_EXCERPT_LIMIT = 3000
+
+
+def _has_interpret_intent(query: str) -> bool:
+    return any(word in query for word in _INTERPRET_WORDS)
 
 
 @dataclass(frozen=True)
@@ -119,6 +127,7 @@ def _rank(query: str, rows: list[Any], title: Any, body: Any, extra: Any = None)
 
 
 _REVIEW_INTENT_WORDS = ("审核", "审查", "复核", "审批", "待办", "待审", "review", "assignee")
+_IMPACT_INTENT_WORDS = ("影响", "业务", "风险", "传导", "应对", "行动", "impact", "business")
 
 
 def _has_review_intent(query: str) -> bool:
@@ -126,7 +135,12 @@ def _has_review_intent(query: str) -> bool:
     return any(word in folded for word in _REVIEW_INTENT_WORDS)
 
 
-def _excerpt(text: str, query: str) -> str:
+def _has_impact_intent(query: str) -> bool:
+    folded = query.casefold()
+    return any(word in folded for word in _IMPACT_INTENT_WORDS)
+
+
+def _excerpt(text: str, query: str, limit: int = TEXT_LIMIT) -> str:
     clean = _clean_text(text, 20000)
     if not clean:
         return ""
@@ -134,10 +148,45 @@ def _excerpt(text: str, query: str) -> str:
     positions = [lowered.find(term.casefold()) for term in search_terms(query)]
     positions = [position for position in positions if position >= 0]
     start = max(0, min(positions) - 120) if positions else 0
-    end = min(len(clean), start + TEXT_LIMIT)
+    end = min(len(clean), start + limit)
     prefix = "…" if start else ""
     suffix = "…" if end < len(clean) else ""
     return f"{prefix}{clean[start:end]}{suffix}"
+
+
+# Agent 模式下同一问题会在多轮里被反复检索，这两处全表扫描会被线性放大，
+# 因此做进程内缓存：主题词表按「政策数 + 最大 id」指纹缓存，正文低频词按查询串缓存。
+# 两者都带 TTL，避免长期持有陈旧数据；测试可用 clear_query_caches() 强制失效。
+_CACHE_TTL_SECONDS = 60.0
+_THEME_CACHE: tuple[str, float, dict[str, list[str]]] | None = None
+_CONTENT_TERM_CACHE: dict[str, tuple[float, list[str]]] = {}
+_CONTENT_TERM_CACHE_MAX = 256
+
+
+def clear_query_caches() -> None:
+    """清空检索缓存（测试与重建索引后使用）。"""
+    global _THEME_CACHE
+    _THEME_CACHE = None
+    _CONTENT_TERM_CACHE.clear()
+
+
+def _theme_vocabulary(db: Session) -> dict[str, list[str]]:
+    """主题词 → 政策 id 列表。按 (count, max_id) 指纹 + TTL 缓存，避免每轮全表扫描。"""
+    global _THEME_CACHE
+    now = time.monotonic()
+    fingerprint_row = db.execute(select(func.count(Policy.id), func.max(Policy.id))).first()
+    fingerprint = f"{fingerprint_row[0]}:{fingerprint_row[1]}" if fingerprint_row else ""
+    if _THEME_CACHE and _THEME_CACHE[0] == fingerprint and now - _THEME_CACHE[1] < _CACHE_TTL_SECONDS:
+        return _THEME_CACHE[2]
+
+    rows = db.execute(select(Policy.id, Policy.themes).where(Policy.themes.isnot(None))).all()
+    ids_by_theme: dict[str, list[str]] = {}
+    for policy_id, themes in rows:
+        for value in themes or []:
+            if isinstance(value, str) and 2 <= len(value) <= 24:
+                ids_by_theme.setdefault(value, []).append(policy_id)
+    _THEME_CACHE = (fingerprint, now, ids_by_theme)
+    return ids_by_theme
 
 
 def _theme_terms(db: Session, query: str) -> tuple[list[str], list[str]]:
@@ -146,17 +195,138 @@ def _theme_terms(db: Session, query: str) -> tuple[list[str], list[str]]:
     JSON 列存的是转义文本（CJK 存成 \\uXXXX），SQL 层 ilike 匹配不到中文，
     所以主题匹配在 Python 侧完成，再以 id 列表回推 SQL。
     """
-    rows = db.execute(select(Policy.id, Policy.themes).where(Policy.themes.isnot(None))).all()
-    known: set[str] = set()
-    ids_by_theme: dict[str, list[str]] = {}
-    for policy_id, themes in rows:
-        for value in themes or []:
-            if isinstance(value, str) and 2 <= len(value) <= 24:
-                known.add(value)
-                ids_by_theme.setdefault(value, []).append(policy_id)
-    terms = sorted((theme for theme in known if theme in query), key=len, reverse=True)[:5]
+    ids_by_theme = _theme_vocabulary(db)
+    terms = sorted((theme for theme in ids_by_theme if theme in query), key=len, reverse=True)[:5]
     matched_ids = sorted({policy_id for theme in terms for policy_id in ids_by_theme.get(theme, [])})
     return terms, matched_ids
+
+
+# 正文匹配词的文档频率窗口（当前约 1.4k 文档的语料下取值）。
+# 上限排除导航菜单等垃圾高频词（金融 769 / 銀行 666 / 香港 843 / 的政 64）；
+# 下限排除只出现在单篇文档的跨词噪声二元组（如「和贴」）。
+_MAX_CONTENT_DF = 50
+_MIN_CONTENT_DF = 2
+
+
+def _content_terms(db: Session, query: str) -> list[str]:
+    """提取用于原文正文匹配的低频词：词条 + CJK 二元组，排除语料高频与通用词。
+
+    每个候选词都要一次全表 COUNT，是检索路径上最贵的一步，结果按查询串缓存 60 秒。
+    """
+    cached = _CONTENT_TERM_CACHE.get(query)
+    now = time.monotonic()
+    if cached and now - cached[0] < _CACHE_TTL_SECONDS:
+        return cached[1]
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for match in _WORD_RE.finditer(query):
+        term = match.group(0)
+        if term.casefold() not in seen:
+            seen.add(term.casefold())
+            candidates.append(term)
+    for sequence in _CJK_RE.findall(query):
+        for index in range(max(0, len(sequence) - 1)):
+            term = sequence[index : index + 2]
+            if term in _GENERIC_BIGRAMS or term in seen:
+                continue
+            seen.add(term)
+            candidates.append(term)
+    if not candidates:
+        return []
+    kept: list[str] = []
+    for term in candidates:
+        freq = db.scalar(
+            select(func.count(Document.id)).where(
+                Document.content_text.ilike(_pattern(term), escape="\\")
+            )
+        ) or 0
+        if _MIN_CONTENT_DF <= freq <= _MAX_CONTENT_DF:
+            kept.append(term)
+    if len(_CONTENT_TERM_CACHE) >= _CONTENT_TERM_CACHE_MAX:
+        _CONTENT_TERM_CACHE.clear()
+    _CONTENT_TERM_CACHE[query] = (time.monotonic(), kept)
+    return kept
+
+
+def _content_hits(content: str, content_terms: list[str]) -> int:
+    """正文命中数 → 分数：2 个低频词及以上视为强信号（与主题命中同权重）。"""
+    if not content:
+        return 0
+    hits = sum(1 for term in content_terms if term in content)
+    return 24 if hits >= 2 else 8 * hits
+
+
+_DIRECTION_LABELS = {
+    "positive": "利好（积极影响）",
+    "negative": "利空（不利影响）",
+    "mixed": "有正面也有负面影响",
+    "neutral": "中性（暂无明确利好或利空）",
+}
+_PRIORITY_LABELS = {
+    "P0": "P0（最高优先）",
+    "P1": "P1（高优先）",
+    "P2": "P2（中等优先）",
+    "P3": "P3（低优先）",
+}
+
+
+def _format_business_impact(assessment: Assessment) -> str:
+    """把影响评估的结构化字段翻译成业务用户能看懂的中文。"""
+    lines: list[str] = []
+    direction = str(assessment.direction or "neutral")
+    lines.append(f"影响方向：{_DIRECTION_LABELS.get(direction, direction)}")
+    priority = str(assessment.priority or "P3")
+    lines.append(f"优先级：{_PRIORITY_LABELS.get(priority, priority)}")
+    lines.append(f"综合影响分：{assessment.score_total} 分（满分 100，越高越需要关注）")
+
+    affected = assessment.affected or {}
+    business_lines = affected.get("business_lines") or []
+    segments = affected.get("segments") or []
+    exposure = affected.get("exposure_range")
+    if business_lines:
+        lines.append(f"受影响业务线：{'、'.join(str(line) for line in business_lines)}")
+    if segments:
+        lines.append(f"受影响客群：{'、'.join(str(segment) for segment in segments)}")
+    if isinstance(exposure, dict) and exposure:
+        low, high = exposure.get("low"), exposure.get("high")
+        if low is not None or high is not None:
+            currency = exposure.get("currency") or ""
+            unit = exposure.get("unit") or ""
+            lines.append(f"敞口范围：{low}–{high} {currency}{unit}".strip())
+    if not business_lines and not segments and not (isinstance(exposure, dict) and exposure):
+        lines.append("影响对象：暂未识别到具体业务线或客群")
+
+    chain = assessment.transmission_chain or []
+    if chain:
+        lines.append(f"传导链条：{' → '.join(str(step) for step in chain)}")
+    else:
+        lines.append("传导链条：无")
+
+    actions = assessment.recommended_actions or []
+    if actions:
+        parts: list[str] = []
+        for item in actions:
+            if isinstance(item, dict):
+                action = str(item.get("action") or "")
+                owner = str(item.get("owner") or "")
+                deadline = str(item.get("deadline") or "")
+                text = action
+                if owner:
+                    text += f"（负责人：{owner}）"
+                if deadline:
+                    text += f"（截止：{deadline}）"
+                parts.append(text)
+            else:
+                parts.append(str(item))
+        lines.append("建议动作：" + "；".join(parts))
+    else:
+        lines.append("建议动作：暂无需跟进")
+
+    confidence = assessment.confidence
+    if confidence is not None:
+        lines.append(f"置信度：{round(float(confidence) * 100)}%")
+    return "\n".join(lines)
 
 
 class ChatTools:
@@ -177,12 +347,20 @@ class ChatTools:
             stmt = stmt.where(Policy.status == "published")
         terms = search_terms(query)
         theme_terms, theme_matched_ids = _theme_terms(self.db, query)
+        # 引号内的完整标题是精确查找信号，不再叠加正文匹配，
+        # 避免「香港金融管理局」这类每篇都有的语料词把无关通告挤进候选。
+        content_terms = [] if _QUOTED_RE.search(query) else _content_terms(self.db, query)
+        stmt = stmt.outerjoin(Document, Policy.document_id == Document.id)
         filters = _filters([Policy.title, Policy.summary_zh, Policy.issuing_body, Policy.doc_number], terms)
+        if content_terms:
+            filters.extend(_filters([Document.content_text], content_terms))
         if theme_matched_ids:
             filters.append(Policy.id.in_(theme_matched_ids))
         if filters:
             stmt = stmt.where(or_(*filters))
-        rows = list(self.db.scalars(stmt.order_by(Policy.published_at.desc().nullslast()).limit(40)).unique())
+        rows = list(self.db.scalars(stmt.order_by(
+            Policy.published_at.desc().nullslast(), Policy.id,
+        ).limit(40)).unique())
         if theme_terms:
             # 问题里的主题词是强信号：优先只保留主题命中的政策，避免「人民/国际」等泛词命中挤占结果。
             themed = [row for row in rows if any(term in (row.themes or []) for term in theme_terms)]
@@ -191,29 +369,59 @@ class ChatTools:
         title_of = lambda row: row.title
         body_of = lambda row: row.summary_zh
         theme_bonus = lambda row: sum(24 for term in theme_terms if term in (row.themes or []))
-        rows = _rank(query, rows, title_of, body_of, theme_bonus)[:RESULT_LIMIT]
+        combined_bonus = lambda row: theme_bonus(row) + _content_hits(
+            (row.document.content_text or "") if row.document else "", content_terms,
+        )
+        rows = _rank(query, rows, title_of, body_of, combined_bonus)[:RESULT_LIMIT]
+        return self._policy_evidence(rows, query, title_of=title_of, body_of=body_of, extra=combined_bonus)
 
+    def _policy_evidence(
+        self,
+        rows: list[Policy],
+        query: str,
+        *,
+        title_of: Callable[[Policy], str],
+        body_of: Callable[[Policy], str],
+        extra: Callable[[Policy], int],
+        include_fetched: bool = False,
+    ) -> list[ChatEvidence]:
+        """把 Policy 列表组装成 ChatEvidence；query 为空串时 score=0、不补原文。"""
+        interpret = _has_interpret_intent(query)
         evidence: list[ChatEvidence] = []
         for policy in rows:
             document = policy.document
             summary = _clean_text(policy.summary_zh)
-            if not summary and document:
-                summary = _excerpt(document.content_text, query)
+            content_excerpt = ""
+            if document:
+                excerpt = _excerpt(
+                    document.content_text, query,
+                    limit=INTERPRET_EXCERPT_LIMIT if interpret else TEXT_LIMIT,
+                )
+                if excerpt:
+                    if summary:
+                        content_excerpt = excerpt
+                    else:
+                        summary = excerpt
             details = [f"发布机构：{policy.issuing_body}" if policy.issuing_body else ""]
             if policy.doc_number:
                 details.append(f"文号：{policy.doc_number}")
             details.append(f"发布日期：{_format_date(policy.published_at)}")
+            if include_fetched and document:
+                details.append(f"入库时间：{_format_date(document.fetched_at)}")
             if not self.is_consumer:
                 details.append(f"状态：{policy.status}")
             text = "；".join(part for part in details if part)
             if summary:
                 text = f"{text}\n摘要：{summary}"
+            # 摘要过短或要求解读时补原文摘录，给 LLM 提供可解读的实质内容
+            if content_excerpt and (interpret or len(summary) < 100):
+                text = f"{text}\n原文摘录：{content_excerpt}"
             evidence.append(ChatEvidence(
                 key=f"policy:{policy.id}",
                 kind="policy",
                 title=policy.title,
                 text=text or "当前记录没有可用摘要。",
-                score=_score_of(query, policy, title_of, body_of, theme_bonus),
+                score=_score_of(query, policy, title_of, body_of, extra),
                 citation={
                     "id": f"policy:{policy.id}",
                     "type": "policy",
@@ -225,6 +433,29 @@ class ChatTools:
                 },
             ))
         return evidence
+
+    def search_recent_policies(self, *, since: datetime | None = None, limit: int = RESULT_LIMIT) -> list[ChatEvidence]:
+        """按入库时间（document.fetched_at）降序返回最新入库的政策。
+
+        用于「今天/最近新增」类问题：政策发布日期（published_at）可能远早于入库时间，
+        只有 fetched_at 能表达「新增」语义。
+        """
+        stmt = select(Policy).options(joinedload(Policy.document).joinedload(Document.source))
+        if self.is_consumer:
+            stmt = stmt.where(Policy.status == "published")
+        stmt = stmt.outerjoin(Document, Policy.document_id == Document.id)
+        if since is not None:
+            stmt = stmt.where(Document.fetched_at >= since)
+        rows = list(self.db.scalars(
+            stmt.order_by(Document.fetched_at.desc(), Policy.id).limit(limit)
+        ).unique())
+        return self._policy_evidence(
+            rows, "",
+            title_of=lambda row: row.title,
+            body_of=lambda row: row.summary_zh,
+            extra=lambda row: 0,
+            include_fetched=True,
+        )
 
     def search_documents(self, query: str) -> list[ChatEvidence]:
         stmt = select(Document).join(Source, Document.source_id == Source.id).options(joinedload(Document.source))
@@ -358,6 +589,17 @@ class ChatTools:
         if terms:
             stmt = stmt.where(or_(*_filters([Policy.title, Policy.summary_zh], terms)))
         rows = list(self.db.scalars(stmt.order_by(Assessment.created_at.desc()).limit(40)).unique())
+        if not rows and _has_impact_intent(query):
+            # 影响类问题常按「业务线/风险」等内部术语提问，这些词不出现在政策标题里，
+            # 按标题过滤会把结果滤空；此时直接列出最新评估，与 search_reviews 的兜底一致。
+            fallback_stmt = (
+                select(Assessment)
+                .join(Policy, Assessment.policy_id == Policy.id)
+                .options(joinedload(Assessment.policy).joinedload(Policy.document))
+            )
+            rows = list(self.db.scalars(
+                fallback_stmt.order_by(Assessment.created_at.desc()).limit(RESULT_LIMIT)
+            ).unique())
         title_of = lambda row: row.policy.title
         body_of = lambda row: row.policy.summary_zh
         rows = _rank(query, rows, title_of, body_of)[:RESULT_LIMIT]
@@ -365,20 +607,11 @@ class ChatTools:
         for assessment in rows:
             policy = assessment.policy
             document = policy.document
-            impact = _clean_text({
-                "direction": assessment.direction,
-                "priority": assessment.priority,
-                "score_total": assessment.score_total,
-                "affected": assessment.affected,
-                "transmission_chain": assessment.transmission_chain,
-                "recommended_actions": assessment.recommended_actions,
-                "confidence": assessment.confidence,
-            })
             evidence.append(ChatEvidence(
                 key=f"impact:{assessment.id}",
                 kind="business_impact",
                 title=f"业务影响：{policy.title}",
-                text=f"政策：{policy.title}\n影响评估：{impact}",
+                text=f"政策：{policy.title}\n{_format_business_impact(assessment)}",
                 score=_score_of(query, assessment, title_of, body_of),
                 citation={
                     "id": f"impact:{assessment.id}",

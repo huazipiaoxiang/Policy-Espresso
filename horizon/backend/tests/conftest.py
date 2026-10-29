@@ -36,6 +36,19 @@ def _no_network_attachment_parse(monkeypatch):
     monkeypatch.setattr(pipeline, "enrich_attachments", lambda atts, max_count=None: atts)
 
 
+@pytest.fixture(autouse=True)
+def _clear_retrieval_caches():
+    """检索缓存是进程级的，必须逐用例失效，否则跨用例（各自独立的内存库）会串味。"""
+    from app.chat.tools import clear_query_caches
+    from app.search import index as vector_index
+
+    clear_query_caches()
+    vector_index.invalidate()
+    yield
+    clear_query_caches()
+    vector_index.invalidate()
+
+
 @pytest.fixture()
 def client():
     from fastapi.testclient import TestClient

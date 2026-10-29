@@ -58,6 +58,38 @@ def test_dispatch_blocked_until_approved(client):
     assert body["error"]["detail"]["current_status"] == "in_review"
 
 
+def test_document_delete_cascades_policy(client):
+    # 原文删除：admin 可删，关联政策级联清除；非 admin 403
+    from app.db.models import Document, Policy, Source
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        src = Source(code="t_doc_src", name="t", jurisdiction="HK", adapter="manual", url="https://x")
+        db.add(src)
+        db.flush()
+        doc = Document(source_id=src.id, url="https://x/d", canonical_url="https://x/d", title="t doc", content_hash="hd")
+        db.add(doc)
+        db.flush()
+        policy = Policy(document_id=doc.id, title="t policy", status="draft")
+        db.add(policy)
+        db.commit()
+        doc_id, pid = doc.id, policy.id
+
+    forbidden = client.delete(f"/api/v1/documents/{doc_id}", headers={"X-Demo-Role": "analyst"})
+    assert forbidden.status_code == 403
+
+    resp = client.delete(f"/api/v1/documents/{doc_id}", headers={"X-Demo-Role": "admin"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok" and body["policy_deleted"] is True
+
+    assert client.get(f"/api/v1/documents/{doc_id}").status_code == 404
+    assert client.get(f"/api/v1/policies/{pid}").status_code == 404
+
+    missing = client.delete("/api/v1/documents/d_nonexistent", headers={"X-Demo-Role": "admin"})
+    assert missing.status_code == 404
+
+
 def test_analytics_overview(client):
     resp = client.get("/api/v1/analytics/overview")
     assert resp.status_code == 200

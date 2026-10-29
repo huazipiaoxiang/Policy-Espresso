@@ -51,8 +51,6 @@ interface PolicyDetail {
   confidence: number;
   summary_zh: string;
   impacted_domains: string[];
-  review_completed_at: string | null;
-  dispatched_at: string | null;
   url: string;
   assessments: Assessment[];
   evidence: { id: string; quote: string; field_name: string; span_start: number; span_end: number }[];
@@ -70,7 +68,7 @@ const entityLabels: Record<string, string> = {
 };
 
 function dateLabel(value: string | null) {
-  return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
+  return value ? value.slice(0, 10) : "—";
 }
 
 export default function PolicyDetailPage() {
@@ -144,7 +142,7 @@ export default function PolicyDetailPage() {
         <div><small>相关性筛选</small><span style={{ display: "block", marginTop: 8 }}><ScopeChip status={policy.target_entity_status} /></span></div>
         <div><small>AI 深度分析</small><span className={`badge ${assessment ? "green" : ""}`}>{assessment ? "已完成" : "未生成"}</span></div>
         <div><small>人工审核</small><span className={`badge ${["approved", "published"].includes(policy.status) ? "green" : "amber"}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span></div>
-        <div><small>发布时间</small><strong style={{ display: "block", marginTop: 8, fontSize: 12 }}>{dateLabel(policy.dispatched_at)}</strong></div>
+        <div><small>发布日期</small><strong style={{ display: "block", marginTop: 8, fontSize: 12 }}>{dateLabel(policy.published_at)}</strong></div>
       </div>
 
       <div className="details-grid">

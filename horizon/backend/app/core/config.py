@@ -52,6 +52,24 @@ class Settings(BaseSettings):
     notify_wecom_webhook: str = ""
     notify_feishu_webhook: str = ""
 
+    # ===== Chat Agent（LLM 自主检索循环） =====
+    # 关闭时 /chat 走原 grounded 路径，行为与改造前完全一致（灰度回退开关）。
+    chat_agent_enabled: bool = False
+    chat_max_tool_rounds: int = 3          # Executor 最多轮次（每轮 1 次 LLM + 若干工具调用）
+    chat_evidence_max: int = 8             # 累积证据池上限（沿用原 MAX_EVIDENCE）
+    chat_max_invalid_calls: int = 2        # 连续无效调用（空结果/不可解析）达到此数即早停
+    chat_planner_enabled: bool = True      # 关闭时跳过 Planner，直接用原问题进 Executor
+
+    # ===== 检索层（向量 + 词法融合，见 app/search/README 约定） =====
+    search_vector_enabled: bool = True     # 总开关；索引为空/无 numpy/嵌入失败时静默降级
+    search_embedding_provider: str = ""    # 空=跟随 llm_provider；可显式 dashscope|ollama|mock
+    search_embedding_model: str = ""       # 空=按 provider 取默认
+    search_chunk_size: int = 800
+    search_chunk_overlap: int = 120
+    search_chunk_max_per_doc: int = 20
+    search_vector_top_k: int = 8
+    search_rrf_k: int = 60
+
     def model_for_task(self, task: str) -> str:
         """模型分层路由：分类 flash / 抽取 plus / 分析 max / 长文 long。"""
         tier = {
@@ -61,6 +79,9 @@ class Settings(BaseSettings):
             "impact": self.llm_model_max,
             "case": self.llm_model_plus,
             "studio": self.llm_model_max,
+            # Chat：Planner 只做指代消解与查询改写，走最便宜的 flash；答复用 plus。
+            "chat_plan": self.llm_model_flash,
+            "chat_answer": self.llm_model_plus,
         }.get(task, self.llm_model_plus)
         return tier
 

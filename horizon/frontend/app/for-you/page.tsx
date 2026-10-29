@@ -21,12 +21,10 @@ interface Policy {
   jurisdiction: string;
   issuing_body: string;
   published_at: string | null;
-  dispatched_at: string | null;
 }
 
 function dateLabel(policy: Policy) {
-  const value = policy.published_at || policy.dispatched_at;
-  return value ? new Date(value).toLocaleDateString("zh-CN") : "日期未注明";
+  return policy.published_at ? policy.published_at.slice(0, 10) : "日期未注明";
 }
 
 function PolicyCard({ policy }: { policy: Policy }) {

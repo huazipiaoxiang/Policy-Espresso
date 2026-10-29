@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 
 function fmtTime(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
+  return iso.slice(0, 10);
 }
 
 export default function DocumentList() {

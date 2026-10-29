@@ -17,7 +17,7 @@ interface Policy {
   status: string;
   priority: string;
   score_total: number;
-  dispatched_at: string | null;
+  published_at: string | null;
 }
 
 export default function RadarPage() {
@@ -52,14 +52,14 @@ export default function RadarPage() {
       do {
         const data = await get(`/policies?page=${page}&page_size=100&status=published`);
         const items = data.items || [];
-        todayPublished += items.filter((policy: Policy) => policy.dispatched_at && new Date(policy.dispatched_at).toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }) === hkToday).length;
+        todayPublished += items.filter((policy: Policy) => policy.published_at && policy.published_at.slice(0, 10) === hkToday).length;
         fetched += items.length;
         if (fetched >= data.total || !items.length) break;
         page += 1;
       } while (true);
       setCounts({ all: all.total, pending: pending.total, highPriority: highPriority.total, todayPublished, high: high.total, medium: medium.total, low: low.total, unscreened: unscreened.total });
       setRecent(recentData.items || []);
-      setTasks((taskData.items || []).slice(0, 5));
+      setTasks(taskData.items || []);
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Dashboard 数据加载失败");
@@ -72,9 +72,16 @@ export default function RadarPage() {
 
   const metrics = [
     { label: "全部政策", value: counts.all, note: "与政策库全部记录一致", href: "/policies" },
-    { label: "待审核", value: counts.pending, note: "等待一级或二级处理", href: "/policies?view=pending_review" },
+    role === "admin"
+      ? { label: "待审核", value: counts.pending, note: "等待一级或二级处理", href: "/policies?view=pending_review" }
+      : {
+          label: "待审核",
+          value: tasks.length,
+          note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "当前待办审核任务",
+          href: "/review",
+        },
     { label: "高优先级", value: counts.highPriority, note: "P0 / P1 政策", href: "/policies?view=high_priority" },
-    { label: "今日已发布", value: counts.todayPublished, note: "按香港时区统计", href: "/publications?view=today" },
+    { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: "/publications?view=today" },
   ];
   const relevance = [
     { label: "高相关", value: counts.high, color: "green" }, { label: "中相关", value: counts.medium, color: "green" },
@@ -90,7 +97,7 @@ export default function RadarPage() {
 
       <div className="twocol" style={{ marginTop: 18 }}>
         <section className="panel"><div className="panelhead"><h2>{role === "publisher" ? "审核任务概览" : "我的审核任务"}</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
-          {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">当前没有待办审核任务</p> : tasks.map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
+          {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">{role === "approver" ? "当前没有待处理的二级审核任务（P0/P1 政策一级通过后生成）" : "当前没有待办审核任务"}</p> : tasks.slice(0, 5).map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
           <Link href="/review" className="btn" style={{ marginTop: 12 }}>进入审核工作台 →</Link>
         </div></section>
         <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2><small>真实政策记录</small></div><div className="panelbody">

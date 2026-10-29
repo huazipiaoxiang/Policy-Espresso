@@ -13,8 +13,7 @@ interface Publication {
   issuing_body: string;
   priority: string;
   status: string;
-  review_completed_at: string | null;
-  dispatched_at: string | null;
+  published_at: string | null;
 }
 
 type FilterKey = "today" | "pending" | "month" | "total";
@@ -22,11 +21,11 @@ type FilterKey = "today" | "pending" | "month" | "total";
 const filterKeys: FilterKey[] = ["today", "pending", "month", "total"];
 
 function dateLabel(value: string | null) {
-  return value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "—";
+  return value ? value.slice(0, 10) : "—";
 }
 
-function hkDateKey(value: string | null) {
-  return value ? new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }) : "";
+function dateKey(value: string | null) {
+  return value ? value.slice(0, 10) : "";
 }
 
 export default function PublicationsPage() {
@@ -75,14 +74,14 @@ export default function PublicationsPage() {
     if (view && filterKeys.includes(view)) setActiveFilter(view);
   }, [searchParams]);
 
-  const hkToday = hkDateKey(new Date().toISOString());
+  const hkToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
   const hkMonth = hkToday.slice(0, 7);
   const todayPublished = useMemo(
-    () => published.filter((policy) => hkDateKey(policy.dispatched_at) === hkToday),
+    () => published.filter((policy) => dateKey(policy.published_at) === hkToday),
     [published, hkToday],
   );
   const monthPublished = useMemo(
-    () => published.filter((policy) => hkDateKey(policy.dispatched_at).startsWith(hkMonth)),
+    () => published.filter((policy) => dateKey(policy.published_at).startsWith(hkMonth)),
     [published, hkMonth],
   );
 
@@ -112,9 +111,9 @@ export default function PublicationsPage() {
 
   function exportCsv() {
     const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
-    const lines = ["政策ID,标题,发文机构,优先级,审核通过时间,发布时间", ...rows.map((policy) => [
+    const lines = ["政策ID,标题,发文机构,优先级,发布日期", ...rows.map((policy) => [
       policy.id, policy.title, policy.issuing_body, policy.priority,
-      dateLabel(policy.review_completed_at), dateLabel(policy.dispatched_at),
+      dateLabel(policy.published_at),
     ].map(escape).join(","))];
     const url = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
@@ -135,11 +134,11 @@ export default function PublicationsPage() {
       {error && <div className="notice" style={{ marginTop: 16 }}>{error}</div>}
       <section className="panel" style={{ marginTop: 18 }}>
         <div className="panelhead"><h2>{metrics.find((metric) => metric.key === activeFilter)?.label}</h2><small>{rows.length} 条</small></div>
-        <div className="tablewrap"><table><thead><tr><th>优先级</th><th>政策标题</th><th>{activeFilter === "pending" ? "审核通过时间" : "发布时间"}</th><th>状态</th><th>操作</th></tr></thead><tbody>
+        <div className="tablewrap"><table><thead><tr><th>优先级</th><th>政策标题</th><th>发布日期</th><th>状态</th><th>操作</th></tr></thead><tbody>
           {loading ? <tr><td colSpan={5} style={{ padding: 40, textAlign: "center" }}>加载中…</td></tr> : rows.length === 0 ? <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#949aa3" }}>当前分类没有政策</td></tr> : rows.map((policy) => <tr key={policy.id}>
             <td><span className={`badge ${["P0", "P1"].includes(policy.priority) ? "red" : "amber"}`}>{policy.priority}</span></td>
             <td style={{ minWidth: 280 }}><div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.issuing_body || "—"}</small></div></td>
-            <td>{dateLabel(activeFilter === "pending" ? policy.review_completed_at : policy.dispatched_at)}</td>
+            <td>{dateLabel(policy.published_at)}</td>
             <td><span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{policy.status === "published" ? "已发布" : "待发布"}</span></td>
             <td><div className="rowflex"><Link href={`/policies/${policy.id}`} className="link">详情</Link><Link href={`/documents/${policy.document_id}`} className="link">原文</Link>{role === "publisher" && policy.status === "approved" && <button className="btn primary" style={{ padding: "6px 12px" }} disabled={busyId === policy.id} onClick={() => publish(policy)}>{busyId === policy.id ? "发布中…" : "发布"}</button>}</div></td>
           </tr>)}

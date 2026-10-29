@@ -30,15 +30,34 @@ class OpenAICompatProvider:
         model: str | None = None,
         task: str = "",
     ) -> LLMResult:
+        return self.complete_messages(
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            schema=schema,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            model=model,
+            task=task,
+        )
+
+    def complete_messages(
+        self,
+        *,
+        system: str,
+        messages: list[dict],
+        schema: dict | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 4096,
+        model: str | None = None,
+        task: str = "",
+    ) -> LLMResult:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        # 兼容端点要求首条为 system；多轮序列原样追加，保证工具观察结果按序回灌。
         payload: dict = {
             "model": model or self.default_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "messages": [{"role": "system", "content": system}, *messages],
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
