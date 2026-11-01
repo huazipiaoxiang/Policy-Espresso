@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.chat.tools import ChatEvidence, ChatTools
-from app.db.models import Base, Document, DocumentChunk, Source
+from app.db.models import Base, Document, DocumentChunk, Policy, Source
 from app.jobs.embed_job import embed_document, rebuild_chunks
 from app.search.chunking import chunk_text
 from app.search.retriever import fuse, hybrid_search, search_vector
@@ -151,3 +151,33 @@ def test_rebuild_and_search_roundtrip(db, monkeypatch):
     assert hits[0].key == "document:d_cross"
     assert hits[0].citation["type"] == "document"
     assert "document:d_wage" not in [hit.key for hit in hits]
+
+
+def test_vector_search_respects_consumer_visibility(db, monkeypatch):
+    """consumer 通过语义检索只能看到已发布政策对应的文档。"""
+    pytest.importorskip("numpy")
+    dims = ("跨境", "支付", "试点", "办法", "条款")
+    monkeypatch.setattr(
+        "app.search.embedder.embed_texts",
+        lambda texts: SimpleNamespace(
+            vectors=[[float(text.count(word)) for word in dims] for text in texts],
+            model="fake-bag", latency_ms=0,
+        ),
+    )
+
+    add_document(db, title="跨境支付试点办法", content="跨境支付试点办法 详细条款。" * 80, doc_id="d_pub")
+    add_document(db, title="跨境支付草案", content="跨境支付草案 详细条款。" * 80, doc_id="d_draft")
+    db.add(Policy(id="p_pub", document_id="d_pub", title="跨境支付试点办法", status="published"))
+    db.add(Policy(id="p_draft", document_id="d_draft", title="跨境支付草案", status="draft"))
+    db.commit()
+    assert rebuild_chunks(db)["status"] == "ok"
+
+    from app.search import index as vector_index
+
+    vector_index.invalidate()
+
+    consumer_hits = search_vector(db, "跨境支付", role="consumer", limit=5)
+    assert {hit.key for hit in consumer_hits} == {"document:d_pub"}
+
+    analyst_hits = search_vector(db, "跨境支付", role="analyst", limit=5)
+    assert {hit.key for hit in analyst_hits} == {"document:d_pub", "document:d_draft"}
