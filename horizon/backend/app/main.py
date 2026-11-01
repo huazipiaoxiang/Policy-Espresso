@@ -10,7 +10,7 @@ from app.api.v1 import (
 from app.core.config import get_settings
 from app.core.errors import ApiError, api_error_handler
 from app.core.logging import configure_logging, get_logger
-from app.jobs.scheduler import build_scheduler
+from app.jobs.scheduler import build_scheduler, recover_interrupted_runs
 
 configure_logging()
 log = get_logger("app")
@@ -22,9 +22,10 @@ async def lifespan(_: FastAPI):
     from app.db.session import engine
 
     Base.metadata.create_all(engine)  # 本地直跑兜底；生产走 alembic upgrade head
+    recovered = recover_interrupted_runs()
     scheduler = build_scheduler()
     scheduler.start()
-    log.info("startup", llm_provider=get_settings().llm_provider)
+    log.info("startup", llm_provider=get_settings().llm_provider, recovered_runs=recovered)
     yield
     scheduler.shutdown(wait=False)
 

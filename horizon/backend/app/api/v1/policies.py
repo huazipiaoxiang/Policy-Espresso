@@ -29,6 +29,7 @@ def _policy_filters(
     theme: str | None,
     scope: str | None,
     fetched: str | None,
+    published_on: str | None,
     role: str,
 ):
     if q:
@@ -60,6 +61,8 @@ def _policy_filters(
             hour=0, minute=0, second=0, microsecond=0,
         ).astimezone(timezone.utc)
         stmt = stmt.join(Document, Policy.document_id == Document.id).where(Document.fetched_at >= today_start)
+    if published_on:
+        stmt = stmt.where(func.date(Policy.published_at) == published_on)
     return stmt
 
 
@@ -82,12 +85,13 @@ def list_policies(
     theme: str | None = None,
     scope: str | None = None,
     fetched: str | None = None,
+    published_on: str | None = None,
     db: Session = Depends(get_db),
     role: str = Depends(get_demo_role),
 ):
     filters = {
         "q": q, "status": status, "priority": priority, "jurisdiction": jurisdiction,
-        "theme": theme, "scope": scope, "fetched": fetched, "role": role,
+        "theme": theme, "scope": scope, "fetched": fetched, "published_on": published_on, "role": role,
     }
     stmt = _policy_filters(select(Policy), **filters).order_by(Policy.published_at.desc().nullslast())
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()

@@ -10,7 +10,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-Hans">
+    <html lang="zh-Hans" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("horizon-theme")==="dark"){document.documentElement.dataset.theme="dark"}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
         <AuthProvider>
           <AppShell>{children}</AppShell>

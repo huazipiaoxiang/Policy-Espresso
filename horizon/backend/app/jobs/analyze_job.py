@@ -72,6 +72,20 @@ def _audit(db: Session, action: str, obj_type: str, obj_id: str, before: dict, a
                     before=before, after=after, reason=reason))
 
 
+def _fallback_alert_text(policy: Policy, entity_relevance: dict[str, str]) -> str:
+    """预警草稿的六段保底文本：当 LLM 预警结构校验失败时降级使用，保证政策分析不因此作废。"""
+    relevant = [name for name, rel in entity_relevance.items() if rel in ("high", "medium")] or ["待确认"]
+    return (
+        f"【一句话结论】{policy.title} 已完成 AI 初筛，优先级 {policy.priority}，"
+        f"综合影响分 {policy.score_total} 分，建议人工复核。\n"
+        f"【影响对象】{'、'.join(relevant)}\n"
+        f"【机制】AI 初筛未生成可靠传导链条，需人工确认。\n"
+        f"【建议动作】阅读原文并复核适用范围与影响维度。\n"
+        f"【证据】详见政策详情页的原文摘录与证据片段。\n"
+        f"【置信度】低（AI 初筛）"
+    )
+
+
 def analyze_document(db: Session, doc: Document) -> Policy | None:
     """分析单篇文档。返回 Policy 或 None（非金融/低置信/无正文）。"""
     from app.ai.provider import get_provider
@@ -336,10 +350,17 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         alert_text = offline_fallback.offline_alert(policy, entity_relevance)
         errors = validate_alert_md(alert_text)
     else:
-        alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
-        _log_llm(db, alert_chain, provider_name)
-        alert_text = alert_chain.text
-        errors = validate_alert_md(alert_text)
+        try:
+            alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
+            _log_llm(db, alert_chain, provider_name)
+            alert_text = alert_chain.text
+            errors = validate_alert_md(alert_text)
+        except Exception as exc:
+            # 预警草稿是「尽力而为」的产物：结构校验失败（超长/缺段）或 Provider 异常
+            # 不应让整条政策分析作废——降级为六段齐全的保底预警，policy/assessment 照常保存。
+            log.warning("alert_chain_failed", policy_id=policy.id, error=f"{type(exc).__name__}: {exc}")
+            alert_text = _fallback_alert_text(policy, entity_relevance)
+            errors = []
     if errors:
         log.warning("alert_invalid", policy_id=policy.id, errors=errors)
     db.add(Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
@@ -368,15 +389,24 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
 
 
 def analyze_pending(db: Session, *, limit: int = 10) -> dict:
-    """原子认领 new 文档后分析；changed 文档由 ingest 重新置为 new。"""
+    """原子认领 new/failed 文档后分析；changed 文档由 ingest 重新置为 new。
+
+    failed 也纳入认领：上一轮预警校验失败等一次性错误导致的 failed 会自动重试。
+    """
     doc_ids = db.scalars(
-        select(Document.id).where(Document.status == "new", Document.duplicate_of.is_(None)).limit(limit)
+        select(Document.id).where(
+            Document.duplicate_of.is_(None),
+            Document.status.in_(["new", "failed"]),
+        ).limit(limit)
     ).all()
     stats = {"analyzed": 0, "skipped": 0, "failed": 0, "errors": []}
     for doc_id in doc_ids:
-        # 多 worker 同时触发时，仅一个 worker 能将 new 原子改为 processing。
+        # 多 worker 同时触发时，仅一个 worker 能原子认领（new/failed → processing）。
         claimed = db.execute(
-            update(Document).where(Document.id == doc_id, Document.status == "new").values(status="processing")
+            update(Document).where(
+                Document.id == doc_id,
+                Document.status.in_(["new", "failed"]),
+            ).values(status="processing")
         ).rowcount
         db.commit()
         if not claimed:

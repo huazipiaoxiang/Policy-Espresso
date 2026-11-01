@@ -7,12 +7,12 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.models import JobRun, Source
+from app.db.models import Document, JobRun, Source
 from app.db.session import SessionLocal
 from app.ingest.pipeline import is_circuit_open
 from app.jobs.analyze_job import analyze_pending
@@ -127,6 +127,31 @@ def analyze_all_pending() -> dict:
         _analyze_lock.release()
 
 
+def recover_interrupted_runs() -> int:
+    """进程启动时把上一进程遗留的 running 任务与 processing 文档标记为可重试。
+
+    抓取/分析中途重启会留下永远 running 的 JobRun 与 processing 的 Document：
+    前者污染任务面板并占用当日幂等键，后者导致文档永远无法被 analyze_pending 认领。
+    启动时刻不存在在途任务，这些记录必属死进程，可安全回收为 failed/new 供重试。
+    """
+    with SessionLocal() as db:
+        result = db.execute(
+            update(JobRun)
+            .where(JobRun.status == "running")
+            .values(status="failed", error="进程重启中断", finished_at=datetime.now(timezone.utc))
+        )
+        doc_result = db.execute(
+            update(Document)
+            .where(Document.status == "processing")
+            .values(status="new")
+        )
+        db.commit()
+        count = result.rowcount + (doc_result.rowcount or 0)
+    if count:
+        log.warning("recovered_interrupted_runs", count=count)
+    return count
+
+
 def build_scheduler() -> BackgroundScheduler:
     settings = get_settings()
     timezone = ZoneInfo(settings.scheduler_timezone)
@@ -136,6 +161,12 @@ def build_scheduler() -> BackgroundScheduler:
     )
     scheduler.add_job(
         crawl_all, CronTrigger(hour=9, minute=0, timezone=timezone), id="crawl_all",
+        replace_existing=True, coalesce=True, max_instances=1, misfire_grace_time=3600,
+    )
+    # 独立补偿分析：抓取被大源拖住或中断时，analysis 不依赖 crawl_all 跑完。
+    # 文档级原子认领（new→processing）保证与 crawl 尾部的 analyze_all_pending 幂等。
+    scheduler.add_job(
+        analyze_all_pending, CronTrigger(hour=9, minute=30, timezone=timezone), id="analyze_pending",
         replace_existing=True, coalesce=True, max_instances=1, misfire_grace_time=3600,
     )
     scheduler.add_job(

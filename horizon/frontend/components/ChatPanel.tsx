@@ -38,9 +38,6 @@ interface ChatPanelProps {
   onClose: () => void;
 }
 
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 320;
-const PANEL_EDGE_GAP = 24;
 // 多轮指代消解（「它什么时候发布」）需要更多上下文，但 outbound 仍要设上限。
 const HISTORY_TURNS = 6;
 const HISTORY_ASSISTANT_LIMIT = 1200;
@@ -50,10 +47,6 @@ const ANSWER_MODE_LABEL: Record<string, string> = {
   mixed: "依据：政策库 + 通用知识",
   general: "依据：通用知识",
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
 
 function safeCitationUrl(url?: string): string | null {
   if (!url) return null;
@@ -72,39 +65,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [panelSize, setPanelSize] = useState(() => ({
-    width: Math.min(380, window.innerWidth - PANEL_EDGE_GAP * 2),
-    height: Math.min(500, window.innerHeight - 96 - PANEL_EDGE_GAP),
-  }));
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const resizeRef = useRef<{ startX: number; startY: number; width: number; height: number } | null>(null);
-
-  const startResize = (e: React.PointerEvent<HTMLDivElement>) => {
-    resizeRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      width: panelSize.width,
-      height: panelSize.height,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-    document.body.style.userSelect = "none";
-  };
-
-  const moveResize = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeRef.current) return;
-    const { startX, startY, width, height } = resizeRef.current;
-    const maxWidth = Math.min(760, window.innerWidth - PANEL_EDGE_GAP);
-    const maxHeight = Math.min(1200, window.innerHeight - 96 - PANEL_EDGE_GAP);
-    setPanelSize({
-      width: clamp(width - (e.clientX - startX), MIN_WIDTH, maxWidth),
-      height: clamp(height - (e.clientY - startY), MIN_HEIGHT, maxHeight),
-    });
-  };
-
-  const endResize = () => {
-    resizeRef.current = null;
-    document.body.style.userSelect = "";
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,29 +138,8 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   return (
     <div
-      className="fixed bottom-24 right-6 z-50 flex flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
-      style={{ width: panelSize.width, height: panelSize.height }}
+      className="sticky top-0 flex h-screen flex-col border-l border-[var(--border)] bg-[var(--surface)]"
     >
-      {/* Resize handle */}
-      <div
-        role="separator"
-        aria-label="拖拽调整面板大小"
-        aria-orientation="horizontal"
-        onPointerDown={startResize}
-        onPointerMove={moveResize}
-        onPointerUp={endResize}
-        onPointerCancel={endResize}
-        className="absolute -left-1.5 -top-1.5 z-10 flex h-7 w-7 cursor-nwse-resize touch-none items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-3)] shadow-md hover:text-[var(--text)]"
-        title="拖拽调整大小"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-          <circle cx="4.5" cy="4.5" r="1.5" />
-          <circle cx="11.5" cy="4.5" r="1.5" />
-          <circle cx="4.5" cy="11.5" r="1.5" />
-          <circle cx="11.5" cy="11.5" r="1.5" />
-        </svg>
-      </div>
-
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
         <div className="flex items-center gap-2">
@@ -210,9 +150,9 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           </div>
           <span className="text-[14px] font-medium">AI 政策助手</span>
         </div>
-        <button type="button" onClick={onClose} aria-label="关闭 AI 助手" className="text-[var(--text-3)] hover:text-[var(--text)]">
+        <button type="button" onClick={onClose} aria-label="收起 AI 助手侧栏" title="收起侧栏" className="text-[var(--text-3)] hover:text-[var(--text)]">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
           </svg>
         </button>
       </div>
@@ -259,7 +199,9 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
                   <div className="mb-1 text-[11px] font-medium text-[var(--text-3)]">依据与来源</div>
                   <ul className="space-y-1">
                     {msg.citations.map((citation, citationIndex) => {
-                      const href = safeCitationUrl(citation.url);
+                      const externalHref = safeCitationUrl(citation.url);
+                      const internalHref = !externalHref && citation.policy_id ? `/policies/${citation.policy_id}` : null;
+                      const href = externalHref ?? internalHref;
                       return (
                         <li key={`${citation.id}-${citationIndex}`} className="text-[12px] leading-5">
                           <span className="mr-1 text-[var(--text-3)]">[{citationIndex + 1}]</span>

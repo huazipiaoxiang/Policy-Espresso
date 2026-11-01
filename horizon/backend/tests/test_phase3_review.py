@@ -231,3 +231,19 @@ def test_audit_export_csv(client):
     assert r.status_code == 200
     assert "text/csv" in r.headers["content-type"]
     assert "submit_review" in r.text
+
+
+def test_audit_list_shared_across_ops_roles(client):
+    """审计查询只读接口对运营角色开放（发布中心跳转入口依赖），consumer 仍禁止。"""
+    policy_id, _ = _make_policy("auditops")
+    for role in ("admin", "analyst", "approver", "publisher"):
+        r = client.get("/api/v1/admin/audit?object_type=policy&object_id=" + policy_id, headers={"X-Demo-Role": role})
+        assert r.status_code == 200, role
+        items = r.json()["items"]
+        assert items and all(item["object_id"] == policy_id for item in items)
+        assert items == sorted(items, key=lambda item: item["at"], reverse=True)
+    assert client.get("/api/v1/admin/audit", headers={"X-Demo-Role": "consumer"}).status_code == 403
+    # 过滤条件下 total 只统计匹配记录
+    filtered = client.get(f"/api/v1/admin/audit?object_type=policy&object_id={policy_id}",
+                          headers={"X-Demo-Role": "publisher"}).json()
+    assert filtered["total"] == len(filtered["items"])

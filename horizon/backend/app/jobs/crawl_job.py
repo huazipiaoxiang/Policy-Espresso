@@ -129,6 +129,16 @@ def main() -> None:
             )
         print(f"本轮合计新增 {total_new} 条")
 
+    # 抓取后紧接着分析，保持与定时 crawl_all / 管理员「立即抓取」一致：
+    # 否则 make crawl 抓回来的文档会一直停在 new，不会进入分析管线。
+    from app.jobs.scheduler import analyze_all_pending
+
+    analysis = analyze_all_pending()
+    print(
+        f"分析完成：{analysis.get('analyzed', 0)} 条 | "
+        f"跳过 {analysis.get('skipped', 0)} 条 | 失败 {analysis.get('failed', 0)} 条"
+    )
+
 
 if __name__ == "__main__":
     main()

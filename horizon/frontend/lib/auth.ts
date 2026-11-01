@@ -81,9 +81,9 @@ const operationsNav: NavItem[] = [
   { id: "publications", icon: "▣", label: "发布中心", href: "/publications" },
 ];
 
-ROLE_CONFIG.analyst.nav = operationsNav;
-ROLE_CONFIG.approver.nav = operationsNav;
-ROLE_CONFIG.publisher.nav = operationsNav;
+ROLE_CONFIG.analyst.nav = operationsNav.filter((item) => item.id !== "publications");
+ROLE_CONFIG.approver.nav = operationsNav.filter((item) => item.id !== "publications");
+ROLE_CONFIG.publisher.nav = operationsNav.filter((item) => item.id !== "queue");
 
 export const DEMO_ROLES = Object.keys(ROLE_CONFIG) as DemoRole[];
 
@@ -100,6 +100,8 @@ export function getStoredRole(): DemoRole | null {
 export function canAccess(role: DemoRole, pathname: string): boolean {
   if (pathname === "/" || pathname === "/login") return true;
   if (role === "consumer" && /^\/policies\/[^/]+$/.test(pathname)) return true;
+  // 审计日志对运营角色只读共享；发布中心仅 publisher（A3）
+  if (role !== "consumer" && pathname.startsWith("/audit")) return true;
   return ROLE_CONFIG[role].nav.some((item) =>
     pathname === item.href || pathname.startsWith(`${item.href}/`)
   );

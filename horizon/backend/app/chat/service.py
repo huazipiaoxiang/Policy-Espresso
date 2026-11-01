@@ -18,7 +18,7 @@ from app.ai.provider import LLMProvider
 from app.chat.agent import normalize_answer, respond, run_agent
 from app.chat.planner import build_plan
 from app.chat.schemas import ChatAgentResult
-from app.chat.tools import ChatEvidence, ChatTools
+from app.chat.tools import BUSINESS_DOMAINS, ChatEvidence, ChatTools
 from app.chat.web_search import WebSearchError, search_web
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -113,6 +113,15 @@ def _time_intent(query: str) -> str:
     if any(word in folded for word in _TIME_RECENT_WORDS):
         return "recent"
     return ""
+
+
+def _domain_intent(query: str) -> str | None:
+    """识别「WPB/CMB/GBM/GTB/Insurance」业务线代号，返回规范大小写；无则 None。"""
+    folded = query.casefold()
+    for domain in BUSINESS_DOMAINS:
+        if domain.casefold() in folded:
+            return domain
+    return None
 
 
 def _local_now() -> datetime:
@@ -237,13 +246,17 @@ def _retrieve(tools: ChatTools, question: str, context: str | None) -> tuple[lis
     query = f"{context or ''}\n{question}".strip()
     search_query = "" if _is_generic_listing(question) else query
     time_intent = _time_intent(question)
+    domain = _domain_intent(question)
 
     wants_review = _contains_any(query, ("审核", "审查", "复核", "审批", "待办", "review", "assignee"))
     wants_impact = _contains_any(query, ("影响", "业务", "风险", "传导", "应对", "行动", "impact", "business"))
     wants_source = _contains_any(query, ("来源", "网站", "发布方", "source", "来源机构"))
     wants_document = _contains_any(query, ("原文", "文件", "文档", "document", "解读", "总结", "要点", "重点", "介绍", "内容", "是什么"))
 
-    if time_intent:
+    if domain:
+        # 按受影响业务线（Domain）过滤：直接查 affected.business_lines 含该代号的政策。
+        primary = tools.search_business_impacts_by_domain(domain)
+    elif time_intent:
         # 「今天/最近新增」按入库时间检索，而不是政策发布日期：
         # 一批 6 月发布的政策可能是今天才抓取入库，此时只有 fetched_at 能表达「新增」。
         since = None
@@ -256,14 +269,17 @@ def _retrieve(tools: ChatTools, question: str, context: str | None) -> tuple[lis
     else:
         primary = tools.search_policies(search_query)
     targeted: list[ChatEvidence] = []
-    if wants_review:
-        targeted.extend(tools.search_reviews(search_query))
-    if wants_impact:
-        targeted.extend(tools.search_business_impacts(search_query))
-    if wants_document:
-        targeted.extend(tools.search_documents(search_query))
-    if wants_source:
-        targeted.extend(tools.search_sources(search_query))
+    if not domain:
+        # 按 Domain 过滤时，primary 已经是精确的业务影响证据，无需再叠加
+        # review/impact/document/source 等泛化检索，避免它们把 Domain 证据挤掉。
+        if wants_review:
+            targeted.extend(tools.search_reviews(search_query))
+        if wants_impact:
+            targeted.extend(tools.search_business_impacts(search_query))
+        if wants_document:
+            targeted.extend(tools.search_documents(search_query))
+        if wants_source:
+            targeted.extend(tools.search_sources(search_query))
 
     web_evidence: list[ChatEvidence] = []
     web_error = ""
@@ -423,14 +439,15 @@ def generate_grounded_chat(
     started = time.monotonic()
     provider_name = str(getattr(provider, "name", "unknown"))
     time_intent = _time_intent(question)
+    domain = _domain_intent(question)
     evidence, web_error = _retrieve(tools, question, context)
     if not evidence:
         return _freeform_or_no_answer(provider, provider_name, question, started, web_error)
 
     evidence_by_id = {item.key: item for item in evidence}
-    # 时间意图（今天/最近新增）是直接按入库时间检索的，score=0 也属可靠证据，
-    # 不能用 MIN_STRONG 阈值把它误杀成「不可靠依据」。
-    if not _is_generic_listing(question) and not time_intent and not _has_reliable_evidence(evidence):
+    # 时间意图（今天/最近新增）与业务线（Domain）过滤都是直接按字段检索的，
+    # score=0 也属可靠证据，不能用 MIN_STRONG 阈值把它们误杀成「不可靠依据」。
+    if not _is_generic_listing(question) and not time_intent and not domain and not _has_reliable_evidence(evidence):
         return _freeform_or_no_answer(provider, provider_name, question, started)
     if web_error:
         reply, citations = _extractive_answer(evidence)

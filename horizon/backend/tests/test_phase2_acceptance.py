@@ -219,3 +219,16 @@ def test_alert_md_validation():
     assert any("缺少段落" in e for e in validate_alert_md("【一句话结论】x"))
     assert any("夸张词" in e for e in validate_alert_md(good + " 重大利好"))
     assert any("未标注估算" in e for e in validate_alert_md(good + " 影响金额 500 万元"))
+
+
+def test_fallback_alert_text_is_valid():
+    """预警校验失败时使用的保底文本必须六段齐全、≤350 字，避免让政策分析作废。"""
+    from types import SimpleNamespace
+
+    from app.ai.chains.alert import validate_alert_md
+    from app.jobs.analyze_job import _fallback_alert_text
+
+    policy = SimpleNamespace(title="测试政策", priority="P3", score_total=4.0)
+    text = _fallback_alert_text(policy, {"hsbc_hk": "high", "hsbc_cn": "not_mentioned"})
+    assert validate_alert_md(text) == []
+    assert "hsbc_hk" in text

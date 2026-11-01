@@ -105,6 +105,17 @@ export default function ForYouPage() {
     return topicMatch && marketMatch;
   }), [policies, selectedJurisdictions, selectedTopics]);
 
+  // 本周口径：香港时区的今天与 7 天前，只做 date-only 字符串比较，不做时区转换
+  const hkToday = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }), []);
+  const weekAgo = useMemo(() => {
+    const [year, month, day] = hkToday.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day - 7)).toISOString().slice(0, 10);
+  }, [hkToday]);
+  const weekly = useMemo(() => matched.filter((policy) => {
+    const key = (policy.published_at || "").slice(0, 10);
+    return key >= weekAgo && key <= hkToday;
+  }), [matched, weekAgo, hkToday]);
+
   return (
     <div className="content">
       <div className="pagehead">
@@ -129,6 +140,20 @@ export default function ForYouPage() {
       </div>
 
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}<button className="link" onClick={() => void load()} style={{ marginLeft: 12 }}>重试</button></div>}
+
+      <div className="section-title">
+        <h2>与你本周相关政策</h2>
+        <small>{loading ? "加载中…" : `近 7 天（${weekAgo} 至 ${hkToday}）匹配 ${weekly.length} 条`}</small>
+      </div>
+      {loading ? <div className="empty-state">正在加载已发布政策…</div> : weekly.length ? (
+        <div className="consumer-grid">{weekly.map((policy) => <PolicyCard policy={policy} key={policy.id} />)}</div>
+      ) : (
+        <div className="empty-state">
+          本周没有与你订阅偏好匹配的新发布政策。
+          <br /><small>匹配需要政策同时命中关注主题和关注市场，且发布日期在最近 7 天内。</small>
+          <div><Link href="/subscriptions" className="btn primary" style={{ marginTop: 12 }}>调整订阅偏好</Link></div>
+        </div>
+      )}
 
       <div className="section-title"><h2>最新发布</h2><small>{loading ? "加载中…" : `显示 ${latest.length} 条，共 ${policies.length} 条`}</small></div>
       {loading ? <div className="empty-state">正在加载已发布政策…</div> : latest.length ? (

@@ -85,11 +85,13 @@ def test_manual_source_run_guarded_while_running_or_circuit_open(client):
 
 def test_daily_schedule_health_and_monday_heartbeat(client):
     jobs = {job.id: job for job in scheduler.build_scheduler().get_jobs()}
-    assert set(jobs) == {"crawl_all", "health_check", "heartbeat"}
+    assert set(jobs) == {"crawl_all", "analyze_pending", "health_check", "heartbeat"}
     assert all(job.max_instances == 1 and job.coalesce for job in jobs.values())
     assert str(jobs["crawl_all"].trigger.timezone) == "Asia/Hong_Kong"
     assert "hour='9'" in str(jobs["crawl_all"].trigger)
     assert "minute='0'" in str(jobs["crawl_all"].trigger)
+    assert "hour='9'" in str(jobs["analyze_pending"].trigger)
+    assert "minute='30'" in str(jobs["analyze_pending"].trigger)
     assert "minute='0'" in str(jobs["health_check"].trigger)
     assert "day_of_week='mon'" in str(jobs["heartbeat"].trigger)
     assert "hour='8'" in str(jobs["heartbeat"].trigger)
@@ -256,5 +258,70 @@ def test_job_status_exposes_last_error_and_next_run(client):
     by_type = {item["job_type"]: item for item in body["jobs"]}
     assert by_type["crawl_all"]["last_run"]["error"] == "boom"
     assert by_type["crawl_all"]["next_run_at"] is not None
-    assert by_type["analyze_pending"]["next_run_at"] == by_type["crawl_all"]["next_run_at"]
+    assert by_type["analyze_pending"]["next_run_at"] is not None
     assert "health_check" in by_type and "heartbeat" in by_type
+
+
+def test_recover_interrupted_runs_marks_stale_running_as_failed(client):
+    with SessionLocal() as db:
+        stale = JobRun(job_type="crawl", source_id=None, run_window="recover-test", status="running",
+                       started_at=datetime.now(timezone.utc) - timedelta(hours=2))
+        done = JobRun(job_type="health", run_window="recover-test", status="ok",
+                      started_at=datetime.now(timezone.utc) - timedelta(hours=1))
+        db.add_all([stale, done])
+        db.commit()
+        stale_id, done_id = stale.id, done.id
+
+    count = scheduler.recover_interrupted_runs()
+    assert count >= 1
+    with SessionLocal() as db:
+        recovered = db.get(JobRun, stale_id)
+        assert recovered.status == "failed" and recovered.finished_at is not None
+        assert "重启" in recovered.error
+        assert db.get(JobRun, done_id).status == "ok"
+
+
+def test_recover_interrupted_runs_resets_processing_documents(client):
+    """进程重启后卡在 processing 的文档应回到 new，供 analyze 重新认领。"""
+    with SessionLocal() as db:
+        src = Source(code="recover_doc", name="recover-doc", jurisdiction="HK", adapter="manual",
+                     url="https://example.com")
+        db.add(src)
+        db.flush()
+        doc = Document(source_id=src.id, url="https://example.com/d", canonical_url="https://example.com/d",
+                       title="p", content_text="c", content_hash="h", status="processing")
+        db.add(doc)
+        db.commit()
+        doc_id = doc.id
+
+    scheduler.recover_interrupted_runs()
+    with SessionLocal() as db:
+        assert db.get(Document, doc_id).status == "new"
+
+
+def test_analyze_requeues_failed_documents(client, monkeypatch):
+    """failed 文档（如上一轮预警校验失败）应被重新认领分析，而不是永远积压。"""
+    calls: list[str] = []
+
+    def fake_analyze(db, doc):
+        calls.append(doc.id)
+        doc.status = "processed"
+        db.commit()
+        return None
+
+    monkeypatch.setattr("app.jobs.analyze_job.analyze_document", fake_analyze)
+    with SessionLocal() as db:
+        src = Source(code="sched_failed", name="failed", jurisdiction="HK", adapter="manual",
+                     url="https://example.com")
+        db.add(src)
+        db.flush()
+        doc = Document(source_id=src.id, url="https://example.com/f", canonical_url="https://example.com/f",
+                       title="p", content_text="c", content_hash="hf", status="failed")
+        db.add(doc)
+        db.commit()
+        doc_id = doc.id
+
+    scheduler.analyze_all_pending()
+    assert doc_id in calls
+    with SessionLocal() as db:
+        assert db.get(Document, doc_id).status == "processed"

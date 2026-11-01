@@ -140,7 +140,7 @@ export default function PublicationsPage() {
             <td style={{ minWidth: 280 }}><div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.issuing_body || "—"}</small></div></td>
             <td>{dateLabel(policy.published_at)}</td>
             <td><span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{policy.status === "published" ? "已发布" : "待发布"}</span></td>
-            <td><div className="rowflex"><Link href={`/policies/${policy.id}`} className="link">详情</Link><Link href={`/documents/${policy.document_id}`} className="link">原文</Link>{role === "publisher" && policy.status === "approved" && <button className="btn primary" style={{ padding: "6px 12px" }} disabled={busyId === policy.id} onClick={() => publish(policy)}>{busyId === policy.id ? "发布中…" : "发布"}</button>}</div></td>
+            <td><div className="rowflex"><Link href={`/policies/${policy.id}`} className="link">详情</Link><Link href={`/documents/${policy.document_id}`} className="link">原文</Link><Link href={`/audit?object_type=policy&object_id=${policy.id}`} className="link">审计</Link>{role === "publisher" && policy.status === "approved" && <button className="btn primary" style={{ padding: "6px 12px" }} disabled={busyId === policy.id} onClick={() => publish(policy)}>{busyId === policy.id ? "发布中…" : "发布"}</button>}</div></td>
           </tr>)}
         </tbody></table></div>
       </section>

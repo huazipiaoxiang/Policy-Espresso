@@ -4,17 +4,19 @@ import io
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import require_api_key, require_roles
 from app.db.models import AuditLog, LLMCallLog
 from app.db.session import get_db
 
-router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key), Depends(require_roles("admin"))])
+# 审计查询只读，运营角色均可查看（发布中心/原文库的审计跳转入口依赖此权限）；
+# 导出与模型台账仍仅限管理员。
+router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key)])
 
 
-@router.get("/audit")
+@router.get("/audit", dependencies=[Depends(require_roles("admin", "analyst", "approver", "publisher"))])
 def list_audit(
     actor: str | None = None,
     object_type: str | None = None,
@@ -23,15 +25,16 @@ def list_audit(
     page_size: int = 50,
     db: Session = Depends(get_db),
 ):
-    stmt = select(AuditLog).order_by(AuditLog.at.desc())
+    filters = []
     if actor:
-        stmt = stmt.where(AuditLog.actor == actor)
+        filters.append(AuditLog.actor == actor)
     if object_type:
-        stmt = stmt.where(AuditLog.object_type == object_type)
+        filters.append(AuditLog.object_type == object_type)
     if object_id:
-        stmt = stmt.where(AuditLog.object_id == object_id)
+        filters.append(AuditLog.object_id == object_id)
+    stmt = select(AuditLog).where(*filters).order_by(AuditLog.at.desc())
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()
-    total = db.query(AuditLog).count()
+    total = db.execute(select(func.count(AuditLog.id)).where(*filters)).scalar_one()
     return {
         "items": [
             {
@@ -45,7 +48,7 @@ def list_audit(
     }
 
 
-@router.get("/audit/export")
+@router.get("/audit/export", dependencies=[Depends(require_roles("admin"))])
 def export_audit(object_id: str | None = None, db: Session = Depends(get_db)):
     """CSV 导出（只追加日志，导出不改状态）。"""
     stmt = select(AuditLog).order_by(AuditLog.at.asc())
@@ -66,7 +69,7 @@ def export_audit(object_id: str | None = None, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/llm-calls")
+@router.get("/llm-calls", dependencies=[Depends(require_roles("admin"))])
 def list_llm_calls(task: str | None = None, page: int = 1, page_size: int = 50, db: Session = Depends(get_db)):
     """模型调用台账（token 与耗时成本核算）。"""
     stmt = select(LLMCallLog).order_by(LLMCallLog.at.desc())

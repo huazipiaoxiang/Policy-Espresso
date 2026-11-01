@@ -22,8 +22,8 @@
   --ok: #1b7755;
   --warn: #a66b1c;
   --p0: #db0011;
-  --p1: #e8590c;
-  --p2: #a66b1c;
+  --p1: #d9a514;
+  --p2: #2e9e6b;
   --p3: #8b929c;
   --text: #25272b;
   --text-2: #606a76;
@@ -61,6 +61,11 @@ a {
   display: grid;
   grid-template-columns: 238px minmax(0, 1fr);
   min-height: 100vh;
+}
+
+/* Ask AI 全局固定侧栏：展开时在右侧占一列，每页可见、可收起 */
+.shell.with-chat {
+  grid-template-columns: 238px minmax(0, 1fr) 380px;
 }
 
 .side {
@@ -737,6 +742,28 @@ tbody tr.clickable:hover {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* 政策列表优先级圆点（P0 红 / P1 黄 / P2 绿 / P3 灰） */
+.pdot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.pdot i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--p3);
+  flex: none;
+}
+
+.pdot i.p0 { background: var(--p0); }
+.pdot i.p1 { background: var(--p1); }
+.pdot i.p2 { background: var(--p2); }
+.pdot i.p3 { background: var(--p3); }
 
 .notice {
   margin-top: 12px;
@@ -1832,4 +1859,449 @@ tbody tr.clickable:hover {
   display: block;
   color: #8b929c;
   margin-bottom: 3px;
+}
+
+/* ===== 深色模式（F1）：系统常规深色方案，html[data-theme="dark"] ===== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --red: #ff4d5a;
+  --ink: #e7e9ee;
+  --muted: #a6adb8;
+  --border: #30343c;
+  --bg: #14161a;
+  --surface: #1d2025;
+  --soft: #262a31;
+  --green: #45bd85;
+  --amber: #d9a13c;
+  --accent: #ff4d5a;
+  --accent-weak: #40272a;
+  --brand: #ff4d5a;
+  --border-strong: #3c414b;
+  --danger: #ff6b6b;
+  --ok: #45bd85;
+  --warn: #d9a13c;
+  --p0: #ff4d5a;
+  --p1: #e0b93d;
+  --p2: #45bd85;
+  --p3: #7d8590;
+  --text: #e7e9ee;
+  --text-2: #a6adb8;
+  --text-3: #7d8590;
+  --surface-2: #262a31;
+  --surface-3: #17191e;
+}
+
+:root[data-theme="dark"] .side,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .metric,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .details,
+:root[data-theme="dark"] .status-four > div,
+:root[data-theme="dark"] .consumer-card,
+:root[data-theme="dark"] .consumer-hero,
+:root[data-theme="dark"] .consumer-search,
+:root[data-theme="dark"] .doc-intro,
+:root[data-theme="dark"] .evidence-doc,
+:root[data-theme="dark"] .empty-state,
+:root[data-theme="dark"] .search,
+:root[data-theme="dark"] .filter,
+:root[data-theme="dark"] .btn,
+:root[data-theme="dark"] .role {
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .topbar {
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="dark"] .nav button {
+  color: #8a929d;
+}
+:root[data-theme="dark"] .nav button.active {
+  background: var(--accent-weak);
+  color: #ff8d95;
+}
+
+:root[data-theme="dark"] .breadcrumb,
+:root[data-theme="dark"] .footnote,
+:root[data-theme="dark"] .field small,
+:root[data-theme="dark"] .form-label,
+:root[data-theme="dark"] .panelhead small,
+:root[data-theme="dark"] .policytitle small,
+:root[data-theme="dark"] .taskinfo small,
+:root[data-theme="dark"] .metric span,
+:root[data-theme="dark"] .metric small,
+:root[data-theme="dark"] .section-title small,
+:root[data-theme="dark"] .consumer-card-footer small,
+:root[data-theme="dark"] .hero-count small,
+:root[data-theme="dark"] .evidence small,
+:root[data-theme="dark"] .case-link small,
+:root[data-theme="dark"] .scorecard-row .dim-weight,
+:root[data-theme="dark"] .scorecard-row .dim-score small,
+:root[data-theme="dark"] .score-priority-note,
+:root[data-theme="dark"] .readonly-value {
+  color: var(--text-3);
+}
+
+:root[data-theme="dark"] .btn {
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .btn.primary {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+:root[data-theme="dark"] .demo {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .avatar {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] th {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+:root[data-theme="dark"] td {
+  border-top-color: #2c3037;
+}
+:root[data-theme="dark"] tbody tr.clickable:hover {
+  background: var(--surface-2);
+}
+
+:root[data-theme="dark"] .badge {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .badge.red {
+  background: #42282b;
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .badge.green {
+  background: #1e3a2e;
+  color: #5fd39f;
+}
+:root[data-theme="dark"] .badge.amber {
+  background: #3d3220;
+  color: #e5b45c;
+}
+:root[data-theme="dark"] .tag {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .tag:hover {
+  background: var(--accent-weak);
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .topic-chip {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+:root[data-theme="dark"] .textblock,
+:root[data-theme="dark"] .source-section p,
+:root[data-theme="dark"] .evidence,
+:root[data-theme="dark"] .evidence-doc blockquote,
+:root[data-theme="dark"] .scope-tip,
+:root[data-theme="dark"] .confidence-reason {
+  color: #c3c9d2;
+}
+:root[data-theme="dark"] .evidence {
+  background: #1f232a;
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .scope-tip {
+  background: #1f232a;
+  border-left-color: #4d5561;
+}
+:root[data-theme="dark"] .confidence-reason {
+  background: #1f232a;
+}
+:root[data-theme="dark"] .source-document {
+  background: #1a1d22;
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .source-section {
+  border-top-color: #2c3037;
+}
+:root[data-theme="dark"] .source-section h4 {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .source-section.focused {
+  background: #2e2022;
+  outline-color: #6d343a;
+}
+:root[data-theme="dark"] .source-evidence-link {
+  color: #ff8d95;
+  background: #3a2326;
+  border-color: #5a3136;
+}
+:root[data-theme="dark"] .source-toolbar {
+  color: var(--text-3);
+}
+:root[data-theme="dark"] .source-note,
+:root[data-theme="dark"] .note-line {
+  background: #332b1a;
+  border-color: #4a3d22;
+  color: #d9b36c;
+}
+:root[data-theme="dark"] .info {
+  background: #332b1a;
+  border-color: #4a3d22;
+  color: #d9b36c;
+}
+:root[data-theme="dark"] .notice {
+  background: #1e3a2e;
+  color: #5fd39f;
+}
+
+:root[data-theme="dark"] .finding {
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .finding.selected {
+  border-color: #6d343a;
+  background: #2a1f22;
+}
+:root[data-theme="dark"] .finding p,
+:root[data-theme="dark"] .history {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .history strong {
+  color: var(--text);
+}
+:root[data-theme="dark"] .details .inside {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .back {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .tab {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .task {
+  border-bottom-color: #2c3037;
+}
+:root[data-theme="dark"] .task .number {
+  background: var(--accent-weak);
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .track {
+  background: #2c3037;
+}
+:root[data-theme="dark"] .fill {
+  background: var(--text-3);
+}
+:root[data-theme="dark"] .fill.green {
+  background: var(--green);
+}
+:root[data-theme="dark"] .fill.amber {
+  background: var(--amber);
+}
+
+:root[data-theme="dark"] .priority-pill.high,
+:root[data-theme="dark"] .priority-pill.urgent {
+  background: #3a2326;
+  color: #ff8d95;
+  border-color: #5a3136;
+}
+:root[data-theme="dark"] .priority-pill.medium {
+  background: #332b1a;
+  color: #e5b45c;
+  border-color: #4a3d22;
+}
+:root[data-theme="dark"] .priority-pill.low {
+  background: #1e3a2e;
+  color: #5fd39f;
+  border-color: #2e5342;
+}
+
+:root[data-theme="dark"] .ai-confidence-overview {
+  background: #1a1d22;
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .ai-confidence-overview .label {
+  color: var(--text-3);
+}
+:root[data-theme="dark"] .ai-confidence-overview .value {
+  color: var(--text);
+}
+:root[data-theme="dark"] .ai-confidence-overview .explain {
+  color: var(--text-2);
+}
+
+:root[data-theme="dark"] .consumer-card p,
+:root[data-theme="dark"] .consumer-hero p {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .consumer-card-footer {
+  border-top-color: #2c3037;
+}
+:root[data-theme="dark"] .hero-count {
+  border-left-color: #2c3037;
+}
+:root[data-theme="dark"] .hero-count b {
+  color: var(--red);
+}
+:root[data-theme="dark"] .sub-option {
+  border-color: var(--border-strong);
+}
+:root[data-theme="dark"] .consumer-search input {
+  background: var(--bg);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+:root[data-theme="dark"] .doc-intro {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .doc-meta > div {
+  border-color: var(--border-strong);
+}
+:root[data-theme="dark"] .doc-meta small {
+  color: var(--text-3);
+}
+:root[data-theme="dark"] .doc-excerpt {
+  background: #1a1d22;
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .mapping-matrix th,
+:root[data-theme="dark"] .map-cell {
+  color: var(--text);
+}
+:root[data-theme="dark"] .map-cell {
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .mapping-track {
+  background: #2c3037;
+}
+:root[data-theme="dark"] .rule-item {
+  border-bottom-color: #2c3037;
+}
+:root[data-theme="dark"] .rule-item p {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .empty-state {
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .empty-state small {
+  color: var(--text-3);
+}
+
+:root[data-theme="dark"] .scorecard-row,
+:root[data-theme="dark"] .exposure-box,
+:root[data-theme="dark"] .case-link {
+  border-color: var(--border);
+  background: #1a1d22;
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .scorecard-row.missing {
+  background: var(--surface);
+}
+:root[data-theme="dark"] .scorecard-row .dim-name {
+  color: var(--text);
+}
+:root[data-theme="dark"] .scorecard-row .dim-score strong,
+:root[data-theme="dark"] .exposure-box strong {
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .scorecard-row .dim-reason {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .scorecard-row.missing .dim-reason {
+  color: #e5b45c;
+}
+
+:root[data-theme="dark"] .business-map-page .business-map-clear {
+  background: var(--surface);
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .business-map-page .business-map-domain {
+  color: var(--text);
+}
+:root[data-theme="dark"] .business-map-page .business-map-domain span,
+:root[data-theme="dark"] .business-map-page .business-map-empty,
+:root[data-theme="dark"] .business-map-page .business-map-modal-head p,
+:root[data-theme="dark"] .business-map-page .business-map-policy-link small {
+  color: var(--text-3);
+}
+:root[data-theme="dark"] .business-map-page .business-map-domain:hover,
+:root[data-theme="dark"] .business-map-page .business-map-policy-link:hover strong {
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .business-map-page mark {
+  background: #4a3d22;
+  color: #ffe9b8;
+}
+:root[data-theme="dark"] .business-map-page .business-map-modal {
+  background: var(--surface);
+}
+:root[data-theme="dark"] .business-map-page .business-map-modal-close {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .business-map-page .business-map-policy-list li {
+  border-bottom-color: #2c3037;
+}
+:root[data-theme="dark"] .business-map-page .business-map-policy-link strong {
+  color: var(--text);
+}
+:root[data-theme="dark"] .business-map-page .business-map-policy-link p {
+  color: var(--text-2);
+}
+
+/* 登录页深浅两套 */
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f7f7f8 0%, #ffffff 55%, #fff1f2 100%);
+}
+.login-card {
+  padding: 22px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  min-height: 178px;
+}
+.login-desc {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.7;
+  min-height: 42px;
+}
+.login-cta {
+  display: block;
+  color: #db0011;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 14px;
+}
+.login-note {
+  text-align: center;
+  color: #8b929c;
+  font-size: 12px;
+  margin-top: 24px;
+}
+:root[data-theme="dark"] .login-shell {
+  background: linear-gradient(135deg, #14161a 0%, #1d2025 55%, #2a1f22 100%);
+}
+:root[data-theme="dark"] .login-card {
+  border-color: var(--border);
+  background: var(--surface);
+}
+:root[data-theme="dark"] .login-desc {
+  color: var(--text-2);
+}
+:root[data-theme="dark"] .login-cta {
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .login-note {
+  color: var(--text-3);
 }

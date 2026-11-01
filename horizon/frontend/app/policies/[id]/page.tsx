@@ -145,10 +145,9 @@ export default function PolicyDetailPage() {
         <div><small>发布日期</small><strong style={{ display: "block", marginTop: 8, fontSize: 12 }}>{dateLabel(policy.published_at)}</strong></div>
       </div>
 
-      <div className="details-grid">
-        <div className="stack">
-          <section className="panel">
-            <div className="panelhead"><h2>政策信息</h2><small>Policy Information</small></div>
+      <div className="stack">
+        <section className="panel">
+          <div className="panelhead"><h2>政策信息</h2><small>Policy Information</small></div>
             <div className="sectionbody">
               <h3 style={{ fontSize: 18, marginTop: 0 }}>{policy.title}</h3>
               <div className="fieldgrid">
@@ -219,40 +218,37 @@ export default function PolicyDetailPage() {
               </> : <p className="textblock">当前没有影响分析记录。</p>}
             </div>
           </section>
+      </div>
 
-          <section className="panel source-panel">
-            <div className="panelhead"><h2>政策原文</h2>{role !== "consumer" && <Link href={`/documents/${policy.document_id}`} className="link">打开原文库记录 →</Link>}</div>
+      <section className="panel full source-panel">
+        <div className="panelhead"><h2>政策原文</h2>{role !== "consumer" && <Link href={`/documents/${policy.document_id}`} className="link">打开原文库记录 →</Link>}</div>
             <div className="sectionbody">
               <div className="source-document"><h3>{policy.document?.title || policy.title}</h3><p style={{ whiteSpace: "pre-wrap" }}>{policy.document?.content_text || "原文正文不可用"}</p></div>
               {policy.url.startsWith("http") && <a href={policy.url} target="_blank" rel="noreferrer" className="link">访问监管来源网页 →</a>}
             </div>
           </section>
-        </div>
 
-        <div className="stack">
-          <section className="panel">
-            <div className="panelhead"><h2>原文证据</h2><small>{policy.evidence.length} 条</small></div>
+      <section className="panel full">
+        <div className="panelhead"><h2>原文证据</h2><small>{policy.evidence.length} 条</small></div>
             <div className="sectionbody">
               {policy.evidence.length ? policy.evidence.map((evidence) => <div className="evidence" key={evidence.id} style={{ marginBottom: 12 }}><small>{evidence.field_name || "政策字段"} · {evidence.span_start}–{evidence.span_end}</small><blockquote>{evidence.quote}</blockquote></div>) : <p className="textblock">没有可定位证据，提交审核前应打回补充。</p>}
             </div>
           </section>
 
-          <section className="panel">
-            <div className="panelhead"><h2>相关性判定</h2><small>规则与 AI 双通道</small></div>
+      <section className="panel full">
+        <div className="panelhead"><h2>相关性判定</h2><small>规则与 AI 双通道</small></div>
             <div className="sectionbody">
               {policy.scope_judgements.map((judgement) => <div key={judgement.entity_id} className="scope-tip" style={{ marginBottom: 10 }}><strong>{entityLabels[judgement.entity_id] || judgement.entity_id}</strong> <span className={`badge ${judgement.conflict ? "red" : ""}`}>{RELEVANCE_LABELS[judgement.result]?.text ?? judgement.result}</span><p>{judgement.llm_reason || "未提供判定理由"}</p>{judgement.conflict && <small style={{ color: "var(--red)" }}>规则与 AI 判定冲突，需要人工复核。</small>}</div>)}
             </div>
           </section>
 
-          {role !== "consumer" && <section className="panel">
-            <div className="panelhead"><h2>审核记录</h2><small>{policy.review_tasks.length} 个任务</small></div>
+      {role !== "consumer" && <section className="panel full">
+        <div className="panelhead"><h2>审核记录</h2><small>{policy.review_tasks.length} 个任务</small></div>
             <div className="sectionbody">
               {policy.review_tasks.length ? policy.review_tasks.map((task) => <div key={task.id} style={{ marginBottom: 18 }}><strong>{task.level} 级审核 · {TASK_STATUS_LABELS[task.status] || task.status}</strong><small style={{ display: "block" }}>{task.assignee} · {dateLabel(task.created_at)}</small><div className="history">{task.decisions.map((decision, index) => <div key={index}><strong>{decision.actor}</strong> — {DECISION_LABELS[decision.action] || decision.action}<br /><small>{dateLabel(decision.created_at)}{decision.reason_code ? ` · ${decision.reason_code}` : ""}</small>{decision.note && <p>{decision.note}</p>}</div>)}</div></div>) : <p className="textblock">尚未进入人工审核。</p>}
               {(role === "analyst" || role === "approver") && <Link href="/review" className="btn primary">前往审核工作台</Link>}
             </div>
-          </section>}
-        </div>
-      </div>
+      </section>}
       <p className="footnote">政策分析仅供内部研究，最终合规判断以监管机构原文和人工审核结论为准。</p>
     </div>
   );

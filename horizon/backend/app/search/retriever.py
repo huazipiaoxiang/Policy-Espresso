@@ -8,19 +8,13 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.chat.tools import ChatEvidence, ChatTools, normalize_role
+from app.chat.tools import ChatEvidence, ChatTools
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.db.models import Document, DocumentChunk, Policy
+from app.db.models import Document, DocumentChunk
 from app.search import embedder, index as vector_index
 
 log = get_logger("search.retriever")
-
-_PRIVILEGED_ROLES = {"admin", "analyst", "approver", "publisher"}
-
-
-def is_consumer(role: object) -> bool:
-    return normalize_role(role) not in _PRIVILEGED_ROLES
 
 
 def vector_available(db: Session) -> bool:
@@ -39,17 +33,6 @@ def _chunk_texts(db: Session, chunk_ids: list[str]) -> dict[str, str]:
         select(DocumentChunk.id, DocumentChunk.text).where(DocumentChunk.id.in_(chunk_ids))
     ).all()
     return {chunk_id: text or "" for chunk_id, text in rows}
-
-
-def _visible_document_ids(db: Session, document_ids: list[str], role: object) -> set[str]:
-    if not is_consumer(role):
-        return set(document_ids)
-    rows = db.execute(
-        select(Policy.document_id).where(
-            Policy.document_id.in_(document_ids), Policy.status == "published",
-        )
-    ).all()
-    return {document_id for (document_id,) in rows}
 
 
 def search_vector(db: Session, query: str, *, role: object, limit: int = 8) -> list[ChatEvidence]:
@@ -72,10 +55,7 @@ def search_vector(db: Session, query: str, *, role: object, limit: int = 8) -> l
     if not hits:
         return []
 
-    visible = _visible_document_ids(db, [hit.document_id for hit in hits], role)
-    kept = [hit for hit in hits if hit.document_id in visible]
-    if not kept:
-        return []
+    kept = list(hits)
 
     texts = _chunk_texts(db, [hit.chunk_id for hit in kept][: len(kept)])
     documents = {

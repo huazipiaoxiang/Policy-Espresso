@@ -54,6 +54,13 @@ export const JURISDICTION_LABELS: Record<string, string> = {
   MO: "澳门", GB: "英国", SG: "新加坡", EU: "欧盟",
 };
 
+export const PRIORITY_LABELS: Record<string, string> = {
+  P0: "P0（最高优先）",
+  P1: "P1（高优先）",
+  P2: "P2（中等优先）",
+  P3: "P3（低优先）",
+};
+
 export const DECISION_LABELS: Record<string, string> = {
   approve: "通过", reject: "驳回", request_info: "要求补充资料",
 };

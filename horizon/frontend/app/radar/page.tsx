@@ -77,11 +77,11 @@ export default function RadarPage() {
       : {
           label: "待审核",
           value: tasks.length,
-          note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "当前待办审核任务",
-          href: "/review",
+          note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "等待发布处理",
+          href: role === "publisher" ? "/publications" : "/review",
         },
     { label: "高优先级", value: counts.highPriority, note: "P0 / P1 政策", href: "/policies?view=high_priority" },
-    { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: "/publications?view=today" },
+    { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: role === "publisher" ? "/publications?view=today" : "/policies?view=today_published" },
   ];
   const relevance = [
     { label: "高相关", value: counts.high, color: "green" }, { label: "中相关", value: counts.medium, color: "green" },
@@ -89,21 +89,25 @@ export default function RadarPage() {
   ];
   const maxRelevance = Math.max(1, ...relevance.map((item) => item.value));
 
+  const relevancePanel = role === "analyst" ? null : (
+    <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2><small>真实政策记录</small></div><div className="panelbody">
+      {relevance.map((item) => <div className="barrow" key={item.label}><span>{item.label}</span><div className="track"><div className={`fill ${item.color}`} style={{ width: `${item.value / maxRelevance * 100}%` }} /></div><strong>{item.value}</strong></div>)}
+      <div className="divider" /><p className="sub">分类数量直接来自政策库的相关性字段，不使用演示数字。</p>
+    </div></section>
+  );
+
   return (
     <main className="content">
       <div className="pagehead"><div><div className="eyebrow">DASHBOARD · 总览</div><h1>总览 Dashboard</h1><p className="sub">政策采集、相关性筛选、人工审核与发布的实时处理情况</p></div><button className="btn" onClick={load}>刷新数据</button></div>
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="grid4">{metrics.map((metric) => <Link href={metric.href} className="metric" key={metric.label} style={{ textDecoration: "none", color: "inherit" }}><small>{metric.label}</small><b>{metric.value}</b><span>{metric.note}</span></Link>)}</div>
 
-      <div className="twocol" style={{ marginTop: 18 }}>
-        <section className="panel"><div className="panelhead"><h2>{role === "publisher" ? "审核任务概览" : "我的审核任务"}</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
+      <div className={role === "analyst" ? "" : "twocol"} style={{ marginTop: 18 }}>
+        <section className={`panel${role === "analyst" ? " full" : ""}`}><div className="panelhead"><h2>{role === "publisher" ? "审核任务概览" : "我的审核任务"}</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
           {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">{role === "approver" ? "当前没有待处理的二级审核任务（P0/P1 政策一级通过后生成）" : "当前没有待办审核任务"}</p> : tasks.slice(0, 5).map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
-          <Link href="/review" className="btn" style={{ marginTop: 12 }}>进入审核工作台 →</Link>
+          <Link href={role === "publisher" ? "/publications" : "/review"} className="btn" style={{ marginTop: 12 }}>{role === "publisher" ? "进入发布中心 →" : "进入审核工作台 →"}</Link>
         </div></section>
-        <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2><small>真实政策记录</small></div><div className="panelbody">
-          {relevance.map((item) => <div className="barrow" key={item.label}><span>{item.label}</span><div className="track"><div className={`fill ${item.color}`} style={{ width: `${item.value / maxRelevance * 100}%` }} /></div><strong>{item.value}</strong></div>)}
-          <div className="divider" /><p className="sub">分类数量直接来自政策库的相关性字段，不使用演示数字。</p>
-        </div></section>
+        {relevancePanel}
       </div>
 
       <section className="panel full"><div className="panelhead"><h2>近期政策</h2><Link href="/policies" className="link">查看全部 →</Link></div><div className="tablewrap"><table><thead><tr><th>政策名称</th><th>发文机构 / 辖区</th><th>相关性</th><th>优先级</th><th>审核 / 发布状态</th></tr></thead><tbody>

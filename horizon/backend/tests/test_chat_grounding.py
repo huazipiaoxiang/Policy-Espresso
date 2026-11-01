@@ -94,7 +94,8 @@ def test_extractive_answer_uses_current_db_and_structured_citations(db):
     assert "第一版摘要" not in second.reply
 
 
-def test_consumer_only_gets_published_policy_and_public_source_data(db):
+def test_all_roles_share_same_chat_read_permissions(db):
+    """AI 助手读取权限不区分角色：consumer 与审核角色看到同样的政策、审核与影响数据。"""
     published = add_policy(db, title="已发布政策")
     draft = add_policy(db, title="未发布审核草案", status="pending_review")
     db.add_all([
@@ -110,10 +111,12 @@ def test_consumer_only_gets_published_policy_and_public_source_data(db):
     db.commit()
 
     consumer = ChatTools(db, "consumer")
-    assert [item.citation["policy_id"] for item in consumer.search_policies("")] == [published.id]
-    assert [item.citation["document_id"] for item in consumer.search_documents("")] == [published.document_id]
-    assert consumer.search_reviews("") == []
-    assert consumer.search_business_impacts("") == []
+    assert {item.citation["policy_id"] for item in consumer.search_policies("")} == {published.id, draft.id}
+    assert {item.citation["document_id"] for item in consumer.search_documents("")} == {published.document_id, draft.document_id}
+    assert {item.citation["id"] for item in consumer.search_reviews("我的待办")} == {"review:rt_internal", "review:rt_level_two"}
+    impacts = consumer.search_business_impacts("")
+    assert len(impacts) == 1
+    assert "internal-risk-chain" in impacts[0].text
 
     sources = consumer.search_sources("")
     assert len(sources) == 1
@@ -395,6 +398,72 @@ def test_response_citations_dedup_by_title():
     citations = _citations(raw)
     assert len(citations) == 2
     assert [c.title for c in citations] == ["同一标题", "另一标题"]
+
+
+def test_domain_intent_detection():
+    from app.chat.service import _domain_intent
+
+    assert _domain_intent("根据政策解读后 Domain 为 WPB 受影响的政策有哪些") == "WPB"
+    assert _domain_intent("cmb 受影响的政策有哪些") == "CMB"  # 大小写不敏感
+    assert _domain_intent("Insurance 受影响") == "Insurance"
+    assert _domain_intent("虚拟银行监管新规是什么") is None
+
+
+def test_domain_impact_retrieval_lists_affected_policies(db):
+    """按业务线代号（WPB/CMB/...）检索受影响政策。"""
+    policy = add_policy(db, title="某监管政策")
+    db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
+    db.commit()
+
+    tools = ChatTools(db, "analyst")
+    result = tools.search_business_impacts_by_domain("WPB")
+    assert len(result) == 1
+    assert result[0].citation["policy_id"] == policy.id
+    assert "WPB" in result[0].text  # 人话文本里带出业务线代号
+    assert tools.search_business_impacts_by_domain("CMB") == []
+
+
+def test_domain_question_is_answered_not_rejected(db):
+    """「Domain 为 WPB 受影响的政策有哪些」应命中并列出，而不是 NO_ANSWER。"""
+    policy = add_policy(db, title="某监管政策")
+    db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
+    db.commit()
+
+    result = ask(db, "根据政策解读后 Domain 为 WPB 受影响的政策有哪些")
+    assert result.no_answer is False
+    assert result.citations, "应列出 WPB 受影响政策"
+    assert "找不到足够的可靠资料" not in result.reply
+
+
+def test_all_roles_get_same_domain_impact_evidence(db):
+    """所有角色按 Domain 检索都拿到影响评估证据，读取权限不区分角色。"""
+    policy = add_policy(db, title="某监管政策")
+    db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
+    db.commit()
+
+    consumer = ChatTools(db, "consumer")
+    result = consumer.search_business_impacts_by_domain("WPB")
+    assert len(result) == 1
+    assert result[0].kind == "business_impact"
+    assert result[0].citation["policy_id"] == policy.id
+    assert "影响方向" in result[0].text
+
+    analyst = ChatTools(db, "analyst")
+    analyst_result = analyst.search_business_impacts_by_domain("WPB")
+    assert analyst_result[0].kind == "business_impact"
+    assert "影响方向" in analyst_result[0].text
+
+
+def test_consumer_domain_question_is_answered(db):
+    """consumer 问 Domain 受影响政策也能回答，而不是「找不到」。"""
+    policy = add_policy(db, title="某监管政策")
+    db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
+    db.commit()
+
+    result = ask(db, "根据政策解读后 Domain 为 WPB 受影响的政策有哪些", role="consumer")
+    assert result.no_answer is False
+    assert result.citations, "应列出 WPB 受影响政策"
+    assert "找不到足够的可靠资料" not in result.reply
 
 
 def test_web_failure_is_explicit_and_never_fabricated(db, monkeypatch):

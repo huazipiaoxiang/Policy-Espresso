@@ -13,8 +13,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { role, ready, logout } = useAuth();
-  const [chatOpen, setChatOpen] = useState(false);
+  // Ask AI 全局固定侧栏：默认展开，收起状态按用户偏好持久化
+  const [chatOpen, setChatOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("horizon-chat-open") !== "0";
+  });
   const isLogin = pathname === "/login";
+
+  useEffect(() => {
+    window.localStorage.setItem("horizon-chat-open", chatOpen ? "1" : "0");
+  }, [chatOpen]);
 
   useEffect(() => {
     if (!ready) return;
@@ -42,16 +50,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="shell">
+    <div className={`shell${chatOpen ? " with-chat" : ""}`}>
       <Sidebar role={role} />
       <div className="main">
         <Topbar role={role} onLogout={() => { logout(); router.replace("/login"); }} />
         <div className="content">{children}</div>
       </div>
-      <ChatButton onClick={() => setChatOpen((open) => !open)} />
-      <div style={{ display: chatOpen ? "block" : "none" }}>
-        <ChatPanel onClose={() => setChatOpen(false)} />
-      </div>
+      {chatOpen ? <ChatPanel onClose={() => setChatOpen(false)} /> : <ChatButton onClick={() => setChatOpen(true)} />}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 契约（不可突破）：
 - 工具只接受**文本查询**，绝不接受 SQL 或任意过滤表达式；
-- 角色不可见的工具在注册表层面**不注册**（而非返回空），模型看不到就调不到；
+- 工具清单对所有角色一致，读取权限不区分角色；
 - 参数一律 clamp（query ≤200 字，limit 1..8），未知工具返回错误观察而不是抛异常，
   让模型自行改道而不是把请求打挂。
 """
@@ -26,7 +26,6 @@ LIMIT_MAX = 8
 DEFAULT_LIMIT = 5
 
 ALL_ROLES = frozenset({"admin", "analyst", "approver", "publisher", "consumer"})
-PRIVILEGED_ROLES = frozenset({"admin", "analyst", "approver", "publisher"})
 
 ToolHandler = Callable[[ChatTools, str, int], list[ChatEvidence]]
 
@@ -116,13 +115,13 @@ TOOLS: tuple[ToolSpec, ...] = (
     ToolSpec(
         name="search_reviews",
         description="检索内部审核任务（政策/级别/状态/负责人）。适合「我的待办、哪些待审核、谁负责」。",
-        visible_to=PRIVILEGED_ROLES,
+        visible_to=ALL_ROLES,
         handler=_search_reviews,
     ),
     ToolSpec(
         name="search_business_impacts",
         description="检索业务影响评估（方向/优先级/传导链/建议动作/置信度）。适合「对我们业务有什么影响、建议怎么做」。",
-        visible_to=PRIVILEGED_ROLES,
+        visible_to=ALL_ROLES,
         handler=_search_impacts,
     ),
     ToolSpec(

@@ -1,7 +1,7 @@
 """Fixed SQLAlchemy queries exposed to the chat service.
 
 This module deliberately accepts search text, never SQL. Every query has a small
-result limit and all role filtering happens here, before evidence is returned.
+result limit; read access is shared across all demo roles without role filtering.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Assessment, Document, Policy, ReviewTask, Source
@@ -128,6 +128,8 @@ def _rank(query: str, rows: list[Any], title: Any, body: Any, extra: Any = None)
 
 _REVIEW_INTENT_WORDS = ("审核", "审查", "复核", "审批", "待办", "待审", "review", "assignee")
 _IMPACT_INTENT_WORDS = ("影响", "业务", "风险", "传导", "应对", "行动", "impact", "business")
+# 业务线代号（Domain），存于 Assessment.affected.business_lines；识别按大小写不敏感匹配。
+BUSINESS_DOMAINS = ("WPB", "CMB", "GBM", "GTB", "Insurance")
 
 
 def _has_review_intent(query: str) -> bool:
@@ -336,15 +338,8 @@ class ChatTools:
         self.db = db
         self.role = normalize_role(role)
 
-    @property
-    def is_consumer(self) -> bool:
-        # Defense in depth: dependency validation is primary, unknown roles fail closed.
-        return self.role not in {"admin", "analyst", "approver", "publisher"}
-
     def search_policies(self, query: str) -> list[ChatEvidence]:
         stmt = select(Policy).options(joinedload(Policy.document).joinedload(Document.source))
-        if self.is_consumer:
-            stmt = stmt.where(Policy.status == "published")
         terms = search_terms(query)
         theme_terms, theme_matched_ids = _theme_terms(self.db, query)
         # 引号内的完整标题是精确查找信号，不再叠加正文匹配，
@@ -408,8 +403,7 @@ class ChatTools:
             details.append(f"发布日期：{_format_date(policy.published_at)}")
             if include_fetched and document:
                 details.append(f"入库时间：{_format_date(document.fetched_at)}")
-            if not self.is_consumer:
-                details.append(f"状态：{policy.status}")
+            details.append(f"状态：{policy.status}")
             text = "；".join(part for part in details if part)
             if summary:
                 text = f"{text}\n摘要：{summary}"
@@ -441,8 +435,6 @@ class ChatTools:
         只有 fetched_at 能表达「新增」语义。
         """
         stmt = select(Policy).options(joinedload(Policy.document).joinedload(Document.source))
-        if self.is_consumer:
-            stmt = stmt.where(Policy.status == "published")
         stmt = stmt.outerjoin(Document, Policy.document_id == Document.id)
         if since is not None:
             stmt = stmt.where(Document.fetched_at >= since)
@@ -459,8 +451,6 @@ class ChatTools:
 
     def search_documents(self, query: str) -> list[ChatEvidence]:
         stmt = select(Document).join(Source, Document.source_id == Source.id).options(joinedload(Document.source))
-        if self.is_consumer:
-            stmt = stmt.join(Policy, Policy.document_id == Document.id).where(Policy.status == "published")
         terms = search_terms(query)
         if terms:
             stmt = stmt.where(or_(*_filters([Document.title, Document.content_text, Source.name], terms)))
@@ -517,8 +507,6 @@ class ChatTools:
         ) for source in rows]
 
     def search_reviews(self, query: str) -> list[ChatEvidence]:
-        if self.is_consumer:
-            return []
         stmt = (
             select(ReviewTask, Policy, Document)
             .join(Policy, ReviewTask.policy_id == Policy.id)
@@ -578,8 +566,6 @@ class ChatTools:
         return evidence
 
     def search_business_impacts(self, query: str) -> list[ChatEvidence]:
-        if self.is_consumer:
-            return []
         stmt = (
             select(Assessment)
             .join(Policy, Assessment.policy_id == Policy.id)
@@ -603,6 +589,41 @@ class ChatTools:
         title_of = lambda row: row.policy.title
         body_of = lambda row: row.policy.summary_zh
         rows = _rank(query, rows, title_of, body_of)[:RESULT_LIMIT]
+        return self._impact_evidence(rows, query, title_of, body_of)
+
+    def search_business_impacts_by_domain(self, domain: str, *, limit: int = RESULT_LIMIT) -> list[ChatEvidence]:
+        """按受影响业务线（Domain）检索：返回 affected.business_lines 含指定代号的评估。
+
+        用于「WPB/CMB/GBM/GTB/Insurance 受影响的政策有哪些」这类按域过滤的问题。
+        business_lines 是 ASCII 代号，JSON 列不转义，SQL 层 ilike 可直接命中。
+        """
+        pattern = f'%"{domain}"%'
+        matched_ids = [
+            row[0]
+            for row in self.db.execute(
+                select(Assessment.policy_id).where(cast(Assessment.affected, String).ilike(pattern))
+            ).all()
+        ]
+
+        stmt = (
+            select(Assessment)
+            .join(Policy, Assessment.policy_id == Policy.id)
+            .options(joinedload(Assessment.policy).joinedload(Policy.document))
+            .where(Assessment.policy_id.in_(matched_ids))
+        )
+        rows = list(self.db.scalars(stmt.order_by(Assessment.created_at.desc()).limit(limit)).unique())
+        title_of = lambda row: row.policy.title
+        body_of = lambda row: row.policy.summary_zh
+        return self._impact_evidence(rows, domain, title_of, body_of)
+
+    def _impact_evidence(
+        self,
+        rows: list[Assessment],
+        query: str,
+        title_of: Callable[[Assessment], str],
+        body_of: Callable[[Assessment], str],
+    ) -> list[ChatEvidence]:
+        """把 Assessment 列表组装成业务影响证据（人话文本）。"""
         evidence: list[ChatEvidence] = []
         for assessment in rows:
             policy = assessment.policy

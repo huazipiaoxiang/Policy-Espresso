@@ -118,16 +118,15 @@ def make_plan(question: str = "《虚拟银行监管新规》的发布机构是�
 # ---------- 工具注册表 ----------
 
 
-def test_tool_list_hides_privileged_tools_from_consumer():
+def test_tool_list_is_shared_across_all_roles():
     consumer = describe_tools("consumer")
     analyst = describe_tools("analyst")
-    assert "search_reviews" not in consumer
-    assert "search_business_impacts" not in consumer
-    assert "search_reviews" in analyst
-    assert "search_business_impacts" in analyst
+    for name in ("search_reviews", "search_business_impacts"):
+        assert name in consumer
+        assert name in analyst
 
 
-def test_run_tool_rejects_unknown_and_denied_tools(db):
+def test_run_tool_rejects_unknown_tools(db):
     add_policy(db)
     tools = ChatTools(db, "consumer")
     evidence, note = run_tool(tools, "consumer", "drop_everything", {"query": "x"})
@@ -136,7 +135,8 @@ def test_run_tool_rejects_unknown_and_denied_tools(db):
     db.add(ReviewTask(id="rt_1", policy_id="p_0", assignee="someone"))
     db.commit()
     evidence, note = run_tool(tools, "consumer", "search_reviews", {"query": "待办"})
-    assert evidence == [] and "不可用" in note
+    assert [item.key for item in evidence] == ["review:rt_1"]
+    assert note == ""
 
 
 def test_tool_args_are_clamped():
@@ -265,7 +265,7 @@ def test_evidence_budget_is_enforced(db, monkeypatch):
     assert len(run.evidence) <= 2
 
 
-def test_consumer_never_gets_review_evidence_through_agent(db):
+def test_consumer_gets_review_evidence_through_agent(db):
     policy = add_policy(db)
     db.add(ReviewTask(id="rt_1", policy_id=policy.id, assignee="analyst.one"))
     db.commit()
@@ -274,8 +274,8 @@ def test_consumer_never_gets_review_evidence_through_agent(db):
         {"action": "finish"},
     ])
     run = run_agent(tools=ChatTools(db, "consumer"), provider=provider, role="consumer", plan=make_plan("待办"))
-    assert run.evidence == []
-    assert "不可用" in run.steps[0].note
+    assert [item.key for item in run.evidence] == ["review:rt_1"]
+    assert run.steps[0].note == ""
 
 
 def test_mock_provider_uses_deterministic_retrieval(db):

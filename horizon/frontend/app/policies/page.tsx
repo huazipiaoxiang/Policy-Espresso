@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
-import { JURISDICTION_LABELS, POLICY_STATUS_LABELS, impactScoreLabel } from "@/lib/labels";
+import { JURISDICTION_LABELS, POLICY_STATUS_LABELS, PRIORITY_LABELS, impactScoreLabel } from "@/lib/labels";
 
 interface Policy {
   id: string;
@@ -23,7 +23,7 @@ interface Policy {
   score_total: number;
 }
 
-type TabKey = "all" | "today_new" | "pending_review" | "published" | "high_priority";
+type TabKey = "all" | "today_new" | "pending_review" | "published" | "high_priority" | "today_published";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "all", label: "全部政策" },
@@ -31,6 +31,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "pending_review", label: "待审核" },
   { key: "published", label: "已发布" },
   { key: "high_priority", label: "高优先级" },
+  { key: "today_published", label: "今日已发布" },
 ];
 
 function dateLabel(value: string | null) {
@@ -49,11 +50,12 @@ export default function PoliciesPage() {
   const [notice, setNotice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [counts, setCounts] = useState<Record<TabKey, number>>({ all: 0, today_new: 0, pending_review: 0, published: 0, high_priority: 0 });
+  const [counts, setCounts] = useState<Record<TabKey, number>>({ all: 0, today_new: 0, pending_review: 0, published: 0, high_priority: 0, today_published: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
   const [busyId, setBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
   const pageSize = 20;
+  const hkToday = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }), []);
 
   useEffect(() => {
     const view = searchParams.get("view") as TabKey | null;
@@ -80,6 +82,7 @@ export default function PoliciesPage() {
     if (activeTab === "pending_review") params.set("status", "pending_review,in_review");
     if (activeTab === "published") params.set("status", "published");
     if (activeTab === "high_priority") params.set("priority", "P0,P1");
+    if (activeTab === "today_published") { params.set("status", "published"); params.set("published_on", hkToday); }
     if (search.trim()) params.set("q", search.trim());
     setLoading(true);
     request(`/policies?${params}`)
@@ -91,19 +94,20 @@ export default function PoliciesPage() {
       })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
-  }, [activeTab, currentPage, refreshKey, request, search]);
+  }, [activeTab, currentPage, refreshKey, request, search, hkToday]);
 
   useEffect(() => {
     const urls: [TabKey, string][] = [
       ["all", ""], ["today_new", "&fetched=today"], ["pending_review", "&status=pending_review,in_review"],
       ["published", "&status=published"], ["high_priority", "&priority=P0,P1"],
+      ["today_published", `&status=published&published_on=${hkToday}`],
     ];
     Promise.all(urls.map(async ([key, filter]) => {
       const response = await request(`/policies?page=1&page_size=1${filter}`);
       return [key, (await response.json()).total || 0] as const;
     })).then((entries) => setCounts(Object.fromEntries(entries) as Record<TabKey, number>))
       .catch(() => undefined);
-  }, [refreshKey, request]);
+  }, [refreshKey, request, hkToday]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const visiblePages = useMemo(() => {
@@ -155,7 +159,7 @@ export default function PoliciesPage() {
     }
   }
 
-  const metrics = tabs.map((tab) => ({ ...tab, value: counts[tab.key] }));
+  const metrics = tabs.filter((tab) => tab.key !== "today_published").map((tab) => ({ ...tab, value: counts[tab.key] }));
 
   return (
     <div className="content">
@@ -197,22 +201,23 @@ export default function PoliciesPage() {
         </div>
         <div className="tablewrap">
           <table>
-            <thead><tr><th>政策名称</th><th>来源</th><th>影响 Domain</th><th>审核状态</th><th>发布日期</th><th>操作</th></tr></thead>
+            <thead><tr><th>政策名称</th><th>来源</th><th>优先级</th><th>影响 Domain</th><th>审核状态</th><th>发布日期</th><th>操作</th></tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={6} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : policies.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>无匹配记录</td></tr>
+              {loading ? <tr><td colSpan={7} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : policies.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>无匹配记录</td></tr>
               ) : policies.map((policy) => (
                 <tr key={policy.id}>
                   <td style={{ minWidth: 260 }}>
                     <div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.doc_number || policy.id} · {policy.priority} · 影响评分 {impactScoreLabel(policy.score_total, 0, false)}</small></div>
                   </td>
                   <td>{policy.issuing_body || "—"}<br /><small>{JURISDICTION_LABELS[policy.jurisdiction] || policy.jurisdiction || "—"}</small></td>
+                  <td><span className="pdot" title={PRIORITY_LABELS[policy.priority] || policy.priority || ""}><i className={(policy.priority || "p3").toLowerCase()} />{policy.priority || "—"}</span></td>
                   <td><div className="rowflex">{policy.impacted_domains.length ? policy.impacted_domains.map((domain) => <span className="badge" key={domain}>{domain}</span>) : "—"}</div></td>
                   <td><span className={`badge ${policy.status === "published" || policy.status === "approved" ? "green" : policy.status.includes("review") ? "amber" : ""}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span></td>
                   <td style={{ whiteSpace: "nowrap" }}>{dateLabel(policy.published_at)}</td>
                   <td>
                     <div className="rowflex">
-                      <Link href={`/policies/${policy.id}`} className="link">详情</Link>
+                      <Link href={`/policies/${policy.id}`} className="link">审核</Link>
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => analyzePolicy(policy)}>重新分析</button>}
                       {role === "publisher" && policy.status === "approved" && <button className="link" disabled={busyId === policy.id} onClick={() => dispatchPolicy(policy)}>发布</button>}
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => setDeleteTarget(policy)} style={{ color: "var(--red)" }}>删除</button>}

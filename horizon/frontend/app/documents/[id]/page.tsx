@@ -406,7 +406,7 @@ export default function DocumentDetailPage() {
                     下载 PDF
                   </button>
                 )}
-                <button className="btn" onClick={() => router.push(`/audit?docId=${doc.id}`)}>
+                <button className="btn" onClick={() => router.push(`/audit?object_type=document&object_id=${doc.id}`)}>
                   查看审计日志
                 </button>
               </div>
