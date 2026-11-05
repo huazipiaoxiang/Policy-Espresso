@@ -6,7 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import Pagination from "@/components/Pagination";
 import type { DocumentItem } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+const API_BASE = "/api/proxy";  // 客户端走同源 BFF 代理，API Key 由服务端注入，不暴露到浏览器
 const API_KEY = process.env.HORIZON_API_KEY ?? "dev-local-key";
 const PAGE_SIZE = 20;
 

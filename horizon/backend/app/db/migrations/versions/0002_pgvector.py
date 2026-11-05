@@ -25,16 +25,20 @@ def _is_postgres() -> bool:
 def upgrade() -> None:
     if not _is_postgres():
         return  # 本地 SQLite：跳过，向量能力不可用时降级关键词检索
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    # 案例集合的向量索引（政策/业务图谱集合在接入嵌入 Provider 后由 repository 建）
-    op.execute(
-        'CREATE INDEX IF NOT EXISTS idx_case_embedding ON "case" '
-        "USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)"
-    )
+    # 预留 pgvector 扩展：RDS 未开 pgvector 白名单时跳过，不阻塞迁移。
+    try:
+        op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    except Exception:
+        pass
+    # 注意：Case.embedding 是 bytea 存储（序列化 float32），向量检索当前走进程内
+    # numpy 余弦（app/search/），不依赖 pgvector 的 SQL HNSW 索引。此处不再建
+    # `vector_cosine_ops` 索引——bytea 列会因类型不符直接报错，阻塞 upgrade head。
 
 
 def downgrade() -> None:
     if not _is_postgres():
         return
-    op.execute("DROP INDEX IF EXISTS idx_case_embedding")
-    op.execute("DROP EXTENSION IF EXISTS vector")
+    try:
+        op.execute("DROP EXTENSION IF EXISTS vector")
+    except Exception:
+        pass

@@ -18,9 +18,14 @@ services:
   web:
     build:
       context: ../frontend
+      args:
+        # NEXT_PUBLIC_* 在 `next build` 时内联进客户端 bundle，必须在这里传公网/域名地址，
+        # 否则会回落到 Dockerfile 默认的 http://api:8000（浏览器不可达）。
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://horizon.internal.example.com/api/v1}
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://horizon.internal.example.com/api/v1}
+      # 服务端数据获取（lib/api.ts）走内网直连 api 容器；客户端走同源 BFF /api/proxy。
+      HORIZON_API_BASE: http://api:8000/api/v1
       HORIZON_API_KEY: ${API_KEY}
     depends_on:
       - api

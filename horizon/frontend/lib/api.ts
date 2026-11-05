@@ -1,5 +1,7 @@
-// 服务端数据访问。MVP 用 X-API-Key；云端换 OIDC 后仅改此处。
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
+// 服务端数据访问（next revalidate）。MVP 用 X-API-Key；云端换 OIDC 后仅改此处。
+// 服务端 fetch 需要绝对 URL：上云走内网 HORIZON_API_BASE（如 http://api:8000/api/v1），
+// 本地/兜底回落到 NEXT_PUBLIC_API_BASE 或 localhost。
+const API_BASE = process.env.HORIZON_API_BASE ?? process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api/v1";
 const API_KEY = process.env.HORIZON_API_KEY ?? "dev-local-key";
 
 export interface AnalyticsOverview {

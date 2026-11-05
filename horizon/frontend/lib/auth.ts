@@ -108,11 +108,11 @@ export function canAccess(role: DemoRole, pathname: string): boolean {
 }
 
 export function demoApiHeaders(): Record<string, string> {
+  // 客户端统一走同源 BFF 代理（/api/proxy），X-API-Key 由服务端注入，这里只透传角色。
   const role = getStoredRole();
   return {
-    "X-API-Key": process.env.NEXT_PUBLIC_API_KEY || "dev-local-key",
     ...(role ? { "X-Demo-Role": role } : {}),
   };
 }
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api/v1";
+export const API_BASE = "/api/proxy";
