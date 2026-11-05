@@ -77,6 +77,50 @@ def test_alembic_offline_sql_for_sqlite_skips_vector():
     assert "CREATE EXTENSION" not in sql
 
 
+def test_alembic_fresh_sqlite_upgrade(tmp_path, monkeypatch):
+    """全新数据库必须能完整迁移，并允许服务启动时再次执行。"""
+    import sqlite3
+    from alembic import command
+    from alembic.config import Config
+
+    backend_dir = Path(__file__).resolve().parents[1]
+    database = tmp_path / "fresh.db"
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{database}")
+    cfg = Config(str(backend_dir / "alembic.ini"))
+    cfg.set_main_option("script_location", str(backend_dir / "app/db/migrations"))
+    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "head")
+    with sqlite3.connect(database) as db:
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0003_doc_chunks"
+        indexes = {row[1] for row in db.execute("PRAGMA index_list(document_chunk)")}
+        assert "uq_doc_chunk_doc_index" in indexes
+
+
+def test_alembic_upgrade_existing_metadata_database(tmp_path, monkeypatch):
+    """兼容曾通过应用 create_all 建表的数据库，不删除已有表。"""
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import create_engine, inspect
+    from app.db.models import Base
+
+    backend_dir = Path(__file__).resolve().parents[1]
+    database_url = f"sqlite:///{tmp_path / 'existing.db'}"
+    engine = create_engine(database_url)
+    Base.metadata.create_all(engine)
+    before = set(inspect(engine).get_table_names())
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    cfg = Config(str(backend_dir / "alembic.ini"))
+    cfg.set_main_option("script_location", str(backend_dir / "app/db/migrations"))
+    command.upgrade(cfg, "head")
+    assert before <= set(inspect(engine).get_table_names())
+    engine.dispose()
+
+
+def test_alembic_offline_sql_creates_chunks_once():
+    sql = _offline_sql("sqlite:///tmp/horizon_offline.db")
+    assert sql.count("CREATE TABLE document_chunk (") == 1
+
+
 def test_internal_trigger_requires_token(client):
     """FC 内部触发：无令牌/错令牌必须拒绝。"""
     r = client.post("/api/v1/internal/jobs/crawl")

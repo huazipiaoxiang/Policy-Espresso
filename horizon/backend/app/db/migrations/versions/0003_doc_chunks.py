@@ -28,6 +28,9 @@ def _is_postgres() -> bool:
 
 
 def upgrade() -> None:
+    # Earlier application versions may already have called Base.metadata.create_all.
+    if not context.is_offline_mode() and sa.inspect(op.get_bind()).has_table("document_chunk"):
+        return
     op.create_table(
         "document_chunk",
         sa.Column("id", sa.String(32), primary_key=True),
