@@ -404,7 +404,9 @@ class ChatTools:
             if include_fetched and document:
                 details.append(f"入库时间：{_format_date(document.fetched_at)}")
             details.append(f"状态：{policy.status}")
-            text = "；".join(part for part in details if part)
+            # 标题放进正文：LLM 只看 EVIDENCE 的 text 时也能明确「这条证据就是哪条政策」，
+            # 避免繁体/别名标题被误判为「库里未收录」（如《ART》框架）。
+            text = f"标题：{policy.title}\n" + "；".join(part for part in details if part)
             if summary:
                 text = f"{text}\n摘要：{summary}"
             # 摘要过短或要求解读时补原文摘录，给 LLM 提供可解读的实质内容

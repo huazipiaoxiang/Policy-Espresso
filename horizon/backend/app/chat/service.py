@@ -291,7 +291,7 @@ def _retrieve(tools: ChatTools, question: str, context: str | None) -> tuple[lis
     wants_review = _contains_any(query, ("审核", "审查", "复核", "审批", "待办", "review", "assignee"))
     wants_impact = _contains_any(query, ("影响", "业务", "风险", "传导", "应对", "行动", "impact", "business"))
     wants_source = _contains_any(query, ("来源", "网站", "发布方", "source", "来源机构"))
-    wants_document = _contains_any(query, ("原文", "文件", "文档", "document", "解读", "总结", "要点", "重点", "介绍", "内容", "是什么"))
+    wants_document = _contains_any(query, ("原文", "文件", "文档", "document", "解读", "总结", "要点", "重点", "介绍", "内容", "是什么", "结果", "中标", "收益率"))
 
     if domain:
         # 按受影响业务线（Domain）过滤：直接查 affected.business_lines 含该代号的政策。
@@ -438,9 +438,15 @@ def _freeform_or_no_answer(
             no_answer=True,
         )
     try:
+        note = (
+            f"\n\nNOTE: 实时网页检索暂时不可用（{web_error}）。"
+            "如用户问题需要外部实时信息，请如实说明当前无法联网检索，"
+            "并建议稍后重试或查阅监管机构官方渠道，不要假装已联网。"
+            if web_error else ""
+        )
         result = provider.complete(
             system=_FREEFORM_SYSTEM_PROMPT,
-            user=f"QUESTION:\n{question}",
+            user=f"QUESTION:\n{question}{note}",
             schema=_RESPONSE_SCHEMA,
             temperature=0.3,
             max_tokens=1200,
