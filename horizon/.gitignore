@@ -13,3 +13,9 @@ node_modules/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# 工具缓存 / 临时产物
+.playwright-cli/
+.playwright/
+*.bak
+*.bak-*
