@@ -79,7 +79,11 @@ export default function PoliciesPage() {
   useEffect(() => {
     const params = new URLSearchParams({ page: String(currentPage), page_size: String(pageSize) });
     if (activeTab === "today_new") params.set("fetched", "today");
-    if (activeTab === "pending_review") params.set("status", "pending_review,in_review");
+    if (activeTab === "pending_review") {
+      if (role === "analyst") params.set("review_level", "1");
+      else if (role === "approver") params.set("review_level", "2");
+      else params.set("status", "pending_review,in_review");
+    }
     if (activeTab === "published") params.set("status", "published");
     if (activeTab === "high_priority") params.set("priority", "P0,P1");
     if (activeTab === "today_published") { params.set("status", "published"); params.set("published_on", hkToday); }
@@ -94,11 +98,12 @@ export default function PoliciesPage() {
       })
       .catch((reason: Error) => setError(reason.message))
       .finally(() => setLoading(false));
-  }, [activeTab, currentPage, refreshKey, request, search, hkToday]);
+  }, [activeTab, currentPage, refreshKey, request, search, hkToday, role]);
 
   useEffect(() => {
+    const pendingFilter = role === "analyst" ? "&review_level=1" : role === "approver" ? "&review_level=2" : "&status=pending_review,in_review";
     const urls: [TabKey, string][] = [
-      ["all", ""], ["today_new", "&fetched=today"], ["pending_review", "&status=pending_review,in_review"],
+      ["all", ""], ["today_new", "&fetched=today"], ["pending_review", pendingFilter],
       ["published", "&status=published"], ["high_priority", "&priority=P0,P1"],
       ["today_published", `&status=published&published_on=${hkToday}`],
     ];
@@ -107,7 +112,7 @@ export default function PoliciesPage() {
       return [key, (await response.json()).total || 0] as const;
     })).then((entries) => setCounts(Object.fromEntries(entries) as Record<TabKey, number>))
       .catch(() => undefined);
-  }, [refreshKey, request, hkToday]);
+  }, [refreshKey, request, hkToday, role]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const visiblePages = useMemo(() => {
@@ -171,7 +176,7 @@ export default function PoliciesPage() {
         </div>
         <div className="rowflex">
           {role === "admin" && <Link href="/documents?upload=1" className="btn primary">上传政策</Link>}
-          {(role === "analyst" || role === "approver") && <Link href="/review" className="btn primary">前往审核工作台 →</Link>}
+          {(role === "analyst" || role === "approver") && <Link href="/policies?view=pending_review" className="btn primary">前往待审核政策 →</Link>}
           {role === "publisher" && <Link href="/publications" className="btn primary">前往发布中心 →</Link>}
         </div>
       </div>

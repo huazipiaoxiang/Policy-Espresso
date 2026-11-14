@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ScopeChip, { RELEVANCE_LABELS } from "@/components/ScopeChip";
-import { DECISION_LABELS, DIRECTION_LABELS, JURISDICTION_LABELS, POLICY_STATUS_LABELS, SCORE_DIMENSION_LABELS, SCORE_DIMENSION_ORDER, SCORE_DIMENSION_WEIGHTS, TASK_STATUS_LABELS, analysisModelLabel } from "@/lib/labels";
+import ReviewPanel from "@/components/ReviewPanel";
+import AgentTrace from "@/components/AgentTrace";
+import { DIRECTION_LABELS, JURISDICTION_LABELS, POLICY_STATUS_LABELS, SCORE_DIMENSION_LABELS, SCORE_DIMENSION_ORDER, SCORE_DIMENSION_WEIGHTS, analysisModelLabel } from "@/lib/labels";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
 interface ExposureRange {
@@ -147,7 +149,7 @@ export default function PolicyDetailPage() {
 
       <div className="stack">
         <section className="panel">
-          <div className="panelhead"><h2>政策信息</h2><small>Policy Information</small></div>
+          <div className="panelhead"><h2>政策信息</h2></div>
             <div className="sectionbody">
               <h3 style={{ fontSize: 18, marginTop: 0 }}>{policy.title}</h3>
               <div className="fieldgrid">
@@ -181,7 +183,7 @@ export default function PolicyDetailPage() {
                 </div>
                 <p className="score-priority-note">综合分 = Σ(维度分 ÷ 5 × 权重)：P0 ≥ 80（当日处理）· P1 60–79（24 小时内）· P2 40–59（本周内）· P3 &lt; 40（归档观察）。每个维度必须给出评分理由；无证据的维度保持“未评定”并说明缺什么。</p>
                 <div className="divider" />
-                <small>八维评分卡（0–5 分）</small>
+                <small className="section-label">八维评分卡（0–5 分）</small>
                 <div className="scorecard">
                   {SCORE_DIMENSION_ORDER.map((dim) => {
                     const entry = assessment.scores[dim];
@@ -203,16 +205,16 @@ export default function PolicyDetailPage() {
                   })}
                 </div>
                 <div className="divider" />
-                <small>传导路径</small>
-                {assessment.transmission_chain.length ? <ol>{assessment.transmission_chain.map((item, index) => <li key={index}>{item}</li>)}</ol> : <p className="textblock">未接入 AI 分析，传导路径待人工补写。</p>}
-                <small>受影响业务线与客群</small>
+                <small className="section-label">传导路径</small>
+                {assessment.transmission_chain.length ? <ol className="textblock">{assessment.transmission_chain.map((item, index) => <li key={index}>{item}</li>)}</ol> : <p className="textblock">未接入 AI 分析，传导路径待人工补写。</p>}
+                <small className="section-label">受影响业务线与客群</small>
                 <p className="textblock">{(assessment.affected.business_lines || []).join("、") || "—"}<br />{(assessment.affected.segments || []).join("、") || "—"}</p>
-                <small>客户暴露规模（合成口径）</small>
+                <small className="section-label">客户暴露规模（合成口径）</small>
                 {assessment.affected.exposure_range ? <div className="exposure-box"><strong>{assessment.affected.exposure_range.low}–{assessment.affected.exposure_range.high}</strong> {assessment.affected.exposure_range.currency} {assessment.affected.exposure_range.unit}<br />{assessment.affected.exposure_range.basis}</div> : <p className="textblock">缺少客户暴露数据，暴露规模未评定（合成数据集未覆盖该主题，需人工补充口径）。</p>}
-                <small>建议动作</small>
-                {assessment.recommended_actions.length ? <ul>{assessment.recommended_actions.map((item, index) => <li key={index}>{typeof item === "string" ? item : <>{item.action}{item.owner ? `（负责人：${item.owner}）` : ""}{item.deadline ? ` · ${item.deadline}` : ""}</>}</li>)}</ul> : <p className="textblock">暂无建议动作，需人工评定后补写。</p>}
+                <small className="section-label">建议动作</small>
+                {assessment.recommended_actions.length ? <ul className="textblock">{assessment.recommended_actions.map((item, index) => <li key={index}>{typeof item === "string" ? item : <>{item.action}{item.owner ? `（负责人：${item.owner}）` : ""}{item.deadline ? ` · ${item.deadline}` : ""}</>}</li>)}</ul> : <p className="textblock">暂无建议动作，需人工评定后补写。</p>}
                 {assessment.case_links.length > 0 && <>
-                  <small>相似案例</small>
+                  <small className="section-label">相似案例</small>
                   <div className="case-links">{assessment.case_links.map((link) => <div className="case-link" key={link.case_id}><small>{link.case_id} · 相似度 {link.similarity.toFixed(2)}</small>{link.takeaway || "同类先例"}</div>)}</div>
                 </>}
               </> : <p className="textblock">当前没有影响分析记录。</p>}
@@ -242,13 +244,12 @@ export default function PolicyDetailPage() {
             </div>
           </section>
 
-      {role !== "consumer" && <section className="panel full">
-        <div className="panelhead"><h2>审核记录</h2><small>{policy.review_tasks.length} 个任务</small></div>
-            <div className="sectionbody">
-              {policy.review_tasks.length ? policy.review_tasks.map((task) => <div key={task.id} style={{ marginBottom: 18 }}><strong>{task.level} 级审核 · {TASK_STATUS_LABELS[task.status] || task.status}</strong><small style={{ display: "block" }}>{task.assignee} · {dateLabel(task.created_at)}</small><div className="history">{task.decisions.map((decision, index) => <div key={index}><strong>{decision.actor}</strong> — {DECISION_LABELS[decision.action] || decision.action}<br /><small>{dateLabel(decision.created_at)}{decision.reason_code ? ` · ${decision.reason_code}` : ""}</small>{decision.note && <p>{decision.note}</p>}</div>)}</div></div>) : <p className="textblock">尚未进入人工审核。</p>}
-              {(role === "analyst" || role === "approver") && <Link href="/review" className="btn primary">前往审核工作台</Link>}
-            </div>
-      </section>}
+      {role !== "consumer" && (
+        <>
+          <AgentTrace policyId={policy.id} />
+          <ReviewPanel policyId={policy.id} reviewTasks={policy.review_tasks} onChanged={load} />
+        </>
+      )}
       <p className="footnote">政策分析仅供内部研究，最终合规判断以监管机构原文和人工审核结论为准。</p>
     </div>
   );

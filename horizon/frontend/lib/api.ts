@@ -190,7 +190,6 @@ export interface AlertItem {
   created_at: string;
 }
 
-export const getReviewTasks = () => get<{ items: ReviewTaskItem[] }>("/review-tasks");
 export const getAudit = (query = "") => get<{ items: AuditItem[]; total: number }>(`/admin/audit?page_size=100${query}`);
 export const getAlerts = () => get<{ items: AlertItem[] }>("/alerts");
 

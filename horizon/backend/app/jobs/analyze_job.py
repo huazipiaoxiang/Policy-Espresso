@@ -57,14 +57,17 @@ def _parse_date(value: str | None) -> datetime | None:
         return None
 
 
-def _log_llm(db: Session, result, provider_name: str) -> None:
-    db.add(LLMCallLog(
+def _log_llm(db: Session, result, provider_name: str, policy_id: str | None = None):
+    """记录一次 LLM 链路调用。policy_id 可后补（P1/P2 时政策尚未创建）。"""
+    entry = LLMCallLog(
         provider=provider_name, model=result.model, task=result.task,
         prompt_version=result.prompt_version, input_hash=result.input_hash,
         tokens_in=int((result.usage or {}).get("prompt_tokens", 0)),
         tokens_out=int((result.usage or {}).get("completion_tokens", 0)),
-        latency_ms=result.latency_ms, status="ok",
-    ))
+        latency_ms=result.latency_ms, status="ok", policy_id=policy_id,
+    )
+    db.add(entry)
+    return entry
 
 
 def _audit(db: Session, action: str, obj_type: str, obj_id: str, before: dict, after: dict, reason: str = "") -> None:
@@ -93,6 +96,8 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
 
     provider = get_provider()
     provider_name = provider.name
+    # P1/P2 的 LLM 调用发生在政策创建前，先暂存，policy.id 可用后回填关联
+    pending_llm_logs: list = []
     # mock provider 的样例应答对任意输入返回同一条政策，离线规则模式改用原文派生结果
     offline = bool(get_settings().llm_offline_rules) and provider_name == "mock"
 
@@ -119,7 +124,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         classify = None
     else:
         classify = ClassifyChain(provider).run(title=doc.title, content_text=doc.content_text)
-        _log_llm(db, classify, provider_name)
+        pending_llm_logs.append(_log_llm(db, classify, provider_name))
         db.commit()
         c = classify.parsed
     if not c.get("is_financial_policy") or float(c.get("confidence", 0)) < 0.6:
@@ -142,7 +147,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         extract = None
     else:
         extract = ExtractChain(provider).run(content_text=doc.content_text)
-        _log_llm(db, extract, provider_name)
+        pending_llm_logs.append(_log_llm(db, extract, provider_name))
         db.commit()
         e = extract.parsed
 
@@ -154,7 +159,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     else:
         rule_hint = f"规则通道建议：{rule.relevance}；命中：{[h.quote for h in rule.hits[:5]]}"
         scope = ScopeChain(provider).run(content_text=doc.content_text, rule_hint=rule_hint)
-        _log_llm(db, scope, provider_name)
+        pending_llm_logs.append(_log_llm(db, scope, provider_name))
         db.commit()
         s = scope.parsed
 
@@ -196,6 +201,8 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     )
     db.add(policy)
     db.flush()  # policy.id 至此可用
+    for entry in pending_llm_logs:
+        entry.policy_id = policy.id  # 回填 P1/P2/P3 调用与政策的关联（随后续 commit 持久化）
 
     # 证据入库（span 已在链路内校验可定位）
     if extract:
@@ -279,7 +286,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
             similar_cases=similar_cases, business_map_slice=slice_for_themes(policy.themes),
             exposure_context={"synthetic_exposure": exposure},
         )
-        _log_llm(db, impact, provider_name)
+        _log_llm(db, impact, provider_name, policy_id=policy.id)
         db.commit()
         i = impact.parsed
 
@@ -352,7 +359,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     else:
         try:
             alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
-            _log_llm(db, alert_chain, provider_name)
+            _log_llm(db, alert_chain, provider_name, policy_id=policy.id)
             alert_text = alert_chain.text
             errors = validate_alert_md(alert_text)
         except Exception as exc:

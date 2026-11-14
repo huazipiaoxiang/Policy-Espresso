@@ -14,6 +14,7 @@ interface Publication {
   priority: string;
   status: string;
   published_at: string | null;
+  dispatched_at: string | null; // 系统发布动作时间（区分于官方发布日期）
 }
 
 type FilterKey = "today" | "pending" | "month" | "total";
@@ -76,12 +77,13 @@ export default function PublicationsPage() {
 
   const hkToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
   const hkMonth = hkToday.slice(0, 7);
+  // 今日/本月按「系统发布动作时间」统计，而非政策官方发布日期
   const todayPublished = useMemo(
-    () => published.filter((policy) => dateKey(policy.published_at) === hkToday),
+    () => published.filter((policy) => dateKey(policy.dispatched_at) === hkToday),
     [published, hkToday],
   );
   const monthPublished = useMemo(
-    () => published.filter((policy) => dateKey(policy.published_at).startsWith(hkMonth)),
+    () => published.filter((policy) => dateKey(policy.dispatched_at).startsWith(hkMonth)),
     [published, hkMonth],
   );
 
@@ -113,7 +115,7 @@ export default function PublicationsPage() {
     const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const lines = ["政策ID,标题,发文机构,优先级,发布日期", ...rows.map((policy) => [
       policy.id, policy.title, policy.issuing_body, policy.priority,
-      dateLabel(policy.published_at),
+      dateLabel(policy.dispatched_at || policy.published_at),
     ].map(escape).join(","))];
     const url = URL.createObjectURL(new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
@@ -138,7 +140,7 @@ export default function PublicationsPage() {
           {loading ? <tr><td colSpan={5} style={{ padding: 40, textAlign: "center" }}>加载中…</td></tr> : rows.length === 0 ? <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#949aa3" }}>当前分类没有政策</td></tr> : rows.map((policy) => <tr key={policy.id}>
             <td><span className={`badge ${["P0", "P1"].includes(policy.priority) ? "red" : "amber"}`}>{policy.priority}</span></td>
             <td style={{ minWidth: 280 }}><div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.issuing_body || "—"}</small></div></td>
-            <td>{dateLabel(policy.published_at)}</td>
+            <td>{dateLabel(policy.dispatched_at || policy.published_at)}</td>
             <td><span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{policy.status === "published" ? "已发布" : "待发布"}</span></td>
             <td><div className="rowflex"><Link href={`/policies/${policy.id}`} className="link">详情</Link><Link href={`/documents/${policy.document_id}`} className="link">原文</Link><Link href={`/audit?object_type=policy&object_id=${policy.id}`} className="link">审计</Link>{role === "publisher" && policy.status === "approved" && <button className="btn primary" style={{ padding: "6px 12px" }} disabled={busyId === policy.id} onClick={() => publish(policy)}>{busyId === policy.id ? "发布中…" : "发布"}</button>}</div></td>
           </tr>)}

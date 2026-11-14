@@ -3,23 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getAudit, type AuditItem } from "@/lib/api";
+import { AUDIT_ACTION_LABELS as ACTION_LABELS } from "@/lib/labels";
 
 // 审计日志页：展示真实 audit_log 记录（只读接口 /admin/audit）。
 // 支持 ?object_type=&object_id= 定位某个政策/原文的完整审计历史。
-
-const ACTION_LABELS: Record<string, string> = {
-  ai_analyze: "AI 分析",
-  submit_review: "提交审核",
-  skip_review: "跳过审核",
-  claim_task: "领取任务",
-  review_approve: "审核通过",
-  review_reject: "审核驳回",
-  review_request_info: "退回补充",
-  dispatch: "发布",
-  delete_policy: "删除政策",
-  upload_document: "上传原文",
-  delete_document: "删除原文",
-};
 
 const ACTION_BADGE: Record<string, string> = {
   review_approve: "green",

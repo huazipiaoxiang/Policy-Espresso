@@ -2,54 +2,44 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import BusinessMapPage from "@/app/business-map/page";
 import { useAuth } from "@/components/AuthProvider";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
-import { JURISDICTION_LABELS } from "@/lib/labels";
+import { DIRECTION_LABELS, JURISDICTION_LABELS } from "@/lib/labels";
 import {
   DEFAULT_SUBSCRIPTIONS,
   MARKET_OPTIONS,
   TOPIC_OPTIONS,
   loadSubscriptions,
+  matchesSelectedTopic,
+  normalizeTheme,
   type SubscriptionPreferences,
 } from "@/lib/subscriptions";
 
 interface Policy {
   id: string;
   title: string;
-  summary_zh: string;
   themes: string[];
   jurisdiction: string;
   issuing_body: string;
   published_at: string | null;
+  dispatched_at: string | null; // 系统发布动作时间（区分于官方发布日期）
+  direction: string | null; // 影响方向（positive/negative/mixed/neutral）
+  priority: string;
+  score_total: number;
+  impacted_domains: string[];
+  foreign_bank_differential: boolean;
 }
 
-function dateLabel(policy: Policy) {
-  return policy.published_at ? policy.published_at.slice(0, 10) : "日期未注明";
+function dateLabel(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : "—";
 }
 
-function PolicyCard({ policy }: { policy: Policy }) {
-  return (
-    <article className="consumer-card">
-      <span className="badge green">已审核发布</span>
-      <div className="rowflex">
-        {policy.themes.map((topic) => <span className="topic-chip" key={topic}>{topic}</span>)}
-      </div>
-      <h3>{policy.title}</h3>
-      <p>{policy.summary_zh || "暂未生成摘要，请查看政策原文。"}</p>
-      <div className="consumer-card-footer">
-        <div className="rowflex">
-          <small>{JURISDICTION_LABELS[policy.jurisdiction] || policy.jurisdiction || "市场未注明"}</small>
-          <small>·</small>
-          <small>{policy.issuing_body || "发文机构未注明"}</small>
-          <small>·</small>
-          <small>{dateLabel(policy)}</small>
-        </div>
-        <Link href={`/policies/${policy.id}`} className="btn" style={{ padding: "6px 12px", fontSize: 11 }}>
-          阅读解读 →
-        </Link>
-      </div>
-    </article>
-  );
+function directionBadgeClass(direction: string | null): string {
+  if (direction === "positive") return "green";
+  if (direction === "negative") return "red";
+  if (direction === "mixed") return "amber";
+  return "";
 }
 
 export default function ForYouPage() {
@@ -58,6 +48,13 @@ export default function ForYouPage() {
   const [preferences, setPreferences] = useState<SubscriptionPreferences>(DEFAULT_SUBSCRIPTIONS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // 本周 / 本月 AI 聚合
+  const [digestTab, setDigestTab] = useState<"week" | "month">("week");
+  const [digestMd, setDigestMd] = useState("");
+  const [digestCount, setDigestCount] = useState(0);
+  const [digestModel, setDigestModel] = useState("");
+  const [digestLoading, setDigestLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,9 +95,9 @@ export default function ForYouPage() {
     () => new Set(MARKET_OPTIONS.filter((market) => preferences.markets.includes(market.value)).flatMap((market) => market.jurisdictions)),
     [preferences.markets],
   );
-  const latest = policies.slice(0, 8);
   const matched = useMemo(() => policies.filter((policy) => {
-    const topicMatch = policy.themes.some((theme) => selectedTopics.includes(theme));
+    // 主题匹配走归一化（兼容历史英文标签，如 fintech → 金融科技与虚拟资产）
+    const topicMatch = matchesSelectedTopic(policy.themes, selectedTopics);
     const marketMatch = selectedJurisdictions.has(policy.jurisdiction);
     return topicMatch && marketMatch;
   }), [policies, selectedJurisdictions, selectedTopics]);
@@ -111,10 +108,64 @@ export default function ForYouPage() {
     const [year, month, day] = hkToday.split("-").map(Number);
     return new Date(Date.UTC(year, month - 1, day - 7)).toISOString().slice(0, 10);
   }, [hkToday]);
-  const weekly = useMemo(() => matched.filter((policy) => {
-    const key = (policy.published_at || "").slice(0, 10);
-    return key >= weekAgo && key <= hkToday;
-  }), [matched, weekAgo, hkToday]);
+  const monthlyStart = useMemo(() => `${hkToday.slice(0, 8)}01`, [hkToday]);
+  const inRange = useCallback((policy: Policy, start: string) => {
+    // 本周/本月窗口按「系统发布动作时间」判断（无发布记录时回退官方日期），
+    // 与「今日已发布」口径一致：用户预期是最近收到发布的政策，而非官方发文日期。
+    const key = (policy.dispatched_at || policy.published_at || "").slice(0, 10);
+    return key >= start && key <= hkToday;
+  }, [hkToday]);
+  const weekly = useMemo(() => matched.filter((policy) => inRange(policy, weekAgo)), [matched, inRange, weekAgo]);
+  const monthly = useMemo(() => matched.filter((policy) => inRange(policy, monthlyStart)), [matched, inRange, monthlyStart]);
+  // 本月表格：按系统发布时间倒序
+  const monthSorted = useMemo(
+    () => [...monthly].sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || "")),
+    [monthly],
+  );
+
+  // AI 聚合：按当前周期把匹配政策交给后端 LLM 生成速览
+  const periodList = digestTab === "week" ? weekly : monthly;
+  const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
+  // 周期表格（本周/本月共用）：按系统发布时间倒序
+  const periodSorted = useMemo(
+    () => [...periodList].sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || "")),
+    [periodList],
+  );
+  useEffect(() => {
+    if (!periodList.length) {
+      setDigestMd("");
+      setDigestCount(0);
+      return;
+    }
+    let active = true;
+    setDigestLoading(true);
+    fetch(`${API_BASE}/policies/digest`, {
+      method: "POST",
+      headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ period: digestTab, policy_ids: periodList.map((policy) => policy.id) }),
+    })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body?.error?.message || "AI 聚合生成失败");
+        return body;
+      })
+      .then((body) => {
+        if (active) {
+          setDigestMd(body.digest_md || "");
+          setDigestCount(body.policy_count || 0);
+          setDigestModel(body.model || "");
+        }
+      })
+      .catch(() => {
+        if (active) setDigestMd("AI 聚合暂时不可用，请稍后再试。");
+      })
+      .finally(() => {
+        if (active) setDigestLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [digestTab, periodKey, periodList]);
 
   return (
     <div className="content">
@@ -122,61 +173,146 @@ export default function ForYouPage() {
         <div>
           <div className="eyebrow">POLICY INTELLIGENCE</div>
           <h1>为你推荐</h1>
-          <p className="sub">发现最新监管动态 · 无需订阅即可浏览已发布政策情报</p>
+          <p className="sub">AI 聚合本周 / 本月与你相关的政策动态 · 关联业务图谱</p>
         </div>
-        <Link href="/subscriptions" className="btn">管理我的订阅</Link>
-      </div>
-
-      <div className="consumer-hero">
-        <div>
-          <span className="badge green">已审核发布</span>
-          <h2>最新政策情报速览</h2>
-          <p>以下摘要来自当前数据库中已审核发布的政策；关注主题和关注市场共同决定“与你相关”的匹配结果。</p>
-          <div className="rowflex">
-            {selectedTopics.length ? selectedTopics.map((topic) => <span className="topic-chip" key={topic}>{topic}</span>) : <small>尚未选择关注主题</small>}
-          </div>
-        </div>
-        <div className="hero-count"><b>{policies.length}</b><small>条已发布政策</small></div>
       </div>
 
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}<button className="link" onClick={() => void load()} style={{ marginLeft: 12 }}>重试</button></div>}
 
       <div className="section-title">
-        <h2>与你本周相关政策</h2>
-        <small>{loading ? "加载中…" : `近 7 天（${weekAgo} 至 ${hkToday}）匹配 ${weekly.length} 条`}</small>
-      </div>
-      {loading ? <div className="empty-state">正在加载已发布政策…</div> : weekly.length ? (
-        <div className="consumer-grid">{weekly.map((policy) => <PolicyCard policy={policy} key={policy.id} />)}</div>
-      ) : (
-        <div className="empty-state">
-          本周没有与你订阅偏好匹配的新发布政策。
-          <br /><small>匹配需要政策同时命中关注主题和关注市场，且发布日期在最近 7 天内。</small>
-          <div><Link href="/subscriptions" className="btn primary" style={{ marginTop: 12 }}>调整订阅偏好</Link></div>
+        <div>
+          <div className="insight-eyebrow">✦ Your AI Policy Insights</div>
+          <h2>本周 / 本月与你相关的政策动态</h2>
+          <small>AI 聚合 · 基于你的订阅偏好匹配结果</small>
         </div>
-      )}
-
-      <div className="section-title"><h2>最新发布</h2><small>{loading ? "加载中…" : `显示 ${latest.length} 条，共 ${policies.length} 条`}</small></div>
-      {loading ? <div className="empty-state">正在加载已发布政策…</div> : latest.length ? (
-        <div className="consumer-grid">{latest.map((policy) => <PolicyCard policy={policy} key={policy.id} />)}</div>
-      ) : <div className="empty-state">暂无已审核发布的政策</div>}
-
-      <div className="section-title">
-        <h2>与你相关</h2>
-        <small>{preferences.topics.length && preferences.markets.length ? `基于 ${selectedTopics.length} 个关注主题和 ${preferences.markets.length} 个关注市场` : "请先选择关注主题和市场"}</small>
+        <Link href="/subscriptions" className="btn">管理订阅</Link>
       </div>
-      {!loading && matched.length > 0 && (
-        <>
-          <div className="consumer-grid">{matched.map((policy) => <PolicyCard policy={policy} key={policy.id} />)}</div>
-          <div className="empty-state">已按你保存的订阅偏好匹配 {matched.length} 条政策。<br /><Link href="/subscriptions" className="btn primary" style={{ marginTop: 10 }}>调整订阅偏好</Link></div>
-        </>
-      )}
-      {!loading && matched.length === 0 && (
-        <div className="empty-state">
-          {preferences.topics.length && preferences.markets.length ? "当前已发布政策中没有同时匹配关注主题和市场的内容" : "尚未设置完整的订阅偏好"}
-          <br /><small>政策必须具有对应主题标签，且属于所选市场，才会出现在这里。</small>
-          <div><Link href="/subscriptions" className="btn primary" style={{ marginTop: 12 }}>选择关注主题和市场</Link></div>
+      <section className="ai-digest">
+        <div className="ai-digest-head">
+          <div className="ai-digest-titles">
+            <h3>{digestTab === "week" ? "本周与你相关的政策动态" : "本月与你相关的政策动态"}</h3>
+            <p>按你的订阅偏好（关注主题 × 关注市场）匹配本周期内发布的政策，由 AI 聚合为一段动态速览。</p>
+          </div>
+          <div className="ai-digest-side">
+            <div className="ai-digest-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={digestTab === "week"}
+                className={digestTab === "week" ? "active" : ""}
+                onClick={() => setDigestTab("week")}
+              >
+                本周
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={digestTab === "month"}
+                className={digestTab === "month" ? "active" : ""}
+                onClick={() => setDigestTab("month")}
+              >
+                本月
+              </button>
+            </div>
+            <div className="ai-digest-count" title={`${periodKey} 至 ${hkToday}`}>
+              <b>{periodList.length}</b>
+              <small>条相关动态</small>
+            </div>
+          </div>
         </div>
-      )}
+        {loading ? (
+          <div className="ai-digest-body"><p className="ai-digest-placeholder">正在加载本期相关政策…</p></div>
+        ) : periodSorted.length === 0 ? (
+          <div className="ai-digest-body"><p className="ai-digest-placeholder">该周期内没有与你订阅偏好匹配的新发布政策，切换周期或调整订阅后再试。</p></div>
+        ) : (
+          <>
+            {digestLoading ? (
+              <p className="ai-digest-placeholder" style={{ marginTop: 14 }}>✦ AI 正在生成本{digestTab === "week" ? "周" : "月"}速览…</p>
+            ) : digestMd ? (
+              <details className="ai-digest-summary">
+                <summary>✦ AI 本{digestTab === "week" ? "周" : "月"}速览：{digestMd.split("\n")[0]}</summary>
+                <div className="inside">{digestMd}</div>
+              </details>
+            ) : null}
+            <div className="ai-digest-table tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>政策名称</th>
+                    <th>市场</th>
+                    <th>相关主题</th>
+                    <th>影响方向</th>
+                    <th>优先级 · 影响分</th>
+                    <th>受影响业务线</th>
+                    <th>发布日期</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {periodSorted.map((policy) => {
+                    const topics = [...new Set(policy.themes.map(normalizeTheme))].filter(Boolean);
+                    const dispatched = policy.dispatched_at || policy.published_at;
+                    return (
+                      <tr key={policy.id}>
+                        <td style={{ minWidth: 200, maxWidth: 280 }}>
+                          <div className="policytitle">
+                            <Link href={`/policies/${policy.id}`}>
+                              {policy.title}
+                              {policy.foreign_bank_differential && <span title="存在外资行差异条款"> ⚠</span>}
+                            </Link>
+                            <small>{policy.issuing_body || "发文机构未注明"}</small>
+                          </div>
+                        </td>
+                        <td><span className="badge">{JURISDICTION_LABELS[policy.jurisdiction] || policy.jurisdiction || "—"}</span></td>
+                        <td>
+                          <div className="rowflex">
+                            {topics.length
+                              ? topics.slice(0, 2).map((topic) => <span className="badge" key={topic}>{topic}</span>)
+                              : "—"}
+                            {topics.length > 2 && <small style={{ color: "#949aa3" }}>+{topics.length - 2}</small>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${directionBadgeClass(policy.direction)}`}>
+                            {DIRECTION_LABELS[policy.direction || ""] ?? "—"}
+                          </span>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span
+                            className="policytitle"
+                            style={{ color: ["P0", "P1"].includes(policy.priority) ? "var(--red)" : "inherit" }}
+                          >
+                            {policy.priority} · {policy.score_total > 0 ? policy.score_total.toFixed(0) : "—"} 分
+                          </span>
+                        </td>
+                        <td>
+                          <div className="rowflex">
+                            {policy.impacted_domains?.length
+                              ? policy.impacted_domains.slice(0, 3).map((line) => <span className="badge" key={line}>{line}</span>)
+                              : "—"}
+                          </div>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }} title={dispatched ? `官方发布日期：${dateLabel(policy.published_at)}` : undefined}>
+                          {dateLabel(dispatched)}
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}><Link href={`/policies/${policy.id}`} className="link">解读 →</Link></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+        <div className="ai-digest-foot">
+          ✦ 生成来源：{digestModel || "—"} · 数据时间：{periodKey} 至 {hkToday}（香港时区）
+        </div>
+      </section>
+
+      {/* 业务图谱：与侧边栏「业务图谱」tab 打开的页面完全一致（与上方 AI 聚合区块保持大间距） */}
+      <div style={{ marginTop: 36 }}>
+        <BusinessMapPage />
+      </div>
     </div>
   );
 }

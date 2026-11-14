@@ -363,4 +363,5 @@ class LLMCallLog(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(String(16), default="ok")
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    policy_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

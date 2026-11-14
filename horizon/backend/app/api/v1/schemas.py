@@ -81,6 +81,8 @@ class PolicyOut(BaseModel):
     score_total: float
     prompt_version: str = ""
     impacted_domains: list[str] = Field(default_factory=list)
+    dispatched_at: datetime | None = None  # 系统内最近一次发布动作时间（区分于官方发布日期）
+    direction: str | None = None  # 影响方向（positive/negative/mixed/neutral，来自最新影响分析）
 
     model_config = {"from_attributes": True}
 

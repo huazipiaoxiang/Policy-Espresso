@@ -71,7 +71,7 @@ export default function SubscriptionsPage() {
         </div>
 
         <div className="panel">
-          <div className="panelhead"><h2>我的业务与通知</h2><small>个人偏好设置</small></div>
+          <div className="panelhead"><h2>我的业务与通知</h2></div>
           <div className="sectionbody">
             <div style={{ marginBottom: 18 }}>
               <label className="form-label" htmlFor="business-area">业务领域</label>
