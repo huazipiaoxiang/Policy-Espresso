@@ -21,13 +21,13 @@ const RULE_ENGINE_ITEMS = [
   },
   {
     name: "相关性分级",
-    description: "High / Medium / Low 三级分流，High 自动进入深度分析",
+    description: "判定政策对汇丰（香港 / 内地）实体的相关性：High / Medium / Low / 未提及",
     status: "已启用",
     statusType: "green" as const,
   },
   {
     name: "模型分层路由",
-    description: "分类打标 → qwen-turbo，抽取 → qwen-plus，影响分析 → qwen-max",
+    description: "分类 / 规划 → qwen-flash，抽取 / 适用范围 → qwen-plus，影响分析 / 政策建议 → qwen-max",
     status: "已配置",
     statusType: "green" as const,
   },
@@ -40,11 +40,13 @@ const RULE_ENGINE_ITEMS = [
 ];
 
 const PIPELINE_STEPS = [
-  { step: 1, name: "文档抓取", desc: "从配置的数据源按频率抓取政策文档" },
-  { step: 2, name: "相关性判定", desc: "规则 + LLM 双路判定 High / Medium / Low" },
-  { step: 3, name: "AI 深度分析", desc: "High 相关政策进入结构化抽取与影响评估" },
-  { step: 4, name: "人工审核", desc: "Medium 相关政策人工快速筛选确认" },
-  { step: 5, name: "发布分发", desc: "审核通过后发布到订阅渠道" },
+  { step: 1, name: "文档抓取", desc: "数据源抓取 → URL 去重 → 内容清洗 → 变更检测 → gate-1 过滤入库" },
+  { step: 2, name: "P1 分类", desc: "判定是否金融政策，非金融或低置信文档直接跳过分析" },
+  { step: 3, name: "P2 结构化抽取", desc: "抽取发文机构、文号、主题、条款等字段与可定位证据片段" },
+  { step: 4, name: "P3 适用范围", desc: "规则 + LLM 双通道判定汇丰实体适用性，冲突标记人工复核" },
+  { step: 5, name: "P4 影响分析", desc: "案例匹配 + 业务图谱 + 暴露聚合 → 8 维评分卡出优先级" },
+  { step: 6, name: "P5 预警草稿", desc: "生成六段预警，结构校验失败时降级为保底文案" },
+  { step: 7, name: "发布决策", desc: "AI 明确免审核直发；低置信或离线规则派生转人工审核" },
 ];
 
 export default function RulesPage() {
@@ -119,7 +121,7 @@ export default function RulesPage() {
       <section className="panel" style={{ marginTop: "18px" }}>
         <div className="panelhead">
           <h2>分析管线流程</h2>
-          <small>5 个阶段</small>
+          <small>7 个阶段</small>
         </div>
         <div className="sectionbody">
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -155,15 +157,15 @@ export default function RulesPage() {
               <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>http://localhost:11434</strong>
             </div>
             <div className="field">
-              <small>分类 / 打标模型</small>
-              <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>qwen-turbo</strong>
+              <small>分类 / 规划模型</small>
+              <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>qwen-flash</strong>
             </div>
             <div className="field">
-              <small>结构化抽取模型</small>
+              <small>抽取 / 适用范围模型</small>
               <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>qwen-plus</strong>
             </div>
             <div className="field">
-              <small>影响分析模型</small>
+              <small>影响分析 / 政策建议模型</small>
               <strong style={{ fontFamily: "monospace", fontSize: "12px" }}>qwen-max</strong>
             </div>
           </div>

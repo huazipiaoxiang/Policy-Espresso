@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import NoticeDialog from "@/components/NoticeDialog";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { JURISDICTION_LABELS, POLICY_STATUS_LABELS, PRIORITY_LABELS, impactScoreLabel } from "@/lib/labels";
 
@@ -23,13 +24,14 @@ interface Policy {
   score_total: number;
 }
 
-type TabKey = "all" | "today_new" | "pending_review" | "published" | "high_priority" | "today_published";
+type TabKey = "all" | "today_new" | "pending_review" | "published" | "unpublished" | "high_priority" | "today_published";
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: "all", label: "全部政策" },
   { key: "today_new", label: "今日新增" },
   { key: "pending_review", label: "待审核" },
   { key: "published", label: "已发布" },
+  { key: "unpublished", label: "未发布" },
   { key: "high_priority", label: "高优先级" },
   { key: "today_published", label: "今日已发布" },
 ];
@@ -42,15 +44,21 @@ export default function PoliciesPage() {
   const { role } = useAuth();
   const searchParams = useSearchParams();
   const initialView = searchParams.get("view") as TabKey | null;
-  const [activeTab, setActiveTab] = useState<TabKey>(tabs.some((tab) => tab.key === initialView) ? initialView! : "all");
+  // 按角色裁剪可见 tab：approver 不参与送审/发布，隐藏「未发布」
+  const visibleTabs = useMemo(
+    () => tabs.filter((tab) => tab.key !== "unpublished" || role !== "approver"),
+    [role],
+  );
+  const [activeTab, setActiveTab] = useState<TabKey>(visibleTabs.some((tab) => tab.key === initialView) ? initialView! : "all");
   const [search, setSearch] = useState("");
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeDialog, setNoticeDialog] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [counts, setCounts] = useState<Record<TabKey, number>>({ all: 0, today_new: 0, pending_review: 0, published: 0, high_priority: 0, today_published: 0 });
+  const [counts, setCounts] = useState<Record<TabKey, number>>({ all: 0, today_new: 0, pending_review: 0, published: 0, unpublished: 0, high_priority: 0, today_published: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
   const [busyId, setBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
@@ -59,8 +67,8 @@ export default function PoliciesPage() {
 
   useEffect(() => {
     const view = searchParams.get("view") as TabKey | null;
-    if (tabs.some((tab) => tab.key === view)) setActiveTab(view!);
-  }, [searchParams]);
+    if (visibleTabs.some((tab) => tab.key === view)) setActiveTab(view!);
+  }, [searchParams, visibleTabs]);
 
   useEffect(() => setCurrentPage(1), [activeTab, search]);
 
@@ -85,6 +93,7 @@ export default function PoliciesPage() {
       else params.set("status", "pending_review,in_review");
     }
     if (activeTab === "published") params.set("status", "published");
+    if (activeTab === "unpublished") params.set("status_not", "published");
     if (activeTab === "high_priority") params.set("priority", "P0,P1");
     if (activeTab === "today_published") { params.set("status", "published"); params.set("published_on", hkToday); }
     if (search.trim()) params.set("q", search.trim());
@@ -104,7 +113,8 @@ export default function PoliciesPage() {
     const pendingFilter = role === "analyst" ? "&review_level=1" : role === "approver" ? "&review_level=2" : "&status=pending_review,in_review";
     const urls: [TabKey, string][] = [
       ["all", ""], ["today_new", "&fetched=today"], ["pending_review", pendingFilter],
-      ["published", "&status=published"], ["high_priority", "&priority=P0,P1"],
+      ["published", "&status=published"], ["unpublished", "&status_not=published"],
+      ["high_priority", "&priority=P0,P1"],
       ["today_published", `&status=published&published_on=${hkToday}`],
     ];
     Promise.all(urls.map(async ([key, filter]) => {
@@ -164,7 +174,24 @@ export default function PoliciesPage() {
     }
   }
 
-  const metrics = tabs.filter((tab) => tab.key !== "today_published").map((tab) => ({ ...tab, value: counts[tab.key] }));
+  async function submitReview(policy: Policy) {
+    setBusyId(policy.id);
+    try {
+      await request(`/policies/${policy.id}/submit-review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: 1, note: "" }),
+      });
+      setNoticeDialog(`政策「${policy.title}」已提交人工审核`);
+      setRefreshKey((key) => key + 1);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "提交审核失败");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  const metrics = visibleTabs.filter((tab) => tab.key !== "today_published").map((tab) => ({ ...tab, value: counts[tab.key] }));
 
   return (
     <div className="content">
@@ -195,7 +222,7 @@ export default function PoliciesPage() {
 
       <div className="panel full" style={{ marginTop: 18 }}>
         <div className="tabs">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button key={tab.key} className={`tab${activeTab === tab.key ? " active" : ""}`} onClick={() => { setActiveTab(tab.key); setSearch(""); }}>
               {tab.label} ({counts[tab.key]})
             </button>
@@ -224,6 +251,7 @@ export default function PoliciesPage() {
                     <div className="rowflex">
                       <Link href={`/policies/${policy.id}`} className="link">审核</Link>
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => analyzePolicy(policy)}>重新分析</button>}
+                      {(role === "admin" || role === "analyst") && policy.status === "ai_checked" && <button className="link" disabled={busyId === policy.id} onClick={() => submitReview(policy)}>提交审核</button>}
                       {role === "publisher" && policy.status === "approved" && <button className="link" disabled={busyId === policy.id} onClick={() => dispatchPolicy(policy)}>发布</button>}
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => setDeleteTarget(policy)} style={{ color: "var(--red)" }}>删除</button>}
                     </div>
@@ -259,6 +287,7 @@ export default function PoliciesPage() {
           </>}
         />
       )}
+      {noticeDialog && <NoticeDialog message={noticeDialog} onClose={() => setNoticeDialog(null)} />}
     </div>
   );
 }

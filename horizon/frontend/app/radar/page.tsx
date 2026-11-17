@@ -22,7 +22,7 @@ interface Policy {
 
 export default function RadarPage() {
   const { role } = useAuth();
-  const [counts, setCounts] = useState({ all: 0, pending: 0, highPriority: 0, todayPublished: 0, high: 0, medium: 0, low: 0, unscreened: 0 });
+  const [counts, setCounts] = useState({ all: 0, pending: 0, highPriority: 0, todayPublished: 0, unpublished: 0, high: 0, medium: 0, low: 0, unscreened: 0 });
   const [recent, setRecent] = useState<Policy[]>([]);
   const [tasks, setTasks] = useState<ReviewTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,16 +39,17 @@ export default function RadarPage() {
     setLoading(true);
     try {
       const hkToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
-      const [all, pending, highPriority, high, medium, low, unscreened, recentData, todayPub, taskData] = await Promise.all([
+      const [all, pending, highPriority, unpublished, high, medium, low, unscreened, recentData, todayPub, taskData] = await Promise.all([
         get("/policies?page=1&page_size=1"), get("/policies?page=1&page_size=1&status=pending_review,in_review"),
-        get("/policies?page=1&page_size=1&priority=P0,P1"), get("/policies?page=1&page_size=1&scope=high"),
+        get("/policies?page=1&page_size=1&priority=P0,P1"), get("/policies?page=1&page_size=1&status_not=published"),
+        get("/policies?page=1&page_size=1&scope=high"),
         get("/policies?page=1&page_size=1&scope=medium"), get("/policies?page=1&page_size=1&scope=low"),
         get("/policies?page=1&page_size=1&scope=not_mentioned"), get("/policies?page=1&page_size=5"),
         // 今日已发布：按系统发布动作时间（后端 published_on 口径），而非政策官方发布日期
         get(`/policies?page=1&page_size=1&status=published&published_on=${hkToday}`),
         get("/review-tasks"),
       ]);
-      setCounts({ all: all.total, pending: pending.total, highPriority: highPriority.total, todayPublished: todayPub.total, high: high.total, medium: medium.total, low: low.total, unscreened: unscreened.total });
+      setCounts({ all: all.total, pending: pending.total, highPriority: highPriority.total, todayPublished: todayPub.total, unpublished: unpublished.total, high: high.total, medium: medium.total, low: low.total, unscreened: unscreened.total });
       setRecent(recentData.items || []);
       setTasks(taskData.items || []);
       setError("");
@@ -71,6 +72,9 @@ export default function RadarPage() {
           note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "等待发布处理",
           href: role === "publisher" ? "/publications" : "/policies?view=pending_review",
         },
+    ...(role !== "approver"
+      ? [{ label: "未发布", value: counts.unpublished, note: "已分析未发布 / 待审核 / 待发布", href: "/policies?view=unpublished" }]
+      : []),
     { label: "高优先级", value: counts.highPriority, note: "P0 / P1 政策", href: "/policies?view=high_priority" },
     { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: role === "publisher" ? "/publications?view=today" : "/policies?view=today_published" },
   ];

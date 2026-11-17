@@ -18,6 +18,8 @@ if settings.database_url.startswith("sqlite"):
         cur = dbapi_conn.cursor()
         cur.execute("PRAGMA foreign_keys=ON")
         cur.execute("PRAGMA journal_mode=WAL")
+        # 多进程（crawl_job 与 uvicorn）并发写时，写锁冲突等待最多 10 秒而非立即报 database is locked
+        cur.execute("PRAGMA busy_timeout=10000")
         cur.close()
 
 

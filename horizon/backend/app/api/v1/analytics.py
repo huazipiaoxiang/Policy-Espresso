@@ -43,7 +43,7 @@ def overview(db: Session = Depends(get_db)):
     sources_total = db.scalar(select(func.count(Source.id))) or 0
     unhealthy = len([s for s in db.scalars(select(Source)).all() if (s.health or {}).get("consecutive_fail", 0) > 0])
     last_crawl = db.scalar(
-        select(func.max(JobRun.finished_at)).where(JobRun.job_type == "crawl", JobRun.status == "ok")
+        select(func.max(JobRun.started_at)).where(JobRun.job_type == "crawl")
     )
     return AnalyticsOverview(
         today_new=today_new,

@@ -54,6 +54,17 @@ export const JURISDICTION_LABELS: Record<string, string> = {
   MO: "澳门", GB: "英国", SG: "新加坡", EU: "欧盟",
 };
 
+// 文档语言代码 → 中文含义（后端 detect_lang 产出 zh-Hant / zh-Hans / en）
+export function langLabel(lang?: string | null): string {
+  if (!lang) return "中文";
+  const key = lang.trim().toLowerCase().replace(/_/g, "-");
+  if (key.startsWith("zh-hant") || key === "zh-tw" || key === "zh-hk" || key === "zh-mo") return "繁体中文";
+  if (key.startsWith("zh-hans") || key === "zh-cn" || key === "zh-sg") return "简体中文";
+  if (key.startsWith("en")) return "英文";
+  if (key.startsWith("zh")) return "中文";
+  return lang;
+}
+
 export const PRIORITY_LABELS: Record<string, string> = {
   P0: "P0（最高优先）",
   P1: "P1（高优先）",

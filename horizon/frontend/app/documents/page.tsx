@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
-import { JURISDICTION_LABELS } from "@/lib/labels";
+import { JURISDICTION_LABELS, langLabel } from "@/lib/labels";
 
 interface Document {
   id: string;
@@ -263,7 +263,7 @@ export default function DocumentsPage() {
                   <tr key={doc.id} className="clickable">
                     <td style={{ minWidth: "260px" }}>
                       <div className="policytitle">
-                        {doc.title}
+                        <Link href={`/documents/${doc.id}`}>{doc.title}</Link>
                         <small>{doc.id}</small>
                       </div>
                     </td>
@@ -276,7 +276,7 @@ export default function DocumentsPage() {
                       {doc.published_at ? doc.published_at.slice(0, 10) : "—"}
                     </td>
                     <td>
-                      <span className="badge">{doc.lang || "zh"}</span>
+                      <span className="badge">{langLabel(doc.lang)}</span>
                     </td>
                     <td>
                       <span className={`badge ${

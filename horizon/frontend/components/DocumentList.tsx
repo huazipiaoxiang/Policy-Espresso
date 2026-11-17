@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import Pagination from "@/components/Pagination";
 import type { DocumentItem } from "@/lib/api";
+import { langLabel } from "@/lib/labels";
 
 const API_BASE = "/api/proxy";  // 客户端走同源 BFF 代理，API Key 由服务端注入，不暴露到浏览器
 const API_KEY = process.env.HORIZON_API_KEY ?? "dev-local-key";
@@ -79,7 +80,7 @@ export default function DocumentList() {
                   <div className="truncate text-[13px] text-[var(--text)]">{d.title}</div>
                   <div className="mt-0.5 flex gap-3 text-[11px] text-[var(--text-3)]">
                     <span>{fmtTime(d.published_at)}</span>
-                    <span>{d.lang}</span>
+                    <span>{langLabel(d.lang)}</span>
                     <span>{d.content_len} 字</span>
                     {d.attachments?.length > 0 && <span>{d.attachments.length} 个附件</span>}
                     {d.duplicate_of && <span>转载副本</span>}

@@ -129,7 +129,7 @@ def submit_review(
     body: SubmitBody,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    role: str = Depends(require_roles("analyst")),
+    role: str = Depends(require_roles("analyst", "admin")),
 ):
     if body.level != 1:
         raise ApiError("FORBIDDEN", "初级审核员只能提交一级审核任务", 403)

@@ -42,6 +42,7 @@ def _policy_filters(
     *,
     q: str | None,
     status: str | None,
+    status_not: str | None,
     priority: str | None,
     jurisdiction: str | None,
     theme: str | None,
@@ -63,6 +64,9 @@ def _policy_filters(
     if status:
         statuses = [value.strip() for value in status.split(",") if value.strip()]
         stmt = stmt.where(Policy.status.in_(statuses))
+    if status_not:
+        excludes = [value.strip() for value in status_not.split(",") if value.strip()]
+        stmt = stmt.where(Policy.status.notin_(excludes))
     if priority:
         priorities = [value.strip() for value in priority.split(",") if value.strip()]
         stmt = stmt.where(Policy.priority.in_(priorities))
@@ -174,6 +178,7 @@ def list_policies(
     page_size: int = 20,
     q: str | None = None,
     status: str | None = None,
+    status_not: str | None = None,
     priority: str | None = None,
     jurisdiction: str | None = None,
     theme: str | None = None,
@@ -185,9 +190,9 @@ def list_policies(
     role: str = Depends(get_demo_role),
 ):
     filters = {
-        "q": q, "status": status, "priority": priority, "jurisdiction": jurisdiction,
-        "theme": theme, "scope": scope, "fetched": fetched, "published_on": published_on,
-        "role": role, "review_level": review_level,
+        "q": q, "status": status, "status_not": status_not, "priority": priority,
+        "jurisdiction": jurisdiction, "theme": theme, "scope": scope, "fetched": fetched,
+        "published_on": published_on, "role": role, "review_level": review_level,
     }
     stmt = _policy_filters(select(Policy), **filters).order_by(Policy.published_at.desc().nullslast())
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()

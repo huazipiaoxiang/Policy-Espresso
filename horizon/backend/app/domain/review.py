@@ -53,6 +53,9 @@ def submit_review(db: Session, policy_id: str, *, level: int, assignee: str, act
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy_id)).first()
     evidence_count = db.query(Evidence).filter(Evidence.policy_id == policy_id).count()
     missing = required_fields_missing(policy, assessment, evidence_count)
+    if policy.status == "ai_checked":
+        # AI 判定为不相关（非覆盖/排除）的政策送审时，业务影响与建议本就为空，属正常状态，不阻塞送审
+        missing = [m for m in missing if m not in ("affected", "recommended_actions")]
     if missing:
         raise ApiError("MISSING_REQUIRED", "缺少以下必填项，无法提交审核", 422, {"missing": missing})
 

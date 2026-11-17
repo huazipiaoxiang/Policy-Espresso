@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import ScopeChip, { RELEVANCE_LABELS } from "@/components/ScopeChip";
 import ReviewPanel from "@/components/ReviewPanel";
 import AgentTrace from "@/components/AgentTrace";
+import NoticeDialog from "@/components/NoticeDialog";
 import { DIRECTION_LABELS, JURISDICTION_LABELS, POLICY_STATUS_LABELS, SCORE_DIMENSION_LABELS, SCORE_DIMENSION_ORDER, SCORE_DIMENSION_WEIGHTS, analysisModelLabel } from "@/lib/labels";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
@@ -80,6 +81,7 @@ export default function PolicyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [noticeDialog, setNoticeDialog] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -101,14 +103,22 @@ export default function PolicyDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function operation(path: string, success: string) {
+  async function operation(path: string, success: string, body?: Record<string, unknown>, dialogMessage?: string) {
     setBusy(true);
     try {
-      const response = await fetch(`${API_BASE}${path}`, { method: "POST", headers: demoApiHeaders() });
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: body ? { ...demoApiHeaders(), "Content-Type": "application/json" } : demoApiHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error?.message || "操作失败");
       await load();
-      setNotice(success);
+      if (dialogMessage) {
+        setNoticeDialog(dialogMessage);
+      } else {
+        setNotice(success);
+      }
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "操作失败");
@@ -158,6 +168,7 @@ export default function PolicyDetailPage() {
           <span className={`priority-pill ${policy.priority === "P0" ? "urgent" : policy.priority === "P1" ? "high" : policy.priority === "P2" ? "medium" : "low"}`}>{policy.priority}</span>
           <span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span>
           {role === "admin" && <button className="btn" disabled={busy} onClick={() => operation(`/policies/${policy.id}/analyze`, "重新分析完成")}>重新分析</button>}
+          {(role === "admin" || role === "analyst") && policy.status === "ai_checked" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/submit-review`, "已提交人工审核", { level: 1, note: "" }, `政策「${policy.title}」已提交人工审核`)}>提交审核</button>}
           {role === "publisher" && policy.status === "approved" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/dispatch`, "发布完成")}>发布政策</button>}
           <button className="btn" onClick={() => setShowFeedback((v) => !v)}>反馈</button>
         </div>
@@ -296,6 +307,7 @@ export default function PolicyDetailPage() {
         </>
       )}
       <p className="footnote">政策分析仅供内部研究，最终合规判断以监管机构原文和人工审核结论为准。</p>
+      {noticeDialog && <NoticeDialog message={noticeDialog} onClose={() => setNoticeDialog(null)} />}
     </div>
   );
 }

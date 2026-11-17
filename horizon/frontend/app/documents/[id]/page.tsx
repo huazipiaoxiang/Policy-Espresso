@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
-import { JURISDICTION_LABELS } from "@/lib/labels";
+import { JURISDICTION_LABELS, langLabel } from "@/lib/labels";
 
 interface DocumentVersion {
   version_no: number;
@@ -173,7 +173,7 @@ export default function DocumentDetailPage() {
         </div>
         <div className="rowflex">
           <span className={statusBadgeClass(doc.status)}>{STATUS_LABELS[doc.status] || doc.status}</span>
-          <span className="badge">{doc.lang || "zh"}</span>
+          <span className="badge">{langLabel(doc.lang)}</span>
         </div>
       </div>
 
@@ -209,7 +209,7 @@ export default function DocumentDetailPage() {
                 </div>
                 <div className="field">
                   <small>文档语言</small>
-                  <strong>{doc.lang || "zh"}</strong>
+                  <strong>{langLabel(doc.lang)}</strong>
                 </div>
               </div>
 
