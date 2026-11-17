@@ -29,6 +29,87 @@ export const MARKET_OPTIONS = [
   { value: "eu", label: "欧盟", jurisdictions: ["EU"] },
 ];
 
+// 历史数据里部分政策的主题标签是英文（早期分析管线未对齐受控词表），
+// 这里维护 英文标签 → 受控中文主题 的兼容映射，使订阅匹配不遗漏；
+// 未命中的英文标签（如机构名 hkma/sfc、地域名 hong_kong、非金融主题 healthcare）视为不匹配。
+export const THEME_ALIASES: Record<string, string> = {
+  // 人民币国际化
+  offshore_RMB: "人民币国际化",
+  exchange_rate: "人民币国际化",
+  foreign_exchange_framework: "人民币国际化",
+  monetary_policy: "人民币国际化",
+  // 跨境支付
+  trade_finance: "跨境支付",
+  "trade-finance": "跨境支付",
+  cross_border_trade_finance: "跨境支付",
+  "cross-border_trade_finance": "跨境支付",
+  bilateral_currency_settlement: "跨境支付",
+  // 债券与资本市场
+  bond: "债券与资本市场",
+  bond_market: "债券与资本市场",
+  bond_auction: "债券与资本市场",
+  "bond-tokenization": "债券与资本市场",
+  sovereign_bond: "债券与资本市场",
+  infrastructure_finance: "债券与资本市场",
+  infrastructure: "债券与资本市场",
+  public_private_partnership: "债券与资本市场",
+  Belt_and_Road: "债券与资本市场",
+  derivatives: "债券与资本市场",
+  clearing: "债券与资本市场",
+  // 资产管理
+  retail_investment: "资产管理",
+  // 数据跨境
+  cross_border_data_sharing: "数据跨境",
+  // 绿色与转型金融
+  green_finance: "绿色与转型金融",
+  sustainable_finance: "绿色与转型金融",
+  green_technology: "绿色与转型金融",
+  carbon_neutrality: "绿色与转型金融",
+  sustainable_development: "绿色与转型金融",
+  ESG_disclosure: "绿色与转型金融",
+  carbon_markets: "绿色与转型金融",
+  // 金融科技与虚拟资产
+  fintech: "金融科技与虚拟资产",
+  virtual_assets: "金融科技与虚拟资产",
+  tokenization: "金融科技与虚拟资产",
+  digital_securities: "金融科技与虚拟资产",
+  digital_infrastructure: "金融科技与虚拟资产",
+  "corporate-treasury": "金融科技与虚拟资产",
+  artificial_intelligence: "金融科技与虚拟资产",
+  ai_in_finance: "金融科技与虚拟资产",
+  responsible_ai: "金融科技与虚拟资产",
+  sandbox: "金融科技与虚拟资产",
+  governance: "金融科技与虚拟资产",
+  // 贷款与贴息
+  msme_support: "贷款与贴息",
+  // 市场准入与牌照
+  regulation: "市场准入与牌照",
+  regulatory_framework: "市场准入与牌照",
+  regulatory_guidance: "市场准入与牌照",
+  intermediaries: "市场准入与牌照",
+  // 资本与流动性要求
+  banking_regulation: "资本与流动性要求",
+  interest_rate: "资本与流动性要求",
+  financial_stability: "资本与流动性要求",
+  credit_risk: "资本与流动性要求",
+  liquidity_management: "资本与流动性要求",
+  // 消费者保护
+  public_awareness: "消费者保护",
+  // 反洗钱与制裁
+  cybersecurity: "反洗钱与制裁",
+  fraud_prevention: "反洗钱与制裁",
+};
+
+/** 主题标签归一化：英文别名映射为受控中文主题，其余原样返回。 */
+export function normalizeTheme(theme: string): string {
+  return THEME_ALIASES[theme] ?? theme;
+}
+
+/** 政策主题是否命中已选订阅主题（兼容英文别名）。 */
+export function matchesSelectedTopic(policyThemes: string[], selectedLabels: string[]): boolean {
+  return policyThemes.some((theme) => selectedLabels.includes(normalizeTheme(theme)));
+}
+
 export interface SubscriptionPreferences {
   topics: string[];
   markets: string[];

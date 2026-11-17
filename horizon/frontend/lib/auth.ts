@@ -66,7 +66,6 @@ export const ROLE_CONFIG: Record<DemoRole, {
     avatar: "用",
     nav: [
       { id: "forYou", icon: "⌂", label: "为你推荐", href: "/for-you" },
-      { id: "mapping", icon: "▦", label: "业务图谱", href: "/business-map" },
       { id: "subscriptions", icon: "☆", label: "我的订阅", href: "/subscriptions" },
     ],
   },
@@ -74,7 +73,6 @@ export const ROLE_CONFIG: Record<DemoRole, {
 
 const operationsNav: NavItem[] = [
   { id: "dashboard", icon: "▦", label: "总览 Dashboard", href: "/radar" },
-  { id: "queue", icon: "≡", label: "审核工作台", href: "/review" },
   { id: "mapping", icon: "▦", label: "业务图谱", href: "/business-map" },
   { id: "library", icon: "▤", label: "政策库", href: "/policies" },
   { id: "documents", icon: "▧", label: "原文库", href: "/documents" },
@@ -100,6 +98,8 @@ export function getStoredRole(): DemoRole | null {
 export function canAccess(role: DemoRole, pathname: string): boolean {
   if (pathname === "/" || pathname === "/login") return true;
   if (role === "consumer" && /^\/policies\/[^/]+$/.test(pathname)) return true;
+  // 业务图谱已嵌入「为你推荐」首页，不再作为独立导航项，但保留路由直达
+  if (pathname.startsWith("/business-map")) return true;
   // 审计日志对运营角色只读共享；发布中心仅 publisher（A3）
   if (role !== "consumer" && pathname.startsWith("/audit")) return true;
   return ROLE_CONFIG[role].nav.some((item) =>

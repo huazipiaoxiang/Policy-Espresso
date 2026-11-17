@@ -6,7 +6,8 @@ document(status=new, 非重复, 有正文)
  → P3 适用范围（规则 + LLM 双通道，冲突记 needs_review）
  → 案例匹配 + 业务图谱 + 暴露聚合 → P4 影响分析（8 维 + 评分卡）
  → P5 预警草稿 → Alert(draft)
- → policy → pending_review + ReviewTask（SLA 按优先级）
+ → 发布决策：AI 明确 → 免审核直发 published（Alert→approved + 分发）；
+   仅 offline 规则派生或 AI 低置信 → pending_review + ReviewTask（SLA 按优先级）
 
 幂等：同 document 重复分析先清旧 assessment/evidence/task 再重建（重跑分析语义）。
 失败模式：Provider/链路异常 → document.status=failed。
@@ -27,7 +28,7 @@ from app.ai.chains.scope import ScopeChain
 from app.ai.evidence import locate_quote
 from app.core.logging import get_logger
 from app.db.models import (
-    Alert, Assessment, AuditLog, Document, Evidence, LLMCallLog, Policy,
+    Alert, Assessment, AuditLog, Dispatch, Document, Evidence, LLMCallLog, Policy,
     ReviewTask, ScopeJudgement,
 )
 from app.domain import scoring, state_machine
@@ -57,14 +58,17 @@ def _parse_date(value: str | None) -> datetime | None:
         return None
 
 
-def _log_llm(db: Session, result, provider_name: str) -> None:
-    db.add(LLMCallLog(
+def _log_llm(db: Session, result, provider_name: str, policy_id: str | None = None):
+    """记录一次 LLM 链路调用。policy_id 可后补（P1/P2 时政策尚未创建）。"""
+    entry = LLMCallLog(
         provider=provider_name, model=result.model, task=result.task,
         prompt_version=result.prompt_version, input_hash=result.input_hash,
         tokens_in=int((result.usage or {}).get("prompt_tokens", 0)),
         tokens_out=int((result.usage or {}).get("completion_tokens", 0)),
-        latency_ms=result.latency_ms, status="ok",
-    ))
+        latency_ms=result.latency_ms, status="ok", policy_id=policy_id,
+    )
+    db.add(entry)
+    return entry
 
 
 def _audit(db: Session, action: str, obj_type: str, obj_id: str, before: dict, after: dict, reason: str = "") -> None:
@@ -93,6 +97,8 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
 
     provider = get_provider()
     provider_name = provider.name
+    # P1/P2 的 LLM 调用发生在政策创建前，先暂存，policy.id 可用后回填关联
+    pending_llm_logs: list = []
     # mock provider 的样例应答对任意输入返回同一条政策，离线规则模式改用原文派生结果
     offline = bool(get_settings().llm_offline_rules) and provider_name == "mock"
 
@@ -119,7 +125,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         classify = None
     else:
         classify = ClassifyChain(provider).run(title=doc.title, content_text=doc.content_text)
-        _log_llm(db, classify, provider_name)
+        pending_llm_logs.append(_log_llm(db, classify, provider_name))
         db.commit()
         c = classify.parsed
     if not c.get("is_financial_policy") or float(c.get("confidence", 0)) < 0.6:
@@ -142,7 +148,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         extract = None
     else:
         extract = ExtractChain(provider).run(content_text=doc.content_text)
-        _log_llm(db, extract, provider_name)
+        pending_llm_logs.append(_log_llm(db, extract, provider_name))
         db.commit()
         e = extract.parsed
 
@@ -154,7 +160,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     else:
         rule_hint = f"规则通道建议：{rule.relevance}；命中：{[h.quote for h in rule.hits[:5]]}"
         scope = ScopeChain(provider).run(content_text=doc.content_text, rule_hint=rule_hint)
-        _log_llm(db, scope, provider_name)
+        pending_llm_logs.append(_log_llm(db, scope, provider_name))
         db.commit()
         s = scope.parsed
 
@@ -196,6 +202,8 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     )
     db.add(policy)
     db.flush()  # policy.id 至此可用
+    for entry in pending_llm_logs:
+        entry.policy_id = policy.id  # 回填 P1/P2/P3 调用与政策的关联（随后续 commit 持久化）
 
     # 证据入库（span 已在链路内校验可定位）
     if extract:
@@ -279,7 +287,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
             similar_cases=similar_cases, business_map_slice=slice_for_themes(policy.themes),
             exposure_context={"synthetic_exposure": exposure},
         )
-        _log_llm(db, impact, provider_name)
+        _log_llm(db, impact, provider_name, policy_id=policy.id)
         db.commit()
         i = impact.parsed
 
@@ -352,7 +360,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     else:
         try:
             alert_chain = AlertChain(provider).run(policy_card=policy_card, assessment=assessment_view)
-            _log_llm(db, alert_chain, provider_name)
+            _log_llm(db, alert_chain, provider_name, policy_id=policy.id)
             alert_text = alert_chain.text
             errors = validate_alert_md(alert_text)
         except Exception as exc:
@@ -363,23 +371,40 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
             errors = []
     if errors:
         log.warning("alert_invalid", policy_id=policy.id, errors=errors)
-    db.add(Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
-                 body_md=alert_text, channel_scope={"default": "inapp"}, status="draft"))
+    alert = Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
+                  body_md=alert_text, channel_scope={"default": "inapp"}, status="draft")
+    db.add(alert)
+    db.flush()  # 生成 alert.id，供后续分发（dispatch.alert_id）使用
 
-    # ---- 进审核队列（恒生仅点名等场景不产生预警/不进队列）----
+    # ---- 发布决策（免审核直发：仅 offline 规则派生或 AI 不明确转人审）----
     relevant = any(v in ("high", "medium") for v in entity_relevance.values())
-    if relevant and (offline or assessment.confidence > 0.3):
+    if not relevant:
+        _audit(db, "skip_publish", "policy", policy.id, {"status": "ai_checked"},
+               {"status": policy.status, "reason": "非覆盖/排除场景"},
+               reason="不满足预警触发条件")
+    elif offline or assessment.confidence <= 0.3:
+        # offline 规则派生结论（未经模型判断）或 AI 低置信 → 转人审
         policy.status = state_machine.transition(policy.status, "pending_review")
-        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"}, {"status": "pending_review"})
+        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"},
+               {"status": "pending_review"}, reason="offline 规则派生或 AI 低置信，转人工审核")
         db.add(ReviewTask(
             policy_id=policy.id, level=1, assignee="analyst.default",
             sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[score_result.priority]),
             status="pending",
         ))
     else:
-        _audit(db, "skip_review", "policy", policy.id, {"status": "ai_checked"},
-               {"status": policy.status, "reason": "非覆盖/排除场景或低置信"},
-               reason="不满足预警触发条件")
+        # AI 明确（LLM 模式且置信度达标）→ 免审核直接发布：Alert 置 approved 并触发分发
+        from app.notifications import get_notifiers
+
+        policy.status = state_machine.transition(policy.status, "published")
+        alert.status = "approved"
+        for notifier in get_notifiers():
+            result = notifier.send(alert)
+            db.add(Dispatch(alert_id=alert.id, channel=notifier.name,
+                            target=result.get("target", "default"),
+                            sent_at=datetime.now(timezone.utc), result=result))
+        _audit(db, "auto_publish", "policy", policy.id, {"status": "ai_checked"},
+               {"status": "published"}, reason="AI 明确，免审核直接发布")
 
     doc.status = "processed"
     db.commit()

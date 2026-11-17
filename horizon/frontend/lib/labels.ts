@@ -68,3 +68,21 @@ export const DECISION_LABELS: Record<string, string> = {
 export const TASK_STATUS_LABELS: Record<string, string> = {
   pending: "待处理", claimed: "已领取", approved: "已通过", rejected: "已驳回", needs_info: "待补资料",
 };
+
+// 审计 / 执行轨迹动作标签（政策生命周期事件，audit_log.action）
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  ai_analyze: "AI 分析完成",
+  submit_review: "提交人工审核",
+  skip_review: "跳过审核",
+  claim_task: "领取审核任务",
+  review_approve: "审核通过",
+  review_reject: "审核驳回",
+  review_request_info: "退回补充",
+  dispatch: "发布政策",
+  delete_policy: "删除政策",
+  upload_document: "上传原文",
+  delete_document: "删除原文",
+  refresh_scorecard: "刷新评分卡",
+  update_policy: "更新政策",
+  repair_fixture_content: "修复数据",
+};

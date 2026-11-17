@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { ReviewTaskItem } from "@/components/ReviewConsole";
+import { ReviewTaskItem } from "@/lib/api";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { RELEVANCE_LABELS } from "@/components/ScopeChip";
 import { JURISDICTION_LABELS, POLICY_STATUS_LABELS, impactScoreLabel } from "@/lib/labels";
@@ -38,26 +38,17 @@ export default function RadarPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [all, pending, highPriority, high, medium, low, unscreened, recentData, taskData] = await Promise.all([
+      const hkToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
+      const [all, pending, highPriority, high, medium, low, unscreened, recentData, todayPub, taskData] = await Promise.all([
         get("/policies?page=1&page_size=1"), get("/policies?page=1&page_size=1&status=pending_review,in_review"),
         get("/policies?page=1&page_size=1&priority=P0,P1"), get("/policies?page=1&page_size=1&scope=high"),
         get("/policies?page=1&page_size=1&scope=medium"), get("/policies?page=1&page_size=1&scope=low"),
         get("/policies?page=1&page_size=1&scope=not_mentioned"), get("/policies?page=1&page_size=5"),
+        // 今日已发布：按系统发布动作时间（后端 published_on 口径），而非政策官方发布日期
+        get(`/policies?page=1&page_size=1&status=published&published_on=${hkToday}`),
         get("/review-tasks"),
       ]);
-      let todayPublished = 0;
-      let page = 1;
-      let fetched = 0;
-      const hkToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" });
-      do {
-        const data = await get(`/policies?page=${page}&page_size=100&status=published`);
-        const items = data.items || [];
-        todayPublished += items.filter((policy: Policy) => policy.published_at && policy.published_at.slice(0, 10) === hkToday).length;
-        fetched += items.length;
-        if (fetched >= data.total || !items.length) break;
-        page += 1;
-      } while (true);
-      setCounts({ all: all.total, pending: pending.total, highPriority: highPriority.total, todayPublished, high: high.total, medium: medium.total, low: low.total, unscreened: unscreened.total });
+      setCounts({ all: all.total, pending: pending.total, highPriority: highPriority.total, todayPublished: todayPub.total, high: high.total, medium: medium.total, low: low.total, unscreened: unscreened.total });
       setRecent(recentData.items || []);
       setTasks(taskData.items || []);
       setError("");
@@ -78,7 +69,7 @@ export default function RadarPage() {
           label: "待审核",
           value: tasks.length,
           note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "等待发布处理",
-          href: role === "publisher" ? "/publications" : "/review",
+          href: role === "publisher" ? "/publications" : "/policies?view=pending_review",
         },
     { label: "高优先级", value: counts.highPriority, note: "P0 / P1 政策", href: "/policies?view=high_priority" },
     { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: role === "publisher" ? "/publications?view=today" : "/policies?view=today_published" },
@@ -90,7 +81,7 @@ export default function RadarPage() {
   const maxRelevance = Math.max(1, ...relevance.map((item) => item.value));
 
   const relevancePanel = role === "analyst" ? null : (
-    <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2><small>真实政策记录</small></div><div className="panelbody">
+    <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2></div><div className="panelbody">
       {relevance.map((item) => <div className="barrow" key={item.label}><span>{item.label}</span><div className="track"><div className={`fill ${item.color}`} style={{ width: `${item.value / maxRelevance * 100}%` }} /></div><strong>{item.value}</strong></div>)}
       <div className="divider" /><p className="sub">分类数量直接来自政策库的相关性字段，不使用演示数字。</p>
     </div></section>
@@ -105,7 +96,7 @@ export default function RadarPage() {
       <div className={role === "analyst" ? "" : "twocol"} style={{ marginTop: 18 }}>
         <section className={`panel${role === "analyst" ? " full" : ""}`}><div className="panelhead"><h2>{role === "publisher" ? "审核任务概览" : "我的审核任务"}</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
           {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">{role === "approver" ? "当前没有待处理的二级审核任务（P0/P1 政策一级通过后生成）" : "当前没有待办审核任务"}</p> : tasks.slice(0, 5).map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
-          <Link href={role === "publisher" ? "/publications" : "/review"} className="btn" style={{ marginTop: 12 }}>{role === "publisher" ? "进入发布中心 →" : "进入审核工作台 →"}</Link>
+          <Link href={role === "publisher" ? "/publications" : "/policies?view=pending_review"} className="btn" style={{ marginTop: 12 }}>{role === "publisher" ? "进入发布中心 →" : "进入待审核政策 →"}</Link>
         </div></section>
         {relevancePanel}
       </div>

@@ -4,19 +4,37 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import cast, func, or_, select
+from pydantic import BaseModel
+from sqlalchemy import cast, exists, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.types import Text
 
 from app.api.v1.schemas import Page, PolicyOut
 from app.core.errors import ApiError, not_found, not_approved
 from app.core.security import get_demo_role, require_api_key, require_roles
-from app.db.models import Assessment, Document, Policy, ReviewTask, ScopeJudgement
+from app.db.models import Alert, Assessment, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
 from app.domain.policy_admin import delete_policy
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
+
+
+class DigestBody(BaseModel):
+    period: str = "week"  # week | month
+    policy_ids: list[str] = []
+
+
+class RecallBody(BaseModel):
+    note: str = ""
+
+
+class FeedbackBody(BaseModel):
+    content: str
+
+
+class ReportBody(BaseModel):
+    feedback_id: str
 
 
 def _policy_filters(
@@ -31,6 +49,7 @@ def _policy_filters(
     fetched: str | None,
     published_on: str | None,
     role: str,
+    review_level: int | None,
 ):
     if q:
         search_pattern = f"%{q}%"
@@ -62,16 +81,91 @@ def _policy_filters(
         ).astimezone(timezone.utc)
         stmt = stmt.join(Document, Policy.document_id == Document.id).where(Document.fetched_at >= today_start)
     if published_on:
-        stmt = stmt.where(func.date(Policy.published_at) == published_on)
+        # 按「系统发布动作时间」（Dispatch.sent_at）过滤，而非政策官方发布日期：
+        # 「今日已发布」的用户预期是今天执行了发布操作的政策。
+        stmt = stmt.where(
+            exists(
+                select(Dispatch.id)
+                .join(Alert, Alert.id == Dispatch.alert_id)
+                .join(Assessment, Assessment.id == Alert.assessment_id)
+                .where(
+                    Assessment.policy_id == Policy.id,
+                    func.date(Dispatch.sent_at) == published_on,
+                )
+            )
+        )
+    if review_level is not None:
+        # 仅返回存在「该级别且待处理/已领取」审核任务的政策（用于审核员按级别看自己的待办）
+        stmt = stmt.where(
+            exists(
+                select(ReviewTask.id).where(
+                    ReviewTask.policy_id == Policy.id,
+                    ReviewTask.level == review_level,
+                    ReviewTask.status.in_(["pending", "claimed"]),
+                )
+            )
+        )
     return stmt
 
 
 def _policy_view(db: Session, policy: Policy) -> dict:
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+    dispatched_at = db.scalar(
+        select(func.max(Dispatch.sent_at))
+        .join(Alert, Alert.id == Dispatch.alert_id)
+        .join(Assessment, Assessment.id == Alert.assessment_id)
+        .where(Assessment.policy_id == policy.id)
+    )
     return {
         **PolicyOut.model_validate(policy).model_dump(),
         "impacted_domains": (assessment.affected.get("business_lines", []) if assessment else []),
+        "dispatched_at": (dispatched_at.isoformat() if dispatched_at else None),
+        "direction": (assessment.direction if assessment else None),
     }
+
+
+@router.post("/digest")
+def policy_digest(body: DigestBody, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
+    """本周/本月与你相关的政策动态 AI 聚合（政策使用者首页）。
+
+    输入按订阅偏好匹配出的政策清单，输出一段中文聚合速览；
+    LLM 不可用时降级为规则拼接，不阻塞页面。
+    """
+    from app.ai.provider import get_provider
+
+    stmt = select(Policy).where(Policy.status == "published")
+    if body.policy_ids:
+        stmt = stmt.where(Policy.id.in_(body.policy_ids[:50]))
+    policies = db.scalars(stmt.order_by(Policy.published_at.desc().nullslast()).limit(30)).all()
+    period_label = "本周" if body.period == "week" else "本月"
+    if not policies:
+        return {"digest_md": "", "policy_count": 0, "period": body.period}
+
+    lines = []
+    for policy in policies:
+        date = policy.published_at.strftime("%Y-%m-%d") if policy.published_at else "日期未注明"
+        summary = (policy.summary_zh or "").replace("\n", " ")[:120]
+        lines.append(f"- {policy.title}（{policy.jurisdiction or '未注明'} · {date}）：{summary}")
+    listing = "\n".join(lines)
+    system = (
+        "你是面向银行政策使用者的监管政策情报助理。基于给定的已发布政策清单，"
+        "写一段简明中文聚合速览：先 2-3 句概括总体动态，再以『- 』列出 3-5 条要点，"
+        "每条一句话并点出对银行业务最相关的影响。不要编造清单之外的信息，不要使用 markdown 标题。"
+    )
+    user = f"周期：{period_label}\n政策清单（{len(policies)} 条）：\n{listing}"
+    model_name = ""
+    try:
+        result = get_provider().complete(system=system, user=user, schema=None, task="digest", max_tokens=700)
+        digest = (result.text or "").strip()
+        model_name = result.model or ""
+    except Exception:
+        digest = ""
+    if not digest:
+        digest = "AI 聚合暂时不可用，以下是本期与你相关的政策：\n" + "\n".join(
+            f"- {policy.title}" for policy in policies[:5]
+        )
+        model_name = "规则兜底"
+    return {"digest_md": digest, "policy_count": len(policies), "period": body.period, "model": model_name}
 
 
 @router.get("", response_model=Page[PolicyOut])
@@ -86,12 +180,14 @@ def list_policies(
     scope: str | None = None,
     fetched: str | None = None,
     published_on: str | None = None,
+    review_level: int | None = None,
     db: Session = Depends(get_db),
     role: str = Depends(get_demo_role),
 ):
     filters = {
         "q": q, "status": status, "priority": priority, "jurisdiction": jurisdiction,
-        "theme": theme, "scope": scope, "fetched": fetched, "published_on": published_on, "role": role,
+        "theme": theme, "scope": scope, "fetched": fetched, "published_on": published_on,
+        "role": role, "review_level": review_level,
     }
     stmt = _policy_filters(select(Policy), **filters).order_by(Policy.published_at.desc().nullslast())
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()
@@ -191,6 +287,109 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     }
 
 
+@router.get("/{policy_id}/analysis")
+def policy_analysis(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
+    """AI 分析过程拆解：把五步链路（分类→抽取→适用性→影响→预警）的结论与 LLM 调用明细按步骤返回。
+
+    历史数据（2026-11-14 之前分析的）llm_call_log 无 policy_id 关联，对应步骤 llm 为 null。
+    """
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    if role == "consumer":
+        raise not_found("政策", policy_id)
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy_id)).first()
+    judgements = db.scalars(select(ScopeJudgement).where(ScopeJudgement.policy_id == policy_id)).all()
+    evidence_count = db.query(Evidence).filter(Evidence.policy_id == policy_id).count()
+    calls = db.scalars(
+        select(LLMCallLog).where(LLMCallLog.policy_id == policy_id).order_by(LLMCallLog.at.asc())
+    ).all()
+    call_by_task: dict[str, LLMCallLog] = {}
+    for call in calls:
+        call_by_task[call.task] = call  # 升序遍历后写覆盖 → 每链路保留最近一次
+
+    def llm_view(task: str):
+        call = call_by_task.get(task)
+        if not call:
+            return None
+        return {
+            "model": call.model, "provider": call.provider, "prompt_version": call.prompt_version,
+            "tokens_in": call.tokens_in, "tokens_out": call.tokens_out,
+            "latency_ms": call.latency_ms, "status": call.status, "error": call.error,
+            "at": call.at.isoformat(),
+        }
+
+    alert = None
+    if assessment:
+        alert = db.scalars(select(Alert).where(Alert.assessment_id == assessment.id)).first()
+
+    steps = [
+        {
+            "key": "classify",
+            "title": "分类打标",
+            "description": "判断是否金融政策，标注政策类型、辖区与主题",
+            "items": [
+                {"label": "是否金融政策", "value": "是"},
+                {"label": "政策类型", "value": policy.policy_type or "—"},
+                {"label": "辖区", "value": policy.jurisdiction or "—"},
+                {"label": "主题标签", "value": "、".join(policy.themes) or "—"},
+            ],
+            "llm": llm_view("classify"),
+        },
+        {
+            "key": "extract",
+            "title": "结构化抽取",
+            "description": "从原文抽取文号、日期、适用主体、金额与义务，并为结论定位原文证据",
+            "items": [
+                {"label": "适用主体", "value": policy.applicable_entities_text or "原文未明确"},
+                {"label": "义务条款", "value": f"{len(policy.obligations)} 条"},
+                {"label": "截止日期", "value": f"{len(policy.deadlines)} 条"},
+                {"label": "金额信息", "value": f"{len(policy.amounts)} 条"},
+                {"label": "激励措施", "value": f"{len(policy.incentives)} 条"},
+                {"label": "证据片段", "value": f"{evidence_count} 条"},
+            ],
+            "llm": llm_view("extract"),
+        },
+        {
+            "key": "scope",
+            "title": "适用性判定（规则 + AI 双通道）",
+            "description": "规则关键词通道与 LLM 通道分别判定汇丰香港 / 汇丰中国的相关性，结论冲突时需人工复核",
+            "items": [
+                {"label": j.entity_id, "value": j.result, "note": j.llm_reason or "", "conflict": j.conflict}
+                for j in judgements
+            ],
+            "llm": llm_view("scope"),
+        },
+        {
+            "key": "impact",
+            "title": "影响分析",
+            "description": "结合八维评分卡、传导链与相似案例给出影响方向与优先级",
+            "items": (
+                [
+                    {"label": "影响方向", "value": assessment.direction},
+                    {"label": "综合影响分", "value": assessment.score_total},
+                    {"label": "优先级", "value": assessment.priority},
+                    {"label": "分析置信度", "value": assessment.confidence},
+                    {"label": "相似案例", "value": f"{len(assessment.case_links)} 条"},
+                    {"label": "建议动作", "value": f"{len(assessment.recommended_actions)} 条"},
+                ]
+                if assessment
+                else []
+            ),
+            "llm": llm_view("impact"),
+        },
+        {
+            "key": "alert",
+            "title": "预警草稿",
+            "description": "面向内部通知渠道生成六段式预警草稿，随政策进入审核队列",
+            "items": [{"label": "草稿状态", "value": "已生成" if alert else "未生成"}],
+            "body_md": alert.body_md if alert else "",
+            "llm": llm_view("alert"),
+        },
+    ]
+    return {"policy_id": policy_id, "prompt_version": policy.prompt_version, "steps": steps}
+
+
 @router.post("/{policy_id}/analyze", status_code=202)
 def analyze_policy(
     policy_id: str,
@@ -220,10 +419,92 @@ def dispatch_policy(
     actor: str = Depends(require_api_key),
     _: str = Depends(require_roles("publisher")),
 ):
-    """人审不可绕过：非 approved 一律 409；approved → published → Notifier 分发。"""
+    """人工分发：仅 AI 不明确转入人审并 approved 的政策走此路径（免审核直发已在分析阶段完成）。"""
     from app.domain import review as review_domain
 
     return review_domain.dispatch_policy(db, policy_id, actor=actor)
+
+
+@router.post("/{policy_id}/recall")
+def recall_policy(
+    policy_id: str,
+    body: RecallBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+):
+    """用户反馈打回审核：已发布政策回到人工审核队列（published → pending_review）。"""
+    from app.domain import review as review_domain
+
+    return review_domain.recall_to_review(db, policy_id, actor=actor, note=body.note)
+
+
+@router.post("/{policy_id}/feedback", status_code=201)
+def submit_feedback(
+    policy_id: str,
+    body: FeedbackBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+):
+    """用户对已发布政策提交反馈意见（反馈至审核员）。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    content = body.content.strip()
+    if not content:
+        raise ApiError("EMPTY_FEEDBACK", "反馈内容不能为空", 422)
+    feedback = Feedback(policy_id=policy_id, actor=actor, content=content)
+    db.add(feedback)
+    db.commit()
+    db.refresh(feedback)
+    return {"id": feedback.id, "policy_id": policy_id, "created_at": feedback.created_at}
+
+
+@router.get("/{policy_id}/feedbacks")
+def list_feedbacks(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
+    """列出某政策的用户反馈。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    items = db.scalars(
+        select(Feedback).where(Feedback.policy_id == policy_id).order_by(Feedback.created_at.desc())
+    ).all()
+    return {
+        "items": [
+            {"id": f.id, "actor": f.actor, "content": f.content, "created_at": f.created_at}
+            for f in items
+        ]
+    }
+
+
+@router.post("/{policy_id}/feedback-report")
+def generate_feedback_report(
+    policy_id: str,
+    body: ReportBody,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("analyst", "approver", "publisher", "admin")),
+):
+    """审核员为某条反馈生成分析报告（结合公司内部政策）。"""
+    from app.ai.chains.feedback_report import FeedbackReportChain
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    feedback = db.get(Feedback, body.feedback_id)
+    if not feedback or feedback.policy_id != policy_id:
+        raise not_found("反馈", body.feedback_id)
+    policy_card = {
+        "title": policy.title,
+        "issuing_body": policy.issuing_body,
+        "doc_number": policy.doc_number,
+        "summary_zh": policy.summary_zh,
+        "applicable_entities_text": policy.applicable_entities_text,
+        "themes": policy.themes,
+    }
+    try:
+        result = FeedbackReportChain().run(policy_card=policy_card, feedback=feedback.content)
+    except Exception as exc:
+        raise ApiError("REPORT_FAILED", f"报告生成失败：{exc}", 500)
+    return {"feedback_id": feedback.id, "report": result.parsed, "model": result.model}
 
 
 @router.delete("/{policy_id}")
