@@ -8,7 +8,7 @@ from app.api.v1 import (
     alerts, analytics, audit, business_map, cases, chat, documents, health, internal, jobs, policies, review, settings, sources, stream, studio,
 )
 from app.core.config import get_settings
-from app.core.errors import ApiError, api_error_handler
+from app.core.errors import ApiError, api_error_handler, unhandled_exception_handler
 from app.core.logging import configure_logging, get_logger
 from app.jobs.scheduler import build_scheduler, recover_interrupted_runs
 
@@ -32,6 +32,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="HORIZON 政策雷达", version="0.1.0", lifespan=lifespan)
 app.add_exception_handler(ApiError, api_error_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in get_settings().cors_origins.split(",") if origin.strip()],

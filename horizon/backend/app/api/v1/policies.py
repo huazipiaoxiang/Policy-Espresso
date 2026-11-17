@@ -410,7 +410,13 @@ def analyze_policy(
     doc = db.get(Document, policy.document_id)
     if not doc:
         raise ApiError("DOC_MISSING", "政策关联文档缺失", 500)
-    refreshed = analyze_document(db, doc)
+    try:
+        refreshed = analyze_document(db, doc)
+    except ApiError:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise ApiError("ANALYZE_FAILED", f"重新分析失败：{type(exc).__name__}: {exc}", 500)
     if refreshed is None:
         raise ApiError("ANALYZE_SKIPPED", "该文档不再满足分析条件（非金融政策/无正文）", 422)
     return {"status": "ok", "policy_id": refreshed.id, "priority": refreshed.priority,

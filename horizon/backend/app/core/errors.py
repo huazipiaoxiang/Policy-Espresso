@@ -1,8 +1,11 @@
 """统一错误格式：{"error": {"code", "message", "detail"}}（04 §4.1）。"""
+import logging
 from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+log = logging.getLogger("app.errors")
 
 
 class ApiError(Exception):
@@ -20,6 +23,15 @@ def error_body(code: str, message: str, detail: dict[str, Any] | None = None) ->
 
 async def api_error_handler(_: Request, exc: ApiError) -> JSONResponse:
     return JSONResponse(status_code=exc.status, content=error_body(exc.code, exc.message, exc.detail))
+
+
+async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:
+    """未捕获异常兜底：返回统一 JSON 而非纯文本 500，前端才能解析出具体错误。"""
+    log.error("unhandled_error", error=f"{type(exc).__name__}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content=error_body("INTERNAL_ERROR", f"服务器内部错误：{type(exc).__name__}: {exc}"),
+    )
 
 
 # 常用错误

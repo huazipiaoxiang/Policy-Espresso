@@ -1,9 +1,11 @@
 """内部任务触发（10 §2）：函数计算 FC 定时调用，带签名令牌。"""
 from fastapi import APIRouter, Depends, Header
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
+from app.db.models import Document
 from app.db.session import get_db
 from app.jobs.crawl_job import run_crawl
 from app.jobs.scheduler import crawl_all
@@ -42,6 +44,27 @@ def trigger_analyze(
     _check_token(x_job_token, settings)
     analyze_all_pending()
     return {"status": "ok", "job": "analyze_pending"}
+
+
+@router.post("/jobs/reanalyze")
+def trigger_reanalyze(
+    x_job_token: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    """全库重新分析：把已处理(processed)文档重新置为 new，再触发 analyze_all_pending 重跑。
+
+    analyze_document 幂等：重跑前会清理旧 Policy/Assessment/Evidence 后重建。
+    """
+    from app.jobs.scheduler import analyze_all_pending
+
+    _check_token(x_job_token, settings)
+    requeued = db.execute(
+        update(Document).where(Document.status == "processed").values(status="new")
+    ).rowcount
+    db.commit()
+    result = analyze_all_pending()
+    return {"status": "ok", "job": "reanalyze_all", "requeued": requeued, **result}
 
 
 @router.post("/jobs/embed")
