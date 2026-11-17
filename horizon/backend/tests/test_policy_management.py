@@ -264,7 +264,7 @@ def test_restore_uses_review_workflow_and_rejects_illegal_transition(client):
         )).one()
 
 
-def test_five_role_data_scope_and_operation_permissions(client):
+def test_three_role_data_scope_and_operation_permissions(client):
     published_id, _, _ = _policy_fixture("role-published")
     draft_id, _, _ = _policy_fixture("role-draft")
     with SessionLocal() as db:
@@ -286,17 +286,12 @@ def test_five_role_data_scope_and_operation_permissions(client):
         assert client.get(f"/api/v1{path}", headers=consumer).status_code == 403, path
     assert client.post(f"/api/v1/policies/{published_id}/dispatch", headers=consumer).status_code == 403
 
-    analyst = {"X-Demo-Role": "analyst"}
-    approver = {"X-Demo-Role": "approver"}
-    publisher = {"X-Demo-Role": "publisher"}
+    processor = {"X-Demo-Role": "processor"}
     admin = {"X-Demo-Role": "admin"}
-    assert {item["level"] for item in client.get("/api/v1/review-tasks", headers=analyst).json()["items"]} == {1}
-    assert {item["level"] for item in client.get("/api/v1/review-tasks", headers=approver).json()["items"]} == {2}
-    assert client.get("/api/v1/review-tasks", headers=publisher).status_code == 200
-    assert client.post(f"/api/v1/review-tasks/{level_two_id}/claim", headers=analyst).status_code == 403
-    assert client.post(f"/api/v1/review-tasks/{level_two_id}/claim", headers=publisher).status_code == 403
-    assert client.get("/api/v1/sources", headers=analyst).status_code == 403
-    assert client.delete(f"/api/v1/policies/{published_id}", headers=publisher).status_code == 403
+    assert {item["level"] for item in client.get("/api/v1/review-tasks", headers=processor).json()["items"]} == {1, 2}
+    assert client.post(f"/api/v1/review-tasks/{level_two_id}/claim", headers=processor).status_code == 200
+    assert client.get("/api/v1/sources", headers=processor).status_code == 403
+    assert client.delete(f"/api/v1/policies/{published_id}", headers=processor).status_code == 403
     assert client.get("/api/v1/sources", headers=admin).status_code == 200
     assert client.get("/api/v1/settings", headers=admin).status_code == 200
     assert client.get("/api/v1/jobs/status", headers=admin).status_code == 200

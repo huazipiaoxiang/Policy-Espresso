@@ -130,7 +130,7 @@ def test_case1_full_acceptance(client):
         assert p.status == "ai_checked"
         assert not tasks
         # T1-18 未审核分发 409
-        resp = client.post(f"/api/v1/policies/{p.id}/dispatch", headers={"X-Demo-Role": "publisher"})
+        resp = client.post(f"/api/v1/policies/{p.id}/dispatch", headers={"X-Demo-Role": "processor"})
         assert resp.status_code == 409 and resp.json()["error"]["code"] == "NOT_APPROVED"
 
 

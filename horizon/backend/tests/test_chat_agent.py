@@ -120,10 +120,11 @@ def make_plan(question: str = "《虚拟银行监管新规》的发布机构是�
 
 def test_tool_list_is_shared_across_all_roles():
     consumer = describe_tools("consumer")
-    analyst = describe_tools("analyst")
-    for name in ("search_reviews", "search_business_impacts"):
-        assert name in consumer
-        assert name in analyst
+    for role in ("admin", "processor"):
+        tools = describe_tools(role)
+        for name in ("search_policies", "search_reviews", "search_business_impacts"):
+            assert name in consumer
+            assert name in tools
 
 
 def test_run_tool_rejects_unknown_tools(db):
@@ -149,8 +150,8 @@ def test_tool_args_are_clamped():
 
 def test_injection_attempt_is_treated_as_text_not_sql(db):
     add_policy(db)
-    tools = ChatTools(db, "analyst")
-    evidence, _ = run_tool(tools, "analyst", "search_policies", {"query": "'); DROP TABLE policy; --"})
+    tools = ChatTools(db, "processor")
+    evidence, _ = run_tool(tools, "processor", "search_policies", {"query": "'); DROP TABLE policy; --"})
     assert evidence == []
     assert db.scalar(select(func.count(Policy.id))) == 1
 
@@ -195,7 +196,7 @@ def test_agent_calls_model_selected_tools_and_records_steps(db):
         {"action": "call_tool", "tool": "search_documents", "query": "虚拟银行 原文", "limit": 3},
         {"action": "finish", "reason": "enough"},
     ])
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=provider, role="analyst", plan=make_plan())
+    run = run_agent(tools=ChatTools(db, "processor"), provider=provider, role="processor", plan=make_plan())
     assert [step.tool for step in run.steps] == ["search_policies", "search_documents"]
     assert run.stop_reason == "model_finish"
     assert any(item.key == f"policy:{policy.id}" for item in run.evidence)
@@ -208,7 +209,7 @@ def test_unknown_tool_observation_does_not_break_the_loop(db):
         {"action": "call_tool", "tool": "search_policies", "query": "虚拟银行", "limit": 5},
         {"action": "finish"},
     ])
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=provider, role="analyst", plan=make_plan())
+    run = run_agent(tools=ChatTools(db, "processor"), provider=provider, role="processor", plan=make_plan())
     assert run.steps[0].hits == 0 and "未知工具" in run.steps[0].note
     assert run.evidence, "遇到未知工具后应继续用合法工具拿到证据"
 
@@ -220,7 +221,7 @@ def test_repeated_call_is_skipped_and_stops_early(db):
         {"action": "call_tool", "tool": "search_policies", "query": "虚拟银行监管新规", "limit": 5},
         {"action": "call_tool", "tool": "search_policies", "query": "虚拟银行监管新规", "limit": 5},
     ])
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=provider, role="analyst", plan=make_plan())
+    run = run_agent(tools=ChatTools(db, "processor"), provider=provider, role="processor", plan=make_plan())
     # 同一 (tool, query) 只真正执行一次；连续两次无效后早停，不再空转。
     assert [step.hits for step in run.steps] == [1, 0, 0]
     assert "重复调用" in run.steps[-1].note
@@ -244,7 +245,7 @@ def test_unparsable_steps_stop_after_budget(db, monkeypatch):
         def complete(self, **kwargs):
             return self.complete_messages(**kwargs)
 
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=BrokenProvider(), role="analyst", plan=make_plan())
+    run = run_agent(tools=ChatTools(db, "processor"), provider=BrokenProvider(), role="processor", plan=make_plan())
     assert run.stop_reason == "unparsable_output"
     assert run.steps and run.steps[0].note == "fallback", "全失败时要保底检索一次而不是空手作答"
 
@@ -261,7 +262,7 @@ def test_evidence_budget_is_enforced(db, monkeypatch):
         {"action": "call_tool", "tool": "search_documents", "query": "政策", "limit": 8},
         {"action": "finish"},
     ])
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=provider, role="analyst", plan=make_plan("政策"))
+    run = run_agent(tools=ChatTools(db, "processor"), provider=provider, role="processor", plan=make_plan("政策"))
     assert len(run.evidence) <= 2
 
 
@@ -280,7 +281,7 @@ def test_consumer_gets_review_evidence_through_agent(db):
 
 def test_mock_provider_uses_deterministic_retrieval(db):
     policy = add_policy(db)
-    run = run_agent(tools=ChatTools(db, "analyst"), provider=MockProvider(), role="analyst", plan=make_plan())
+    run = run_agent(tools=ChatTools(db, "processor"), provider=MockProvider(), role="processor", plan=make_plan())
     assert run.stop_reason == "deterministic_provider"
     assert any(item.key == f"policy:{policy.id}" for item in run.evidence)
 
@@ -297,7 +298,7 @@ def test_agent_answer_keeps_valid_citations_and_followups(db):
         answer={"reply": "由示例监管机构发布。", "answer_mode": "grounded",
                 "citation_ids": [f"policy:{policy.id}"], "followups": ["生效日期？"], "clarifying_question": None},
     )
-    result = generate_agent_chat(tools=ChatTools(db, "analyst"), provider=provider, question="发布机构是谁？")
+    result = generate_agent_chat(tools=ChatTools(db, "processor"), provider=provider, question="发布机构是谁？")
     assert result.no_answer is False
     assert result.answer_mode == "grounded"
     assert result.citations[0]["policy_id"] == policy.id
@@ -309,7 +310,7 @@ def test_hallucinated_citation_ids_are_dropped(db):
     add_policy(db)
     provider = ScriptedProvider(answer={"reply": "据称由某机构发布。", "answer_mode": "grounded",
                                         "citation_ids": ["policy:does-not-exist"], "followups": []})
-    result = generate_agent_chat(tools=ChatTools(db, "analyst"), provider=provider, question="发布机构是谁？")
+    result = generate_agent_chat(tools=ChatTools(db, "processor"), provider=provider, question="发布机构是谁？")
     assert result.citations == []
 
 
@@ -318,7 +319,7 @@ def test_general_answer_without_evidence_is_allowed(db):
     provider = ScriptedProvider(plan=dict(DEFAULT_PLAN), steps=[{"action": "finish"}],
                                 answer={"reply": "这是通用概念解释。", "answer_mode": "general",
                                         "citation_ids": [], "followups": []})
-    result = generate_agent_chat(tools=ChatTools(db, "analyst"), provider=provider, question="什么是监管沙盒？")
+    result = generate_agent_chat(tools=ChatTools(db, "processor"), provider=provider, question="什么是监管沙盒？")
     assert result.answer_mode == "general"
     assert result.citations == []
     assert result.no_answer is False
@@ -341,7 +342,7 @@ def test_answer_failure_falls_back_to_extractive_evidence(db):
     provider = NoAnswerProvider(plan=dict(DEFAULT_PLAN),
                                 steps=[{"action": "call_tool", "tool": "search_policies",
                                         "query": "虚拟银行监管新规", "limit": 5}, {"action": "finish"}])
-    result = generate_agent_chat(tools=ChatTools(db, "analyst"), provider=provider, question="发布机构是谁？")
+    result = generate_agent_chat(tools=ChatTools(db, "processor"), provider=provider, question="发布机构是谁？")
     assert result.model == "agent-extractive"
     assert "要求持牌机构建立风险管控" in result.reply
     assert result.citations[0]["policy_id"] == policy.id

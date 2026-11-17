@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.chat.web_search import WebSearchError, search_web
 from app.core.logging import get_logger
+from app.core.security import DEMO_ROLES
 from app.search.retriever import hybrid_search, vector_available
 
 log = get_logger("chat.registry")
@@ -25,7 +26,7 @@ LIMIT_MIN = 1
 LIMIT_MAX = 8
 DEFAULT_LIMIT = 5
 
-ALL_ROLES = frozenset({"admin", "analyst", "approver", "publisher", "consumer"})
+ALL_ROLES = frozenset(DEMO_ROLES)
 
 ToolHandler = Callable[[ChatTools, str, int], list[ChatEvidence]]
 

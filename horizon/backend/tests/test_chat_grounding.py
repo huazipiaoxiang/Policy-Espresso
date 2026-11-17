@@ -65,7 +65,7 @@ def add_policy(
     return policy
 
 
-def ask(db: Session, question: str, role: str = "analyst"):
+def ask(db: Session, question: str, role: str = "processor"):
     return generate_grounded_chat(
         tools=ChatTools(db, role),
         provider=MockProvider(),
@@ -124,14 +124,13 @@ def test_all_roles_share_same_chat_read_permissions(db):
     assert "config" not in sources[0].citation
     assert sources[0].citation["type"] == "web_source"
 
-    analyst = ChatTools(db, "analyst")
-    assert {item.citation["policy_id"] for item in analyst.search_policies("")} == {published.id, draft.id}
-    assert [item.citation["id"] for item in analyst.search_reviews("我的待办")] == ["review:rt_internal"]
-    approver = ChatTools(db, "approver")
-    assert [item.citation["id"] for item in approver.search_reviews("我的待办")] == ["review:rt_level_two"]
-    impacts = analyst.search_business_impacts("")
-    assert len(impacts) == 1
-    assert "internal-risk-chain" in impacts[0].text
+    for role in ("admin", "processor"):
+        tools = ChatTools(db, role)
+        assert {item.citation["policy_id"] for item in tools.search_policies("")} == {published.id, draft.id}
+        assert {item.citation["id"] for item in tools.search_reviews("我的待办")} == {"review:rt_internal", "review:rt_level_two"}
+        impacts = tools.search_business_impacts("")
+        assert len(impacts) == 1
+        assert "internal-risk-chain" in impacts[0].text
 
 
 def test_search_text_cannot_execute_arbitrary_sql(db):
@@ -196,7 +195,7 @@ def test_provider_no_answer_does_not_fall_back_to_extractive_answer(db):
 
     add_policy(db)
     result = generate_grounded_chat(
-        tools=ChatTools(db, "analyst"), provider=NoAnswerProvider(), question="请总结《虚拟银行监管新规》",
+        tools=ChatTools(db, "processor"), provider=NoAnswerProvider(), question="请总结《虚拟银行监管新规》",
     )
     assert result.no_answer is True
     assert result.citations == []
@@ -224,7 +223,7 @@ def test_grounded_partial_answer_with_valid_citations_is_surfaced(db):
             )
 
     result = generate_grounded_chat(
-        tools=ChatTools(db, "analyst"), provider=PartialAnswerProvider(),
+        tools=ChatTools(db, "processor"), provider=PartialAnswerProvider(),
         question="帮我解读《虚拟银行监管新规》",
     )
     assert result.no_answer is False
@@ -269,7 +268,7 @@ def test_pending_review_query_returns_tasks(db):
     policy = add_policy(db, title="待上线新规")
     db.add(ReviewTask(id="rt_pending", policy_id=policy.id, assignee="analyst.one", status="pending"))
     db.commit()
-    result = ask(db, "我的审核待办有哪些？", role="analyst")
+    result = ask(db, "我的审核待办有哪些？", role="processor")
     assert result.no_answer is False
     assert result.citations[0]["policy_id"] == policy.id
 
@@ -307,7 +306,7 @@ def test_search_recent_policies_orders_by_fetched_at(db):
     newer.document.fetched_at = datetime.now(timezone.utc)
     db.commit()
 
-    tools = ChatTools(db, "analyst")
+    tools = ChatTools(db, "processor")
     result = tools.search_recent_policies()
     assert result[0].title == "刚刚入库的政策"
     assert "入库时间" in result[0].text
@@ -368,7 +367,7 @@ def test_reference_resolution_steers_retrieval_to_specific_policy(db):
         ]},
     ]
     result = generate_grounded_chat(
-        tools=ChatTools(db, "analyst"),
+        tools=ChatTools(db, "processor"),
         provider=MockProvider(),
         question="以上政策1如何帮到业务线",
         history=history,
@@ -415,7 +414,7 @@ def test_domain_impact_retrieval_lists_affected_policies(db):
     db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
     db.commit()
 
-    tools = ChatTools(db, "analyst")
+    tools = ChatTools(db, "processor")
     result = tools.search_business_impacts_by_domain("WPB")
     assert len(result) == 1
     assert result[0].citation["policy_id"] == policy.id
@@ -448,7 +447,7 @@ def test_all_roles_get_same_domain_impact_evidence(db):
     assert result[0].citation["policy_id"] == policy.id
     assert "影响方向" in result[0].text
 
-    analyst = ChatTools(db, "analyst")
+    analyst = ChatTools(db, "processor")
     analyst_result = analyst.search_business_impacts_by_domain("WPB")
     assert analyst_result[0].kind == "business_impact"
     assert "影响方向" in analyst_result[0].text

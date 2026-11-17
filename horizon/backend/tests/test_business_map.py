@@ -155,7 +155,7 @@ def test_business_map_consumer_only_receives_published_policies(client, monkeypa
     assert [policy["id"] for policy in row["policies"]] == ["policy_doc_map_consumer_published"]
     assert all(policy["status"] == "published" for policy in row["cells"][theme]["policies"])
 
-    analyst_response = client.get("/api/v1/business-map", headers={"X-Demo-Role": "analyst"})
+    analyst_response = client.get("/api/v1/business-map", headers={"X-Demo-Role": "processor"})
     assert analyst_response.json()["matrix"]["MAP_TEST"]["policy_count"] == 2
 
 

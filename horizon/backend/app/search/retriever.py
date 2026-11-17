@@ -11,12 +11,13 @@ from sqlalchemy.orm import Session
 from app.chat.tools import ChatEvidence, ChatTools, normalize_role
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.security import DEMO_ROLES
 from app.db.models import Document, DocumentChunk, Policy
 from app.search import embedder, index as vector_index
 
 log = get_logger("search.retriever")
 
-_PRIVILEGED_ROLES = {"admin", "analyst", "approver", "publisher"}
+_PRIVILEGED_ROLES = DEMO_ROLES - {"consumer"}
 
 
 def is_consumer(role: object) -> bool:

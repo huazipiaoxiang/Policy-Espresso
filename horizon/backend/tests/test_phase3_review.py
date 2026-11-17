@@ -63,16 +63,16 @@ def test_double_sign_dispatch_and_audit_chain(client):
         assert l2 is not None, "双签必须生成二级任务"
 
     # 未完成双签 → 分发 409
-    r = client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "publisher"})
+    r = client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "processor"})
     assert r.status_code == 409 and r.json()["error"]["code"] == "NOT_APPROVED"
 
     # 二级通过 → approved
-    client.post(f"/api/v1/review-tasks/{l2.id}/claim", headers={"X-Demo-Role": "approver"})
-    r = client.post(f"/api/v1/review-tasks/{l2.id}/decision", json={"action": "approve"}, headers={"X-Demo-Role": "approver"})
+    client.post(f"/api/v1/review-tasks/{l2.id}/claim", headers={"X-Demo-Role": "processor"})
+    r = client.post(f"/api/v1/review-tasks/{l2.id}/decision", json={"action": "approve"}, headers={"X-Demo-Role": "processor"})
     assert r.json()["policy_status"] == "approved"
 
     # 分发 → published + Alert + Dispatch(inapp 降级)
-    r = client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "publisher"})
+    r = client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "processor"})
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "published"
@@ -106,7 +106,7 @@ def test_reject_requires_reason_and_blocks_dispatch(client):
     )
     assert r.status_code == 200 and r.json()["policy_status"] == "rejected"
 
-    assert client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "publisher"}).status_code == 409
+    assert client.post(f"/api/v1/policies/{policy_id}/dispatch", headers={"X-Demo-Role": "processor"}).status_code == 409
 
     with SessionLocal() as db:
         assert db.get(Policy, policy_id).status == "rejected"
@@ -159,7 +159,7 @@ def test_second_level_approve_on_already_approved_policy_is_idempotent(client):
         l2_id = l2.id
 
     r = client.post(f"/api/v1/review-tasks/{l2_id}/decision", json={"action": "approve"},
-                    headers={"X-Demo-Role": "approver"})
+                    headers={"X-Demo-Role": "processor"})
     assert r.status_code == 200 and r.json()["policy_status"] == "approved"
     with SessionLocal() as db:
         assert db.get(ReviewTask, l2_id).status == "approved"
@@ -205,7 +205,7 @@ def test_p2_single_level_approval_needs_no_second_level(client):
         policy_id, task_id = policy.id, task.id
 
     r = client.post(f"/api/v1/review-tasks/{task_id}/decision", json={"action": "approve"},
-                    headers={"X-Demo-Role": "analyst"})
+                    headers={"X-Demo-Role": "processor"})
     assert r.status_code == 200 and r.json()["policy_status"] == "approved"
     with SessionLocal() as db:
         assert db.get(Policy, policy_id).status == "approved"
@@ -236,7 +236,7 @@ def test_audit_export_csv(client):
 def test_audit_list_shared_across_ops_roles(client):
     """审计查询只读接口对运营角色开放（发布中心跳转入口依赖），consumer 仍禁止。"""
     policy_id, _ = _make_policy("auditops")
-    for role in ("admin", "analyst", "approver", "publisher"):
+    for role in ("admin", "processor"):
         r = client.get("/api/v1/admin/audit?object_type=policy&object_id=" + policy_id, headers={"X-Demo-Role": role})
         assert r.status_code == 200, role
         items = r.json()["items"]
@@ -245,5 +245,5 @@ def test_audit_list_shared_across_ops_roles(client):
     assert client.get("/api/v1/admin/audit", headers={"X-Demo-Role": "consumer"}).status_code == 403
     # 过滤条件下 total 只统计匹配记录
     filtered = client.get(f"/api/v1/admin/audit?object_type=policy&object_id={policy_id}",
-                          headers={"X-Demo-Role": "publisher"}).json()
+                          headers={"X-Demo-Role": "processor"}).json()
     assert filtered["total"] == len(filtered["items"])

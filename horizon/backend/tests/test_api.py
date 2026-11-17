@@ -51,7 +51,7 @@ def test_dispatch_blocked_until_approved(client):
         db.commit()
         pid = policy.id
 
-    resp = client.post(f"/api/v1/policies/{pid}/dispatch", headers={"X-Demo-Role": "publisher"})
+    resp = client.post(f"/api/v1/policies/{pid}/dispatch", headers={"X-Demo-Role": "processor"})
     assert resp.status_code == 409
     body = resp.json()
     assert body["error"]["code"] == "NOT_APPROVED"
@@ -75,7 +75,7 @@ def test_document_delete_cascades_policy(client):
         db.commit()
         doc_id, pid = doc.id, policy.id
 
-    forbidden = client.delete(f"/api/v1/documents/{doc_id}", headers={"X-Demo-Role": "analyst"})
+    forbidden = client.delete(f"/api/v1/documents/{doc_id}", headers={"X-Demo-Role": "processor"})
     assert forbidden.status_code == 403
 
     resp = client.delete(f"/api/v1/documents/{doc_id}", headers={"X-Demo-Role": "admin"})

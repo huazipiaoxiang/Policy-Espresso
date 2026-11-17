@@ -86,14 +86,14 @@ def test_fusion_dedupes_and_respects_limit():
 def test_vector_search_is_skipped_when_disabled(db, monkeypatch):
     monkeypatch.setattr("app.search.retriever.get_settings",
                         lambda: SimpleNamespace(search_vector_enabled=False, search_rrf_k=60))
-    assert search_vector(db, "任意查询", role="analyst") == []
+    assert search_vector(db, "任意查询", role="processor") == []
 
 
 def test_hybrid_search_degrades_to_lexical_without_vector(db, monkeypatch):
     add_document(db, title="虚拟银行监管新规", content="虚拟银行监管新规 原文", doc_id="d_1")
     monkeypatch.setattr("app.search.retriever.get_settings",
                         lambda: SimpleNamespace(search_vector_enabled=False, search_rrf_k=60))
-    result = hybrid_search(db, ChatTools(db, "analyst"), "虚拟银行监管新规")
+    result = hybrid_search(db, ChatTools(db, "processor"), "虚拟银行监管新规")
     assert [item.key for item in result] == ["document:d_1"]
 
 
@@ -146,7 +146,7 @@ def test_rebuild_and_search_roundtrip(db, monkeypatch):
     from app.search import index as vector_index
 
     vector_index.invalidate()
-    hits = search_vector(db, "跨境支付试点办法", role="analyst", limit=3)
+    hits = search_vector(db, "跨境支付试点办法", role="processor", limit=3)
     assert hits, "重建索引后语义检索应能召回对应文档"
     assert hits[0].key == "document:d_cross"
     assert hits[0].citation["type"] == "document"
@@ -179,5 +179,5 @@ def test_vector_search_respects_consumer_visibility(db, monkeypatch):
     consumer_hits = search_vector(db, "跨境支付", role="consumer", limit=5)
     assert {hit.key for hit in consumer_hits} == {"document:d_pub"}
 
-    analyst_hits = search_vector(db, "跨境支付", role="analyst", limit=5)
+    analyst_hits = search_vector(db, "跨境支付", role="processor", limit=5)
     assert {hit.key for hit in analyst_hits} == {"document:d_pub", "document:d_draft"}
