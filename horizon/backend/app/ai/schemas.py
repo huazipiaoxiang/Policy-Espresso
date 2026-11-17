@@ -280,3 +280,39 @@ STUDIO_SCHEMA = {
         },
     },
 }
+
+FEEDBACK_REPORT_SCHEMA = {
+    "type": "object",
+    "required": ["title", "feedback_summary", "feedback_category", "related_policy",
+                 "internal_policy_analysis", "conclusion", "open_questions", "confidence"],
+    "properties": {
+        "title": {"type": "string"},
+        "feedback_summary": {"type": "string"},
+        "feedback_category": {"type": "string", "enum": ["疑问", "建议", "异议", "补充信息", "其他"]},
+        "related_policy": {
+            "type": "object",
+            "required": ["policy_title", "clause_ref"],
+            "properties": {
+                "policy_title": {"type": "string"},
+                "clause_ref": {"type": "array", "items": {"type": "string"}},
+                "quote": {"type": ["string", "null"]},
+            },
+        },
+        "internal_policy_analysis": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["internal_policy", "quote", "relation", "analysis"],
+                "properties": {
+                    "internal_policy": {"type": "string"},
+                    "quote": {"type": "string"},
+                    "relation": {"type": "string", "enum": ["支持", "冲突", "需要人工核实"]},
+                    "analysis": {"type": "string"},
+                },
+            },
+        },
+        "conclusion": {"type": "string"},
+        "open_questions": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "number"},
+    },
+}

@@ -29,7 +29,7 @@
 2. **一条命令启动**：`docker compose up` 后，`http://localhost:3000` 能打开完整界面，`http://localhost:8000/docs` 能打开 API 文档。没有这一步不算完成。
 3. **AI 必须可插拔**：实现 `LLMProvider` 抽象，至少三个实现：`OllamaProvider`（本地）、`DashScopeProvider`（阿里云百炼，OpenAI 兼容端点）、`MockProvider`（离线确定性输出，供测试与无网环境）。通过环境变量 `LLM_PROVIDER` 切换，业务代码零改动。
 4. **反幻觉是硬规则**：任何 AI 结论必须携带 `evidence[]`，每项包含 `document_id`、`span_start`、`span_end`、`quote`。校验失败则整条结论丢弃并记 `rejected_by_guard`。**宁可少输出，不可编造。**
-5. **人审不可绕过**：任何对外内容（预警、报告、政策建议）状态不是 `approved` 时，分发接口必须返回 `409`。审核动作全部写入 `audit_log`（谁、何时、改了什么、依据哪版 prompt/model）。
+5. **免审核直发 + 例外人审**：AI 分析明确（LLM 模式且置信度达标）的政策免审核直接发布（`ai_checked → published` 并分发预警）；仅当 AI 不明确（置信度不达标/多维度无证据）或用户打回审核时转入人工审核队列（`pending_review`）。人工审核通过后仍需走 `approved → published` 分发。所有状态变更与审核动作全部写入 `audit_log`（谁、何时、改了什么、依据哪版 prompt/model）。
 6. **抓取合规**：遵守 robots.txt；同一域名 ≤1 req/s；带可识别 UA（`HORIZON-PolicyMonitor/0.1 (+contact)`）；不抓登录后/付费墙内容；只存正文摘要 + 必要引用片段 + 原文链接，不整站镜像。
 7. **不使用真实客户数据**：所有客户暴露示例使用 `seed/synthetic_customers.json` 合成数据，字段名保留真实结构。
 8. **每个 Phase 结束必须自证**：跑通对应验收脚本，输出 `reports/phase-N-acceptance.md`，列出通过/未通过项与原因。未通过不许进入下一 Phase。

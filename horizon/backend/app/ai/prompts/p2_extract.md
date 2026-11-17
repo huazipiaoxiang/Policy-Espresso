@@ -30,7 +30,7 @@ version: extract@v1
   "deadlines": [{"date":"YYYY-MM-DD","description":"","quote":""}],
   "obligations": [{"actor":"谁","action":"必须做什么","condition":"条件","quote":""}],
   "incentives": [{"beneficiary":"谁能享受","benefit":"优惠内容","condition":"条件","quote":""}],
-  "themes": ["受控词表标签"],
+  "themes": ["受控词表标签，只能从下方 16 个标签中选择，禁止自造英文或其他标签"],
   "summary_zh": "≤200 字，只陈述事实，不含评价",
   "evidence": [{"field":"字段名","quote":"逐字片段","paragraph_index":0}],
   "confidence": 0.0-1.0
@@ -42,6 +42,10 @@ version: extract@v1
 - 若原文说"具体办法另行制定"，effective_at 置 null 并在 obligations 中记录"待配套细则"。
 - 不确定的字段宁可为 null。
 - evidence 数组必须覆盖 applicable_scope、effective_at、amounts 三个字段（有值则给）。
+- themes 只能从以下受控词表选择 1-3 个，禁止自造英文或其他标签：
+  跨境支付、人民币国际化、贷款与贴息、跨境理财通、债券与资本市场、保险与再保险、
+  资产管理、税务与优惠、数据跨境、绿色与转型金融、金融科技与虚拟资产、
+  专业资格互认、市场准入与牌照、资本与流动性要求、消费者保护、反洗钱与制裁。
 
 原文（段落按换行编号，从 0 开始）：
 

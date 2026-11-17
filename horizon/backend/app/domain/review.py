@@ -253,6 +253,34 @@ def dispatch_policy(db: Session, policy_id: str, actor: str) -> dict:
     return {"policy_id": policy_id, "alert_id": alert.id, "status": policy.status, "channels": results}
 
 
+def recall_to_review(db: Session, policy_id: str, actor: str, note: str = "") -> dict:
+    """用户反馈打回审核：published → pending_review，重建一级审核任务。
+
+    免审核直发流程下，已发布政策被用户打回后回到人工审核队列。
+    """
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise ApiError("NOT_FOUND", "政策不存在", 404, {"id": policy_id})
+    if policy.status != "published":
+        raise ApiError("NOT_PUBLISHED", "仅已发布政策可被打回审核", 409,
+                       {"policy_id": policy_id, "current_status": policy.status})
+
+    before = policy.status
+    policy.status = state_machine.transition(before, "pending_review")
+    task = ReviewTask(
+        policy_id=policy_id, level=1, assignee="analyst.default",
+        sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS.get(policy.priority, 72)),
+        status="pending",
+    )
+    db.add(task)
+    db.add(AuditLog(actor=actor, action="recall_to_review", object_type="policy", object_id=policy_id,
+                    before={"status": before}, after={"status": policy.status},
+                    reason=note or "用户反馈打回审核"))
+    db.commit()
+    db.refresh(task)
+    return {"policy_id": policy_id, "task_id": task.id, "policy_status": policy.status}
+
+
 def challenge_assessment(policy: Policy, assessment: Assessment | None, evidence_count: int,
                          scope_conflict: bool) -> list[dict]:
     """审核台"AI 质疑"面板（08 §3.3）：规则版红队质疑，防橡皮图章。

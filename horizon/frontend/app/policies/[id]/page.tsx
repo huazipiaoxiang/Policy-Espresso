@@ -81,6 +81,8 @@ export default function PolicyDetailPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +117,28 @@ export default function PolicyDetailPage() {
     }
   }
 
+  async function submitFeedback() {
+    if (!feedbackText.trim()) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/policies/${policy?.id}/feedback`, {
+        method: "POST",
+        headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ content: feedbackText }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || "反馈提交失败");
+      setShowFeedback(false);
+      setFeedbackText("");
+      setNotice("反馈已提交，已送达审核员");
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "反馈提交失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <div className="content"><div className="panel" style={{ padding: 40, textAlign: "center" }}>加载政策详情…</div></div>;
   if (!policy) return <div className="content"><Link href="/policies" className="back">← 返回政策库</Link><div className="notice">{error || "政策不存在"}</div></div>;
 
@@ -135,10 +159,31 @@ export default function PolicyDetailPage() {
           <span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span>
           {role === "admin" && <button className="btn" disabled={busy} onClick={() => operation(`/policies/${policy.id}/analyze`, "重新分析完成")}>重新分析</button>}
           {role === "publisher" && policy.status === "approved" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/dispatch`, "发布完成")}>发布政策</button>}
+          <button className="btn" onClick={() => setShowFeedback((v) => !v)}>反馈</button>
         </div>
       </div>
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}</div>}
       {notice && <div className="info" style={{ marginBottom: 16 }}>{notice}</div>}
+
+      {showFeedback && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="sectionbody">
+            <small>反馈意见（将送达审核员）</small>
+            <textarea
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="你对这条政策有疑问或建议？请在此输入…"
+              className="reviewnote"
+              rows={3}
+              style={{ marginTop: 8 }}
+            />
+            <div className="rowflex" style={{ marginTop: 8 }}>
+              <button className="btn primary" disabled={busy || !feedbackText.trim()} onClick={submitFeedback}>提交反馈</button>
+              <button className="btn" onClick={() => { setShowFeedback(false); setFeedbackText(""); }}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="status-four">
         <div><small>相关性筛选</small><span style={{ display: "block", marginTop: 8 }}><ScopeChip status={policy.target_entity_status} /></span></div>

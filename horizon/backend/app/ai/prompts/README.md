@@ -11,6 +11,7 @@
 | `p5_alert.md` | 预警草稿 | alert@v1 |
 | `p6_case.md` | 案例比对 | case@v1 |
 | `p7_challenge.md` | AI 质疑（审核台侧栏） | challenge@v1 |
-| `p8_studio.md` | 政策 2.0 建议书 | studio@v1 |
+| `p8_studio.md` | 政策 2.0 建议书 | studio@v2 |
+| `p7_feedback_report.md` | 反馈分析报告（审核员） | feedback_report@v1 |
 
 所有模板必须：声明输出 JSON Schema、要求 evidence span、含 `UNTRUSTED_NOTICE`。

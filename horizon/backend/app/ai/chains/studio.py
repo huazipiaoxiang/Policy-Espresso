@@ -1,6 +1,7 @@
 """P6 政策 2.0 建议书生成（05 P6，max 档 + 强约束）。"""
 from __future__ import annotations
 
+import json
 import re
 
 from app.ai.chains.base import BaseChain
@@ -45,12 +46,30 @@ def validate_proposal(parsed: dict, corpus_text: str) -> list[str]:
     return errors
 
 
+def _business_profile() -> str:
+    """汇丰业务图谱文本（合成演示数据），供政策 2.0 结合汇丰现有业务分析影响。"""
+    from app.domain.business_map import load_business_map
+
+    lines = load_business_map()
+    if not lines:
+        return "（未提供业务数据）"
+    return json.dumps(
+        [{"code": l.code, "name": l.name, "segments": l.segments, "products": l.products,
+          "themes_sensitivity": l.themes_sensitivity} for l in lines],
+        ensure_ascii=False,
+    )
+
+
 class StudioChain(BaseChain):
     task = "studio"
 
     def run(self, *, theme: str, corpus_text: str):  # noqa: ANN201
         result = super().run(
-            variables={"theme": theme, "corpus": wrap_untrusted(corpus_text[:12000])},
+            variables={
+                "theme": theme,
+                "corpus": wrap_untrusted(corpus_text[:12000]),
+                "business_profile": _business_profile(),
+            },
             content_text=corpus_text,
             schema=STUDIO_SCHEMA,
             temperature=0.2,

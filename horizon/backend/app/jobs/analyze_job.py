@@ -6,7 +6,8 @@ document(status=new, 非重复, 有正文)
  → P3 适用范围（规则 + LLM 双通道，冲突记 needs_review）
  → 案例匹配 + 业务图谱 + 暴露聚合 → P4 影响分析（8 维 + 评分卡）
  → P5 预警草稿 → Alert(draft)
- → policy → pending_review + ReviewTask（SLA 按优先级）
+ → 发布决策：AI 明确 → 免审核直发 published（Alert→approved + 分发）；
+   仅 offline 规则派生或 AI 低置信 → pending_review + ReviewTask（SLA 按优先级）
 
 幂等：同 document 重复分析先清旧 assessment/evidence/task 再重建（重跑分析语义）。
 失败模式：Provider/链路异常 → document.status=failed。
@@ -27,7 +28,7 @@ from app.ai.chains.scope import ScopeChain
 from app.ai.evidence import locate_quote
 from app.core.logging import get_logger
 from app.db.models import (
-    Alert, Assessment, AuditLog, Document, Evidence, LLMCallLog, Policy,
+    Alert, Assessment, AuditLog, Dispatch, Document, Evidence, LLMCallLog, Policy,
     ReviewTask, ScopeJudgement,
 )
 from app.domain import scoring, state_machine
@@ -370,23 +371,40 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
             errors = []
     if errors:
         log.warning("alert_invalid", policy_id=policy.id, errors=errors)
-    db.add(Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
-                 body_md=alert_text, channel_scope={"default": "inapp"}, status="draft"))
+    alert = Alert(assessment_id=assessment.id, title=f"政策预警草稿 · {policy.title}",
+                  body_md=alert_text, channel_scope={"default": "inapp"}, status="draft")
+    db.add(alert)
+    db.flush()  # 生成 alert.id，供后续分发（dispatch.alert_id）使用
 
-    # ---- 进审核队列（恒生仅点名等场景不产生预警/不进队列）----
+    # ---- 发布决策（免审核直发：仅 offline 规则派生或 AI 不明确转人审）----
     relevant = any(v in ("high", "medium") for v in entity_relevance.values())
-    if relevant and (offline or assessment.confidence > 0.3):
+    if not relevant:
+        _audit(db, "skip_publish", "policy", policy.id, {"status": "ai_checked"},
+               {"status": policy.status, "reason": "非覆盖/排除场景"},
+               reason="不满足预警触发条件")
+    elif offline or assessment.confidence <= 0.3:
+        # offline 规则派生结论（未经模型判断）或 AI 低置信 → 转人审
         policy.status = state_machine.transition(policy.status, "pending_review")
-        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"}, {"status": "pending_review"})
+        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"},
+               {"status": "pending_review"}, reason="offline 规则派生或 AI 低置信，转人工审核")
         db.add(ReviewTask(
             policy_id=policy.id, level=1, assignee="analyst.default",
             sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[score_result.priority]),
             status="pending",
         ))
     else:
-        _audit(db, "skip_review", "policy", policy.id, {"status": "ai_checked"},
-               {"status": policy.status, "reason": "非覆盖/排除场景或低置信"},
-               reason="不满足预警触发条件")
+        # AI 明确（LLM 模式且置信度达标）→ 免审核直接发布：Alert 置 approved 并触发分发
+        from app.notifications import get_notifiers
+
+        policy.status = state_machine.transition(policy.status, "published")
+        alert.status = "approved"
+        for notifier in get_notifiers():
+            result = notifier.send(alert)
+            db.add(Dispatch(alert_id=alert.id, channel=notifier.name,
+                            target=result.get("target", "default"),
+                            sent_at=datetime.now(timezone.utc), result=result))
+        _audit(db, "auto_publish", "policy", policy.id, {"status": "ai_checked"},
+               {"status": "published"}, reason="AI 明确，免审核直接发布")
 
     doc.status = "processed"
     db.commit()

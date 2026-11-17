@@ -647,3 +647,52 @@ class ChatTools:
                 },
             ))
         return evidence
+
+    def search_internal_data(self, query: str) -> list[ChatEvidence]:
+        """检索公司内部数据（业务图谱 + 合成客户暴露），用于结合政策做影响分析。
+
+        数据来自 seed/business_map.json 与 seed/synthetic_customers.json，均为合成演示数据，
+        不包含真实客户信息。匹配业务线代号或客群/产品关键词，返回业务线概览与客户暴露聚合。
+        """
+        from app.domain.business_map import load_business_map
+        from app.domain.exposure import load_customers
+
+        lines = load_business_map()
+        customers = load_customers()
+        folded = query.casefold()
+        terms = [t.casefold() for t in search_terms(query)]
+
+        evidence: list[ChatEvidence] = []
+        for line in lines:
+            code = line.code
+            hay = f"{line.name} {' '.join(line.segments)} {' '.join(line.products)}".casefold()
+            code_hit = code.casefold() in folded
+            kw_hit = any(term and term in hay for term in terms)
+            if not (code_hit or kw_hit):
+                continue
+            matched_customers = [c for c in customers if c.get("business_line") == code]
+            total = round(sum(float(c.get("loan_balance_cny_yi", 0)) for c in matched_customers), 1)
+            text = (
+                f"业务线：{line.name}（{code}）\n"
+                f"客群：{'、'.join(line.segments) or '未注明'}\n"
+                f"产品：{'、'.join(line.products) or '未注明'}\n"
+                f"合成客户 {len(matched_customers)} 户，贷款余额合计约 {total} 亿元"
+                f"（合成演示数据，非真实客户信息）。"
+            )
+            evidence.append(ChatEvidence(
+                key=f"internal:{code}",
+                kind="internal_data",
+                title=f"公司内部数据：{line.name}",
+                text=text,
+                score=16 if code_hit else 8,
+                citation={
+                    "id": f"internal:{code}",
+                    "type": "internal_data",
+                    "title": line.name,
+                    "url": "",
+                    "policy_id": None,
+                    "document_id": None,
+                    "source_id": None,
+                },
+            ))
+        return evidence[:RESULT_LIMIT]

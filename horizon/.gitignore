@@ -12,6 +12,7 @@ node_modules/
 .env.local
 .DS_Store
 *.log
+*.err
 *.tsbuildinfo
 
 # 工具缓存 / 临时产物

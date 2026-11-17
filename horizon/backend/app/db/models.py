@@ -285,6 +285,18 @@ class ReviewDecision(Base):
     task: Mapped[ReviewTask] = relationship(back_populates="decisions")
 
 
+class Feedback(Base):
+    """用户对已发布政策的反馈（免审核直发后的闭环：反馈可触发打回审核）。"""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("fb"))
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policy.id"), index=True)
+    actor: Mapped[str] = mapped_column(String(64), default="")
+    content: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 class Alert(Base):
     __tablename__ = "alert"
 

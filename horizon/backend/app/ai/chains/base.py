@@ -131,7 +131,8 @@ class BaseChain:
 
     def _prompt_name(self) -> str:
         return {"classify": "p1_classify", "extract": "p2_extract", "scope": "p3_scope",
-                "impact": "p4_impact", "alert": "p5_alert", "studio": "p6_studio"}[self.task]
+                "impact": "p4_impact", "alert": "p5_alert", "studio": "p6_studio",
+                "feedback_report": "p7_feedback_report"}[self.task]
 
     def _verify_evidence(self, parsed: dict, content_text: str) -> tuple[list[dict], list[dict]]:
         """通用：提取 parsed 中所有含 quote 的条目，定位 span；失败入 rejected。

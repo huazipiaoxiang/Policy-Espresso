@@ -12,7 +12,7 @@ from sqlalchemy.types import Text
 from app.api.v1.schemas import Page, PolicyOut
 from app.core.errors import ApiError, not_found, not_approved
 from app.core.security import get_demo_role, require_api_key, require_roles
-from app.db.models import Alert, Assessment, Dispatch, Document, Evidence, LLMCallLog, Policy, ReviewTask, ScopeJudgement
+from app.db.models import Alert, Assessment, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
 from app.domain.policy_admin import delete_policy
@@ -23,6 +23,18 @@ router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(
 class DigestBody(BaseModel):
     period: str = "week"  # week | month
     policy_ids: list[str] = []
+
+
+class RecallBody(BaseModel):
+    note: str = ""
+
+
+class FeedbackBody(BaseModel):
+    content: str
+
+
+class ReportBody(BaseModel):
+    feedback_id: str
 
 
 def _policy_filters(
@@ -407,10 +419,92 @@ def dispatch_policy(
     actor: str = Depends(require_api_key),
     _: str = Depends(require_roles("publisher")),
 ):
-    """人审不可绕过：非 approved 一律 409；approved → published → Notifier 分发。"""
+    """人工分发：仅 AI 不明确转入人审并 approved 的政策走此路径（免审核直发已在分析阶段完成）。"""
     from app.domain import review as review_domain
 
     return review_domain.dispatch_policy(db, policy_id, actor=actor)
+
+
+@router.post("/{policy_id}/recall")
+def recall_policy(
+    policy_id: str,
+    body: RecallBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+):
+    """用户反馈打回审核：已发布政策回到人工审核队列（published → pending_review）。"""
+    from app.domain import review as review_domain
+
+    return review_domain.recall_to_review(db, policy_id, actor=actor, note=body.note)
+
+
+@router.post("/{policy_id}/feedback", status_code=201)
+def submit_feedback(
+    policy_id: str,
+    body: FeedbackBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+):
+    """用户对已发布政策提交反馈意见（反馈至审核员）。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    content = body.content.strip()
+    if not content:
+        raise ApiError("EMPTY_FEEDBACK", "反馈内容不能为空", 422)
+    feedback = Feedback(policy_id=policy_id, actor=actor, content=content)
+    db.add(feedback)
+    db.commit()
+    db.refresh(feedback)
+    return {"id": feedback.id, "policy_id": policy_id, "created_at": feedback.created_at}
+
+
+@router.get("/{policy_id}/feedbacks")
+def list_feedbacks(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
+    """列出某政策的用户反馈。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    items = db.scalars(
+        select(Feedback).where(Feedback.policy_id == policy_id).order_by(Feedback.created_at.desc())
+    ).all()
+    return {
+        "items": [
+            {"id": f.id, "actor": f.actor, "content": f.content, "created_at": f.created_at}
+            for f in items
+        ]
+    }
+
+
+@router.post("/{policy_id}/feedback-report")
+def generate_feedback_report(
+    policy_id: str,
+    body: ReportBody,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("analyst", "approver", "publisher", "admin")),
+):
+    """审核员为某条反馈生成分析报告（结合公司内部政策）。"""
+    from app.ai.chains.feedback_report import FeedbackReportChain
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    feedback = db.get(Feedback, body.feedback_id)
+    if not feedback or feedback.policy_id != policy_id:
+        raise not_found("反馈", body.feedback_id)
+    policy_card = {
+        "title": policy.title,
+        "issuing_body": policy.issuing_body,
+        "doc_number": policy.doc_number,
+        "summary_zh": policy.summary_zh,
+        "applicable_entities_text": policy.applicable_entities_text,
+        "themes": policy.themes,
+    }
+    try:
+        result = FeedbackReportChain().run(policy_card=policy_card, feedback=feedback.content)
+    except Exception as exc:
+        raise ApiError("REPORT_FAILED", f"报告生成失败：{exc}", 500)
+    return {"feedback_id": feedback.id, "report": result.parsed, "model": result.model}
 
 
 @router.delete("/{policy_id}")

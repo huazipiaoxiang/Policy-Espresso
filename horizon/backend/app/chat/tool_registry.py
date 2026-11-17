@@ -83,6 +83,10 @@ def _search_impacts(tools: ChatTools, query: str, limit: int) -> list[ChatEviden
     return tools.search_business_impacts(query)[:limit]
 
 
+def _search_internal_data(tools: ChatTools, query: str, limit: int) -> list[ChatEvidence]:
+    return tools.search_internal_data(query)[:limit]
+
+
 def _search_web(tools: ChatTools, query: str, limit: int) -> list[ChatEvidence]:
     return search_web(query, limit=max(LIMIT_MIN, min(limit, 5)))
 
@@ -123,6 +127,12 @@ TOOLS: tuple[ToolSpec, ...] = (
         description="检索业务影响评估（方向/优先级/传导链/建议动作/置信度）。适合「对我们业务有什么影响、建议怎么做」。",
         visible_to=ALL_ROLES,
         handler=_search_impacts,
+    ),
+    ToolSpec(
+        name="search_internal_data",
+        description="检索公司内部业务数据（业务线/客群/产品/合成客户暴露规模）。适合「涉及哪些客群与产品、客户暴露规模多大」这类需结合内部数据分析的问题。",
+        visible_to=ALL_ROLES,
+        handler=_search_internal_data,
     ),
     ToolSpec(
         name="search_web",

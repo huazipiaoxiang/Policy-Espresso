@@ -3,12 +3,12 @@ from __future__ import annotations
 
 POLICY_TRANSITIONS: dict[str, set[str]] = {
     "draft": {"ai_checked", "pending_review", "archived"},
-    "ai_checked": {"pending_review", "archived"},
+    "ai_checked": {"published", "pending_review", "archived"},  # published=AI 明确免审核直发
     "pending_review": {"in_review", "archived"},
     "in_review": {"approved", "rejected", "needs_info"},
     "needs_info": {"pending_review", "rejected"},
     "approved": {"published", "archived"},
-    "published": {"archived"},
+    "published": {"pending_review", "archived"},  # pending_review=用户打回人审
     "rejected": {"archived", "draft"},  # 重开需新建 task 并清空旧 assessment
     "archived": set(),
 }
