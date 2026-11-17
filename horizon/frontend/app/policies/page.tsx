@@ -78,8 +78,17 @@ export default function PoliciesPage() {
       headers: { ...demoApiHeaders(), ...(init?.headers || {}) },
     });
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      throw new Error(body?.error?.message || `请求失败（${response.status}）`);
+      const text = await response.text();
+      let message = `请求失败（${response.status}）`;
+      try {
+        const body = JSON.parse(text);
+        if (body?.error?.message) message = body.error.message;
+        else if (typeof body?.detail === "string") message = body.detail;
+        else if (body?.detail) message = JSON.stringify(body.detail);
+      } catch {
+        if (text && text.trim()) message = text;
+      }
+      throw new Error(message);
     }
     return response;
   }, []);

@@ -111,8 +111,18 @@ export default function PolicyDetailPage() {
         headers: body ? { ...demoApiHeaders(), "Content-Type": "application/json" } : demoApiHeaders(),
         body: body ? JSON.stringify(body) : undefined,
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error?.message || "操作失败");
+      if (!response.ok) {
+        const text = await response.text();
+        let message = "操作失败";
+        try {
+          const data = JSON.parse(text);
+          if (data?.error?.message) message = data.error.message;
+          else if (typeof data?.detail === "string") message = data.detail;
+        } catch {
+          if (text && text.trim()) message = text;
+        }
+        throw new Error(message);
+      }
       await load();
       if (dialogMessage) {
         setNoticeDialog(dialogMessage);
