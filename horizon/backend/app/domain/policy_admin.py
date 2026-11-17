@@ -2,8 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
-    Alert, Assessment, AuditLog, Dispatch, Evidence, Policy, PolicyCaseLink,
-    ReviewDecision, ReviewTask, ScopeJudgement,
+    Alert, Assessment, AuditLog, Dispatch, DocumentChunk, Evidence, Feedback,
+    Policy, PolicyCaseLink, ReviewDecision, ReviewTask, ScopeJudgement,
 )
 
 
@@ -22,6 +22,9 @@ def delete_policy_records(db: Session, policy: Policy) -> None:
         db.query(ReviewTask).filter(ReviewTask.id.in_(task_ids)).delete(synchronize_session=False)
     db.query(ScopeJudgement).filter(ScopeJudgement.policy_id == policy_id).delete(synchronize_session=False)
     db.query(PolicyCaseLink).filter(PolicyCaseLink.policy_id == policy_id).delete(synchronize_session=False)
+    # 反馈与向量切片也引用 policy_id（外键），一并清理，否则 PostgreSQL 删除 Policy 时外键约束报错
+    db.query(Feedback).filter(Feedback.policy_id == policy_id).delete(synchronize_session=False)
+    db.query(DocumentChunk).filter(DocumentChunk.policy_id == policy_id).delete(synchronize_session=False)
     if assessment_ids:
         db.query(Assessment).filter(Assessment.id.in_(assessment_ids)).delete(synchronize_session=False)
     db.delete(policy)
