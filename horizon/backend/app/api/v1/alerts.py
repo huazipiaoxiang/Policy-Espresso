@@ -9,7 +9,7 @@ from app.db.session import get_db
 
 router = APIRouter(
     prefix="/alerts", tags=["alerts"],
-    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "analyst", "approver", "publisher"))],
+    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "processor"))],
 )
 
 

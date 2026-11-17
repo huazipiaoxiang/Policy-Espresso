@@ -16,7 +16,7 @@ from app.db.session import get_db
 router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key)])
 
 
-@router.get("/audit", dependencies=[Depends(require_roles("admin", "analyst", "approver", "publisher"))])
+@router.get("/audit", dependencies=[Depends(require_roles("admin", "processor"))])
 def list_audit(
     actor: str | None = None,
     object_type: str | None = None,

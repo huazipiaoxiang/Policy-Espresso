@@ -58,14 +58,43 @@ function safeCitationUrl(url?: string): string | null {
   }
 }
 
+const WELCOME_MESSAGE: Message = {
+  role: "assistant",
+  content: "你好！我是 HORIZON 政策雷达助手。我会基于当前政策库回答，并附上可核查的来源。",
+};
+const CHAT_STORAGE_KEY = "horizon-chat-history";
+
 export default function ChatPanel({ onClose }: ChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "你好！我是 HORIZON 政策雷达助手。我会基于当前政策库回答，并附上可核查的来源。" },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window === "undefined") return [WELCOME_MESSAGE];
+    try {
+      const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Message[];
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // 忽略损坏的历史记录，回退到欢迎语
+    }
+    return [WELCOME_MESSAGE];
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 聊天记录完整持久化到 localStorage：含引用/检索过程/追问，关闭侧栏后重新打开也不丢失
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // 存储超限时静默降级（本次会话内仍正常）
+    }
+  }, [messages]);
+
+  const clearChat = () => {
+    setMessages([WELCOME_MESSAGE]);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -150,11 +179,16 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
           </div>
           <span className="text-[14px] font-medium">AI 政策助手</span>
         </div>
-        <button type="button" onClick={onClose} aria-label="收起 AI 助手侧栏" title="收起侧栏" className="text-[var(--text-3)] hover:text-[var(--text)]">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={clearChat} aria-label="清空对话" title="清空对话" className="text-[12px] text-[var(--text-3)] hover:text-[var(--text)]">
+            清空
+          </button>
+          <button type="button" onClick={onClose} aria-label="收起 AI 助手侧栏" title="收起侧栏" className="text-[var(--text-3)] hover:text-[var(--text)]">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Messages */}

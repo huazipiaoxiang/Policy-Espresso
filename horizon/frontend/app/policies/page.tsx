@@ -44,12 +44,10 @@ export default function PoliciesPage() {
   const { role } = useAuth();
   const searchParams = useSearchParams();
   const initialView = searchParams.get("view") as TabKey | null;
-  // 按角色裁剪可见 tab：approver 不参与送审/发布，隐藏「未发布」
-  const visibleTabs = useMemo(
-    () => tabs.filter((tab) => tab.key !== "unpublished" || role !== "approver"),
-    [role],
-  );
-  const [activeTab, setActiveTab] = useState<TabKey>(visibleTabs.some((tab) => tab.key === initialView) ? initialView! : "all");
+  // consumer 只看已发布政策；admin / processor 看全部 tab
+  const isConsumer = role === "consumer";
+  const visibleTabs = isConsumer ? tabs.filter((tab) => tab.key === "published") : tabs;
+  const [activeTab, setActiveTab] = useState<TabKey>(isConsumer ? "published" : (visibleTabs.some((tab) => tab.key === initialView) ? initialView! : "all"));
   const [search, setSearch] = useState("");
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,9 +95,7 @@ export default function PoliciesPage() {
     const params = new URLSearchParams({ page: String(currentPage), page_size: String(pageSize) });
     if (activeTab === "today_new") params.set("fetched", "today");
     if (activeTab === "pending_review") {
-      if (role === "analyst") params.set("review_level", "1");
-      else if (role === "approver") params.set("review_level", "2");
-      else params.set("status", "pending_review,in_review");
+      params.set("status", "pending_review,in_review");
     }
     if (activeTab === "published") params.set("status", "published");
     if (activeTab === "unpublished") params.set("status_not", "published");
@@ -119,7 +115,7 @@ export default function PoliciesPage() {
   }, [activeTab, currentPage, refreshKey, request, search, hkToday, role]);
 
   useEffect(() => {
-    const pendingFilter = role === "analyst" ? "&review_level=1" : role === "approver" ? "&review_level=2" : "&status=pending_review,in_review";
+    const pendingFilter = "&status=pending_review,in_review";
     const urls: [TabKey, string][] = [
       ["all", ""], ["today_new", "&fetched=today"], ["pending_review", pendingFilter],
       ["published", "&status=published"], ["unpublished", "&status_not=published"],
@@ -208,35 +204,39 @@ export default function PoliciesPage() {
         <div>
           <div className="eyebrow">POLICY REPOSITORY</div>
           <h1>{role === "admin" ? "政策数据库" : "政策库"}</h1>
-          <p className="sub">政策原文、AI 分析、人工审核和发布记录保持关联</p>
+          <p className="sub">{isConsumer ? "已发布政策的完整目录，可搜索查看" : "政策原文、AI 分析、人工审核和发布记录保持关联"}</p>
         </div>
         <div className="rowflex">
           {role === "admin" && <Link href="/documents?upload=1" className="btn primary">上传政策</Link>}
-          {(role === "analyst" || role === "approver") && <Link href="/policies?view=pending_review" className="btn primary">前往待审核政策 →</Link>}
-          {role === "publisher" && <Link href="/publications" className="btn primary">前往发布中心 →</Link>}
+          {role === "processor" && <Link href="/policies?view=pending_review" className="btn primary">前往待审核政策 →</Link>}
+          {role === "processor" && <Link href="/publications" className="btn primary">前往发布中心 →</Link>}
         </div>
       </div>
 
-      <div className="grid4">
-        {metrics.map((metric) => (
-          <button className="metric" key={metric.key} onClick={() => { setActiveTab(metric.key); setSearch(""); }} style={{ textAlign: "left" }}>
-            <small>{metric.label}</small><b>{metric.value}</b>
-            <span>{metric.key === "high_priority" ? "P0 / P1 级别" : "点击筛选对应记录"}</span>
-          </button>
-        ))}
-      </div>
+      {!isConsumer && (
+        <div className="grid4">
+          {metrics.map((metric) => (
+            <button className="metric" key={metric.key} onClick={() => { setActiveTab(metric.key); setSearch(""); }} style={{ textAlign: "left" }}>
+              <small>{metric.label}</small><b>{metric.value}</b>
+              <span>{metric.key === "high_priority" ? "P0 / P1 级别" : "点击筛选对应记录"}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {notice && <div className="info" style={{ marginTop: 16 }}>{notice}</div>}
       {error && <div className="notice" style={{ marginTop: 16 }}>{error}<button className="link" onClick={() => setError("")} style={{ marginLeft: 12 }}>关闭</button></div>}
 
       <div className="panel full" style={{ marginTop: 18 }}>
-        <div className="tabs">
-          {visibleTabs.map((tab) => (
-            <button key={tab.key} className={`tab${activeTab === tab.key ? " active" : ""}`} onClick={() => { setActiveTab(tab.key); setSearch(""); }}>
-              {tab.label} ({counts[tab.key]})
-            </button>
-          ))}
-        </div>
+        {!isConsumer && (
+          <div className="tabs">
+            {visibleTabs.map((tab) => (
+              <button key={tab.key} className={`tab${activeTab === tab.key ? " active" : ""}`} onClick={() => { setActiveTab(tab.key); setSearch(""); }}>
+                {tab.label} ({counts[tab.key]})
+              </button>
+            ))}
+          </div>
+        )}
         <div className="toolbar">
           <input className="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索政策名称、发文机构或摘要…" />
         </div>
@@ -258,10 +258,10 @@ export default function PoliciesPage() {
                   <td style={{ whiteSpace: "nowrap" }}>{dateLabel(policy.published_at)}</td>
                   <td>
                     <div className="rowflex">
-                      <Link href={`/policies/${policy.id}`} className="link">审核</Link>
+                      <Link href={`/policies/${policy.id}`} className="link">{isConsumer ? "查看" : "审核"}</Link>
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => analyzePolicy(policy)}>重新分析</button>}
-                      {(role === "admin" || role === "analyst") && policy.status === "ai_checked" && <button className="link" disabled={busyId === policy.id} onClick={() => submitReview(policy)}>提交审核</button>}
-                      {role === "publisher" && policy.status === "approved" && <button className="link" disabled={busyId === policy.id} onClick={() => dispatchPolicy(policy)}>发布</button>}
+                      {(role === "admin" || role === "processor") && policy.status === "ai_checked" && <button className="link" disabled={busyId === policy.id} onClick={() => submitReview(policy)}>提交审核</button>}
+                      {role === "processor" && policy.status === "approved" && <button className="link" disabled={busyId === policy.id} onClick={() => dispatchPolicy(policy)}>发布</button>}
                       {role === "admin" && <button className="link" disabled={busyId === policy.id} onClick={() => setDeleteTarget(policy)} style={{ color: "var(--red)" }}>删除</button>}
                     </div>
                   </td>

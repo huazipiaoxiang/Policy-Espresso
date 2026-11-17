@@ -27,7 +27,7 @@ async def api_error_handler(_: Request, exc: ApiError) -> JSONResponse:
 
 async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     """未捕获异常兜底：返回统一 JSON 而非纯文本 500，前端才能解析出具体错误。"""
-    log.error("unhandled_error", error=f"{type(exc).__name__}: {exc}", exc_info=True)
+    log.error("unhandled_error: %s: %s", type(exc).__name__, exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content=error_body("INTERNAL_ERROR", f"服务器内部错误：{type(exc).__name__}: {exc}"),

@@ -19,7 +19,7 @@ from app.ingest.uploads import UploadParseError, extract_upload
 
 router = APIRouter(
     prefix="/documents", tags=["documents"],
-    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "analyst", "approver", "publisher"))],
+    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "processor"))],
 )
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024

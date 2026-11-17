@@ -6,12 +6,12 @@ from fastapi import Depends, Header
 from app.core.config import Settings, get_settings
 from app.core.errors import ApiError
 
-DEMO_ROLES = {"admin", "analyst", "approver", "publisher", "consumer"}
+DEMO_ROLES = {"admin", "consumer", "processor"}
 
 
 async def get_demo_role(x_demo_role: str | None = Header(default=None)) -> str:
     if x_demo_role is None:
-        return "analyst"
+        return "processor"
     if x_demo_role not in DEMO_ROLES:
         raise ApiError("UNAUTHORIZED", "无效的演示角色", 401)
     return x_demo_role

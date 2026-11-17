@@ -514,10 +514,6 @@ class ChatTools:
             .join(Policy, ReviewTask.policy_id == Policy.id)
             .join(Document, Policy.document_id == Document.id)
         )
-        if self.role == "analyst":
-            stmt = stmt.where(ReviewTask.level == 1)
-        elif self.role == "approver":
-            stmt = stmt.where(ReviewTask.level == 2)
         terms = search_terms(query)
         if terms:
             stmt = stmt.where(or_(*_filters(
@@ -533,10 +529,6 @@ class ChatTools:
                 .join(Document, Policy.document_id == Document.id)
                 .where(ReviewTask.status.in_(["pending", "claimed"]))
             )
-            if self.role == "analyst":
-                fallback_stmt = fallback_stmt.where(ReviewTask.level == 1)
-            elif self.role == "approver":
-                fallback_stmt = fallback_stmt.where(ReviewTask.level == 2)
             rows = list(self.db.execute(
                 fallback_stmt.order_by(ReviewTask.created_at.desc()).limit(RESULT_LIMIT)
             ).all())

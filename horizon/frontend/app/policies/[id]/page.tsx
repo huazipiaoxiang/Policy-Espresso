@@ -85,6 +85,7 @@ export default function PolicyDetailPage() {
   const [busy, setBusy] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
+  const [consumerView, setConsumerView] = useState<any>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,12 +95,16 @@ export default function PolicyDetailPage() {
       if (!response.ok) throw new Error(data?.error?.message || "政策加载失败");
       setPolicy(data);
       setError("");
+      if (role === "consumer") {
+        const cvResp = await fetch(`${API_BASE}/policies/${params.id}/consumer-view`, { headers: demoApiHeaders() });
+        if (cvResp.ok) setConsumerView(await cvResp.json());
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "政策加载失败");
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [params.id, role]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -163,7 +168,7 @@ export default function PolicyDetailPage() {
   if (!policy) return <div className="content"><Link href="/policies" className="back">← 返回政策库</Link><div className="notice">{error || "政策不存在"}</div></div>;
 
   const assessment = policy.assessments[0];
-  const backHref = role === "consumer" ? "/for-you" : role === "publisher" ? "/publications" : "/policies";
+  const backHref = role === "consumer" ? "/for-you" : role === "processor" ? "/publications" : "/policies";
 
   return (
     <div className="content">
@@ -178,8 +183,8 @@ export default function PolicyDetailPage() {
           <span className={`priority-pill ${policy.priority === "P0" ? "urgent" : policy.priority === "P1" ? "high" : policy.priority === "P2" ? "medium" : "low"}`}>{policy.priority}</span>
           <span className={`badge ${policy.status === "published" ? "green" : "amber"}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span>
           {role === "admin" && <button className="btn" disabled={busy} onClick={() => operation(`/policies/${policy.id}/analyze`, "重新分析完成")}>重新分析</button>}
-          {(role === "admin" || role === "analyst") && policy.status === "ai_checked" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/submit-review`, "已提交人工审核", { level: 1, note: "" }, `政策「${policy.title}」已提交人工审核`)}>提交审核</button>}
-          {role === "publisher" && policy.status === "approved" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/dispatch`, "发布完成")}>发布政策</button>}
+          {(role === "admin" || role === "processor") && policy.status === "ai_checked" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/submit-review`, "已提交人工审核", { level: 1, note: "" }, `政策「${policy.title}」已提交人工审核`)}>提交审核</button>}
+          {role === "processor" && policy.status === "approved" && <button className="btn primary" disabled={busy} onClick={() => operation(`/policies/${policy.id}/dispatch`, "发布完成")}>发布政策</button>}
           <button className="btn" onClick={() => setShowFeedback((v) => !v)}>反馈</button>
         </div>
       </div>
@@ -287,6 +292,65 @@ export default function PolicyDetailPage() {
             </div>
           </section>
       </div>
+
+      {role === "consumer" && consumerView && (
+        <section className="panel full">
+          <div className="panelhead"><h2>政策解读</h2><small>面向所管理客户的影响</small></div>
+          <div className="sectionbody">
+            <div className="field">
+              <small>政策原文简化版</small>
+              <p className="textblock">{consumerView.simplified_summary}</p>
+            </div>
+            <div className="divider" />
+            <div className="field">
+              <small>对所管理用户的影响概述</small>
+              <p className="textblock">{consumerView.impact_overview}</p>
+            </div>
+            <div className="divider" />
+            <small>可能受影响的用户</small>
+            <div className="tablewrap" style={{ marginTop: 8 }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>客户</th>
+                    <th>业务线</th>
+                    <th>贷款规模(亿)</th>
+                    <th>他行贷款(亿)</th>
+                    <th>海外业务</th>
+                    <th>具体影响</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {consumerView.affected_customers.map((c: any) => (
+                    <tr key={c.customer_id}>
+                      <td>{c.name_masked}</td>
+                      <td>{c.business_line}</td>
+                      <td>{c.loan_balance_cny_yi}</td>
+                      <td>{c.other_bank_loans_cny_yi}</td>
+                      <td>{c.overseas_business?.length ? c.overseas_business.join("、") : "—"}</td>
+                      <td>
+                        <details>
+                          <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
+                          <div style={{ marginTop: 6, fontSize: 12 }}>
+                            <p>{c.impact.impact_content}</p>
+                            <p>金钱损失 <b>{c.impact.money_loss}</b> · 业务机会 <b>{c.impact.business_opportunity}</b> · 声誉损失 <b>{c.impact.reputation_loss}</b></p>
+                            <p>{c.impact.outcome}</p>
+                          </div>
+                        </details>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="divider" />
+            <div className="field">
+              <small>可能产生的收益或损失</small>
+              <p className="textblock">{consumerView.benefit_loss}</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="panel full source-panel">
         <div className="panelhead"><h2>政策原文</h2>{role !== "consumer" && <Link href={`/documents/${policy.document_id}`} className="link">打开原文库记录 →</Link>}</div>

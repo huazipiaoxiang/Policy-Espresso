@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DEFAULT_SUBSCRIPTIONS,
   MARKET_OPTIONS,
@@ -11,14 +12,20 @@ import {
 } from "@/lib/subscriptions";
 
 export default function SubscriptionsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [onboarding, setOnboarding] = useState(false);
   const [preferences, setPreferences] = useState<SubscriptionPreferences>(DEFAULT_SUBSCRIPTIONS);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
+    // 首次引导状态优先从 localStorage 读取（避免 useSearchParams 在 SSR/hydration 时为空导致引导失效）
+    const flag = window.localStorage.getItem("horizon-onboarding") === "1" || searchParams.get("onboarding") === "1";
+    setOnboarding(flag);
     setPreferences(loadSubscriptions());
     setReady(true);
-  }, []);
+  }, [searchParams]);
 
   const selectedTopics = preferences.topics;
   const selectedMarkets = preferences.markets;
@@ -33,8 +40,25 @@ export default function SubscriptionsPage() {
     }));
   }
 
-  function save() {
+  async function save() {
     saveSubscriptions(preferences);
+    if (onboarding) {
+      // 首次引导：标记已完成，进入「为你推荐」
+      const username = window.localStorage.getItem("horizon-username") || "";
+      try {
+        const resp = await fetch("/api/proxy/auth/onboard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password: "" }),
+        });
+        if (!resp.ok) throw new Error("onboard failed");
+        window.localStorage.removeItem("horizon-onboarding");
+      } catch {
+        // 标记失败不阻塞进入首页
+      }
+      router.replace("/for-you");
+      return;
+    }
     setNotice("偏好已保存，“为你推荐”将按这些主题和市场匹配已发布政策。");
   }
 
@@ -42,9 +66,9 @@ export default function SubscriptionsPage() {
     <div className="content">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">MY SUBSCRIPTIONS</div>
-          <h1>我的订阅</h1>
-          <p className="sub">管理个人关注主题和政策通知偏好</p>
+          <div className="eyebrow">{onboarding ? "WELCOME" : "MY SUBSCRIPTIONS"}</div>
+          <h1>{onboarding ? "选择你关注的主题" : "我的订阅"}</h1>
+          <p className="sub">{onboarding ? "首次使用，先选择你关注的主题" : "管理个人关注主题和政策通知偏好"}</p>
         </div>
       </div>
 
@@ -119,8 +143,8 @@ export default function SubscriptionsPage() {
               </div>
             </div>
 
-            <div className="note-line">偏好只保存在当前浏览器。点击保存后，“为你推荐”会使用已保存的主题和市场。</div>
-            <div style={{ marginTop: 16 }}><button className="btn primary" onClick={save} disabled={!ready}>保存偏好设置</button></div>
+            <div className="note-line">{onboarding ? "选择你关注的主题，“为你推荐”将据此为你匹配已发布政策。" : "偏好只保存在当前浏览器。点击保存后，“为你推荐”会使用已保存的主题和市场。"}</div>
+            <div style={{ marginTop: 16 }}><button className="btn primary" onClick={save} disabled={!ready}>{onboarding ? "完成并进入为你推荐" : "保存偏好设置"}</button></div>
           </div>
         </div>
       </div>

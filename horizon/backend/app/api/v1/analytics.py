@@ -13,7 +13,7 @@ from app.db.session import get_db
 
 router = APIRouter(
     prefix="/analytics", tags=["analytics"],
-    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "analyst", "approver", "publisher"))],
+    dependencies=[Depends(require_api_key), Depends(require_roles("admin", "processor"))],
 )
 
 TZ_HK = ZoneInfo("Asia/Hong_Kong")

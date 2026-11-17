@@ -65,18 +65,11 @@ export default function RadarPage() {
   const metrics = [
     { label: "全部政策", value: counts.all, note: "与政策库全部记录一致", href: "/policies" },
     role === "admin"
-      ? { label: "待审核", value: counts.pending, note: "等待一级或二级处理", href: "/policies?view=pending_review" }
-      : {
-          label: "待审核",
-          value: tasks.length,
-          note: role === "analyst" ? "等待一级审核处理" : role === "approver" ? "等待二级审核处理（P0/P1 一级通过后生成）" : "等待发布处理",
-          href: role === "publisher" ? "/publications" : "/policies?view=pending_review",
-        },
-    ...(role !== "approver"
-      ? [{ label: "未发布", value: counts.unpublished, note: "已分析未发布 / 待审核 / 待发布", href: "/policies?view=unpublished" }]
-      : []),
+      ? { label: "待审核", value: counts.pending, note: "等待审核处理", href: "/policies?view=pending_review" }
+      : { label: "待审核", value: tasks.length, note: "我的待办审核任务", href: "/policies?view=pending_review" },
+    { label: "未发布", value: counts.unpublished, note: "已分析未发布 / 待审核 / 待发布", href: "/policies?view=unpublished" },
     { label: "高优先级", value: counts.highPriority, note: "P0 / P1 政策", href: "/policies?view=high_priority" },
-    { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: role === "publisher" ? "/publications?view=today" : "/policies?view=today_published" },
+    { label: "今日已发布", value: counts.todayPublished, note: "按官网发布日期统计", href: role === "processor" ? "/publications?view=today" : "/policies?view=today_published" },
   ];
   const relevance = [
     { label: "高相关", value: counts.high, color: "green" }, { label: "中相关", value: counts.medium, color: "green" },
@@ -84,7 +77,7 @@ export default function RadarPage() {
   ];
   const maxRelevance = Math.max(1, ...relevance.map((item) => item.value));
 
-  const relevancePanel = role === "analyst" ? null : (
+  const relevancePanel = (
     <section className="panel"><div className="panelhead"><h2>相关性筛选概览</h2></div><div className="panelbody">
       {relevance.map((item) => <div className="barrow" key={item.label}><span>{item.label}</span><div className="track"><div className={`fill ${item.color}`} style={{ width: `${item.value / maxRelevance * 100}%` }} /></div><strong>{item.value}</strong></div>)}
       <div className="divider" /><p className="sub">分类数量直接来自政策库的相关性字段，不使用演示数字。</p>
@@ -97,10 +90,10 @@ export default function RadarPage() {
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}</div>}
       <div className="grid4">{metrics.map((metric) => <Link href={metric.href} className="metric" key={metric.label} style={{ textDecoration: "none", color: "inherit" }}><small>{metric.label}</small><b>{metric.value}</b><span>{metric.note}</span></Link>)}</div>
 
-      <div className={role === "analyst" ? "" : "twocol"} style={{ marginTop: 18 }}>
-        <section className={`panel${role === "analyst" ? " full" : ""}`}><div className="panelhead"><h2>{role === "publisher" ? "审核任务概览" : "我的审核任务"}</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
-          {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">{role === "approver" ? "当前没有待处理的二级审核任务（P0/P1 政策一级通过后生成）" : "当前没有待办审核任务"}</p> : tasks.slice(0, 5).map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
-          <Link href={role === "publisher" ? "/publications" : "/policies?view=pending_review"} className="btn" style={{ marginTop: 12 }}>{role === "publisher" ? "进入发布中心 →" : "进入待审核政策 →"}</Link>
+      <div className="twocol" style={{ marginTop: 18 }}>
+        <section className="panel"><div className="panelhead"><h2>审核任务概览</h2><small>{tasks.length} 条待办</small></div><div className="panelbody">
+          {loading ? <p className="sub">加载中…</p> : tasks.length === 0 ? <p className="sub">当前没有待办审核任务</p> : tasks.slice(0, 5).map((task, index) => <div className="task" key={task.id}><div className="number">{String(index + 1).padStart(2, "0")}</div><div className="taskinfo"><strong>{task.policy_title}</strong><small>{task.level} 级审核 · {task.status} · {task.priority}</small></div><Link href={`/policies/${task.policy_id}`} className="link">查看 →</Link></div>)}
+          <Link href="/policies?view=pending_review" className="btn" style={{ marginTop: 12 }}>进入待审核政策 →</Link>
         </div></section>
         {relevancePanel}
       </div>

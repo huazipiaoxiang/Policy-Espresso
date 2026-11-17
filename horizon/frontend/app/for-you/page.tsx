@@ -29,6 +29,13 @@ interface Policy {
   score_total: number;
   impacted_domains: string[];
   foreign_bank_differential: boolean;
+  impact_dimensions?: {
+    money_loss: number;
+    business_opportunity: number;
+    reputation_loss: number;
+    impact_total: number;
+    affected_customer_count: number;
+  };
 }
 
 function dateLabel(value: string | null | undefined) {
@@ -55,6 +62,10 @@ export default function ForYouPage() {
   const [digestCount, setDigestCount] = useState(0);
   const [digestModel, setDigestModel] = useState("");
   const [digestLoading, setDigestLoading] = useState(false);
+
+  // 政策列表筛选与排序
+  const [directionFilter, setDirectionFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"impact" | "date">("impact");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -117,20 +128,28 @@ export default function ForYouPage() {
   }, [hkToday]);
   const weekly = useMemo(() => matched.filter((policy) => inRange(policy, weekAgo)), [matched, inRange, weekAgo]);
   const monthly = useMemo(() => matched.filter((policy) => inRange(policy, monthlyStart)), [matched, inRange, monthlyStart]);
-  // 本月表格：按系统发布时间倒序
+  // 本月表格：按影响程度从高到低排序
   const monthSorted = useMemo(
-    () => [...monthly].sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || "")),
+    () => [...monthly].sort((a, b) => (b.impact_dimensions?.impact_total ?? 0) - (a.impact_dimensions?.impact_total ?? 0)),
     [monthly],
   );
 
   // AI 聚合：按当前周期把匹配政策交给后端 LLM 生成速览
   const periodList = digestTab === "week" ? weekly : monthly;
   const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
-  // 周期表格（本周/本月共用）：按系统发布时间倒序
-  const periodSorted = useMemo(
-    () => [...periodList].sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || "")),
-    [periodList],
-  );
+  // 周期表格（本周/本月共用）：先按影响方向筛选，再按排序方式排序
+  const periodSorted = useMemo(() => {
+    const filtered = directionFilter
+      ? periodList.filter((p) => (p.direction || "neutral") === directionFilter)
+      : periodList;
+    const sorted = [...filtered];
+    if (sortBy === "impact") {
+      sorted.sort((a, b) => (b.impact_dimensions?.impact_total ?? 0) - (a.impact_dimensions?.impact_total ?? 0));
+    } else {
+      sorted.sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || ""));
+    }
+    return sorted;
+  }, [periodList, directionFilter, sortBy]);
   useEffect(() => {
     if (!periodList.length) {
       setDigestMd("");
@@ -222,7 +241,7 @@ export default function ForYouPage() {
         </div>
         {loading ? (
           <div className="ai-digest-body"><p className="ai-digest-placeholder">正在加载本期相关政策…</p></div>
-        ) : periodSorted.length === 0 ? (
+        ) : periodList.length === 0 ? (
           <div className="ai-digest-body"><p className="ai-digest-placeholder">该周期内没有与你订阅偏好匹配的新发布政策，切换周期或调整订阅后再试。</p></div>
         ) : (
           <>
@@ -234,6 +253,25 @@ export default function ForYouPage() {
                 <div className="inside">{digestMd}</div>
               </details>
             ) : null}
+            <div className="rowflex" style={{ margin: "12px 0", gap: 12, flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                <span>影响方向</span>
+                <select className="filter" value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value)}>
+                  <option value="">全部</option>
+                  <option value="positive">利好</option>
+                  <option value="negative">利空</option>
+                  <option value="mixed">利弊并存</option>
+                  <option value="neutral">中性</option>
+                </select>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                <span>排序</span>
+                <select className="filter" value={sortBy} onChange={(e) => setSortBy(e.target.value as "impact" | "date")}>
+                  <option value="impact">按影响程度</option>
+                  <option value="date">按发布日期</option>
+                </select>
+              </label>
+            </div>
             <div className="ai-digest-table tablewrap">
               <table>
                 <thead>
@@ -242,14 +280,16 @@ export default function ForYouPage() {
                     <th>市场</th>
                     <th>相关主题</th>
                     <th>影响方向</th>
-                    <th>优先级 · 影响分</th>
-                    <th>受影响业务线</th>
+                    <th>影响维度评分</th>
+                    <th>受影响的其他业务线</th>
                     <th>发布日期</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {periodSorted.map((policy) => {
+                  {periodSorted.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>没有符合当前筛选条件的政策</td></tr>
+                  ) : periodSorted.map((policy) => {
                     const topics = [...new Set(policy.themes.map(normalizeTheme))].filter(Boolean);
                     const dispatched = policy.dispatched_at || policy.published_at;
                     return (
@@ -278,12 +318,13 @@ export default function ForYouPage() {
                           </span>
                         </td>
                         <td style={{ whiteSpace: "nowrap" }}>
-                          <span
-                            className="policytitle"
-                            style={{ color: ["P0", "P1"].includes(policy.priority) ? "var(--red)" : "inherit" }}
-                          >
-                            {policy.priority} · {policy.score_total > 0 ? policy.score_total.toFixed(0) : "—"} 分
-                          </span>
+                          {policy.impact_dimensions ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
+                              <span>金钱损失 <b>{policy.impact_dimensions.money_loss}</b></span>
+                              <span>业务机会 <b>{policy.impact_dimensions.business_opportunity}</b></span>
+                              <span>声誉损失 <b>{policy.impact_dimensions.reputation_loss}</b></span>
+                            </div>
+                          ) : "—"}
                         </td>
                         <td>
                           <div className="rowflex">

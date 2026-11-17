@@ -11,7 +11,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo01",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.1,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0002",
@@ -25,7 +28,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo02",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0003",
@@ -39,7 +47,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo03",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0004",
@@ -53,7 +67,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo04",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.5,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0005",
@@ -67,7 +84,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo05",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.6,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0006",
@@ -81,7 +103,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo06",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.7,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0007",
@@ -95,7 +123,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo07",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.8,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0008",
@@ -109,7 +140,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo08",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0009",
@@ -123,7 +159,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo09",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.3,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0010",
@@ -137,7 +179,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo10",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0011",
@@ -151,7 +196,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo11",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.5,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0012",
@@ -165,7 +215,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo12",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.6,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0013",
@@ -179,7 +235,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo01",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.8,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0014",
@@ -193,7 +252,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo02",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.9,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0015",
@@ -207,7 +271,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo03",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0016",
@@ -221,7 +291,10 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo04",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.3,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0017",
@@ -235,7 +308,12 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo05",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0018",
@@ -249,7 +327,13 @@
       "跨境结算"
     ],
     "relationship_manager": "rm.demo06",
-    "subsidy_eligible": true
+    "subsidy_eligible": true,
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.5,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0019",
@@ -262,7 +346,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 5.5,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0020",
@@ -275,7 +362,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0021",
@@ -288,7 +380,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 3.4,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0022",
@@ -301,7 +399,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.7,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0023",
@@ -314,7 +415,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.1,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0024",
@@ -327,7 +433,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 3.9,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0025",
@@ -340,7 +452,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 6.4,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0026",
@@ -353,7 +468,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.9,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0027",
@@ -366,7 +486,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 4.3,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0028",
@@ -379,7 +505,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.6,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0029",
@@ -392,7 +521,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.7,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0030",
@@ -405,7 +539,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 2.2,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0031",
@@ -418,7 +558,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0032",
@@ -431,7 +574,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 1.5,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0033",
@@ -444,7 +592,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 5.6,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0034",
@@ -457,7 +611,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 5.6,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0035",
@@ -470,7 +627,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 2.8,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0036",
@@ -483,7 +645,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.7,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0037",
@@ -496,7 +664,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 3.5,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0038",
@@ -509,7 +680,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0039",
@@ -522,7 +698,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 5.8,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0040",
@@ -535,7 +717,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 6.0,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0041",
@@ -548,7 +733,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.6,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0042",
@@ -561,7 +751,13 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.9,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-CMB-0043",
@@ -574,7 +770,10 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.7,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-CMB-0044",
@@ -587,7 +786,12 @@
       "贸易融资",
       "现金管理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 1.5,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0045",
@@ -600,7 +804,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 2.0,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0046",
@@ -613,7 +825,10 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.5,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GBM-0047",
@@ -626,7 +841,12 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 21.9,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0048",
@@ -639,7 +859,13 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 18.3,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0049",
@@ -652,7 +878,14 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 27.7,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0050",
@@ -665,7 +898,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 6.3,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0051",
@@ -678,7 +919,10 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 7.0,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GBM-0052",
@@ -691,7 +935,12 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 16.6,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0053",
@@ -704,7 +953,13 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 8.3,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0054",
@@ -717,7 +972,14 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 14.3,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0055",
@@ -730,7 +992,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 24.9,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0056",
@@ -743,7 +1013,10 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 21.6,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GBM-0057",
@@ -756,7 +1029,12 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 7.4,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0058",
@@ -769,7 +1047,13 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 7.6,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0059",
@@ -782,7 +1066,14 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 12.2,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0060",
@@ -795,7 +1086,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.4,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0061",
@@ -808,7 +1107,10 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 6.2,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GBM-0062",
@@ -821,7 +1123,12 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 9.1,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0063",
@@ -834,7 +1141,13 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 3.2,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0064",
@@ -847,7 +1160,14 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.2,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0065",
@@ -860,7 +1180,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 1.5,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0066",
@@ -873,7 +1201,10 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 5.0,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GBM-0067",
@@ -886,7 +1217,12 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 13.7,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0068",
@@ -899,7 +1235,13 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 9.7,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0069",
@@ -912,7 +1254,14 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 11.3,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GBM-0070",
@@ -925,7 +1274,15 @@
       "银团贷款",
       "债券承销"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 7.6,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境资金池",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0071",
@@ -938,7 +1295,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.8,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0072",
@@ -951,7 +1314,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 4.0,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0073",
@@ -964,7 +1334,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 3.7,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0074",
@@ -977,7 +1350,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 4.4,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0075",
@@ -990,7 +1368,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.6,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0076",
@@ -1003,7 +1387,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 7.4,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0077",
@@ -1016,7 +1407,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 2.0,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0078",
@@ -1029,7 +1423,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.1,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0079",
@@ -1042,7 +1441,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 4.2,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0080",
@@ -1055,7 +1460,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.7,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0081",
@@ -1068,7 +1480,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 4.1,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0082",
@@ -1081,7 +1496,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 5.9,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0083",
@@ -1094,7 +1514,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 8.4,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0084",
@@ -1107,7 +1533,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 8.9,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0085",
@@ -1120,7 +1553,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.7,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0086",
@@ -1133,7 +1569,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0087",
@@ -1146,7 +1587,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.9,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0088",
@@ -1159,7 +1606,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.0,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0089",
@@ -1172,7 +1626,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 2.0,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0090",
@@ -1185,7 +1642,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 9.5,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0091",
@@ -1198,7 +1660,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 10.1,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0092",
@@ -1211,7 +1679,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.9,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0093",
@@ -1224,7 +1699,10 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 2.8,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-WPB-0094",
@@ -1237,7 +1715,12 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.3,
+    "overseas_business": [
+      "海外收并购"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0095",
@@ -1250,7 +1733,13 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 6.5,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-WPB-0096",
@@ -1263,7 +1752,14 @@
       "跨境理财通",
       "按揭"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 4.0,
+    "overseas_business": [
+      "海外收并购",
+      "外汇对冲",
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0097",
@@ -1276,7 +1772,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.8,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0098",
@@ -1289,7 +1788,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.0,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0099",
@@ -1302,7 +1806,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.6,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0100",
@@ -1315,7 +1825,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 1.2,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0101",
@@ -1328,7 +1845,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.4,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0102",
@@ -1341,7 +1861,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 6.4,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0103",
@@ -1354,7 +1879,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 3.5,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0104",
@@ -1367,7 +1898,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 2.3,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0105",
@@ -1380,7 +1918,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 11.4,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0106",
@@ -1393,7 +1934,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 1.5,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0107",
@@ -1406,7 +1952,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0108",
@@ -1419,7 +1971,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0109",
@@ -1432,7 +1991,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 0.9,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0110",
@@ -1445,7 +2007,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 5.4,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0111",
@@ -1458,7 +2025,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo03"
+    "relationship_manager": "rm.demo03",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 8.0,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0112",
@@ -1471,7 +2044,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo04"
+    "relationship_manager": "rm.demo04",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 4.9,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0113",
@@ -1484,7 +2064,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo05"
+    "relationship_manager": "rm.demo05",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.2,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0114",
@@ -1497,7 +2080,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo06"
+    "relationship_manager": "rm.demo06",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 1.7,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0115",
@@ -1510,7 +2098,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo07"
+    "relationship_manager": "rm.demo07",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 5.7,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0116",
@@ -1523,7 +2117,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo08"
+    "relationship_manager": "rm.demo08",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.8,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0117",
@@ -1536,7 +2137,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo09"
+    "relationship_manager": "rm.demo09",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 8.3,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0118",
@@ -1549,7 +2153,12 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo10"
+    "relationship_manager": "rm.demo10",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 8.6,
+    "overseas_business": [
+      "跨境支付"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0119",
@@ -1562,7 +2171,13 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo11"
+    "relationship_manager": "rm.demo11",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 0.4,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0120",
@@ -1575,7 +2190,14 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo12"
+    "relationship_manager": "rm.demo12",
+    "other_bank_count": 3,
+    "other_bank_loans_cny_yi": 2.1,
+    "overseas_business": [
+      "跨境支付",
+      "跨境资金池",
+      "外汇对冲"
+    ]
   },
   {
     "customer_id": "SYN-GTB-0121",
@@ -1588,7 +2210,10 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo01"
+    "relationship_manager": "rm.demo01",
+    "other_bank_count": 1,
+    "other_bank_loans_cny_yi": 2.9,
+    "overseas_business": []
   },
   {
     "customer_id": "SYN-GTB-0122",
@@ -1601,6 +2226,11 @@
       "信用证",
       "保理"
     ],
-    "relationship_manager": "rm.demo02"
+    "relationship_manager": "rm.demo02",
+    "other_bank_count": 2,
+    "other_bank_loans_cny_yi": 3.1,
+    "overseas_business": [
+      "跨境支付"
+    ]
   }
 ]

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import (
-    alerts, analytics, audit, business_map, cases, chat, documents, health, internal, jobs, policies, review, settings, sources, stream, studio,
+    alerts, analytics, audit, auth, business_map, cases, chat, documents, health, internal, jobs, policies, review, settings, sources, stream, studio,
 )
 from app.core.config import get_settings
 from app.core.errors import ApiError, api_error_handler, unhandled_exception_handler
@@ -40,6 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(sources.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")

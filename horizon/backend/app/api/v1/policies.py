@@ -15,6 +15,7 @@ from app.core.security import get_demo_role, require_api_key, require_roles
 from app.db.models import Alert, Assessment, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
+from app.domain.consumer_impact import compute_consumer_impact, compute_customer_impact
 from app.domain.policy_admin import delete_policy
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
@@ -125,6 +126,7 @@ def _policy_view(db: Session, policy: Policy) -> dict:
         "impacted_domains": (assessment.affected.get("business_lines", []) if assessment else []),
         "dispatched_at": (dispatched_at.isoformat() if dispatched_at else None),
         "direction": (assessment.direction if assessment else None),
+        "impact_dimensions": compute_consumer_impact(assessment.direction if assessment else None),
     }
 
 
@@ -292,6 +294,51 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     }
 
 
+@router.get("/{policy_id}/consumer-view")
+def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str = Depends(require_roles("consumer"))):
+    """政策使用者视角的政策解读：简化版、影响概述、受影响客户、收益/损失。"""
+    from app.domain.exposure import load_customers
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy_id)).first()
+    direction = assessment.direction if assessment else None
+
+    customers = load_customers()
+    sorted_customers = sorted(customers, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
+    affected = [
+        {
+            "customer_id": c["customer_id"],
+            "name_masked": c["name_masked"],
+            "business_line": c["business_line"],
+            "segment": c.get("segment", ""),
+            "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
+            "other_bank_loans_cny_yi": c.get("other_bank_loans_cny_yi", 0),
+            "overseas_business": c.get("overseas_business", []),
+            "impact": compute_customer_impact(c, direction),
+        }
+        for c in sorted_customers[:30]
+    ]
+
+    dimensions = compute_consumer_impact(direction)
+    direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(direction, "中性")
+
+    impact_overview = (
+        f"该政策整体呈{direction_label}方向，影响客户经理所管理客户合计 {len(customers)} 户；"
+        f"金钱损失维度 {dimensions['money_loss']} 分、业务机会维度 {dimensions['business_opportunity']} 分、"
+        f"声誉损失维度 {dimensions['reputation_loss']} 分。"
+    )
+
+    return {
+        "simplified_summary": policy.summary_zh or "尚未生成摘要",
+        "impact_overview": impact_overview,
+        "dimensions": dimensions,
+        "benefit_loss": f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。",
+        "affected_customers": affected,
+    }
+
+
 @router.get("/{policy_id}/analysis")
 def policy_analysis(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
     """AI 分析过程拆解：把五步链路（分类→抽取→适用性→影响→预警）的结论与 LLM 调用明细按步骤返回。
@@ -428,7 +475,7 @@ def dispatch_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    _: str = Depends(require_roles("publisher")),
+    _: str = Depends(require_roles("processor")),
 ):
     """人工分发：仅 AI 不明确转入人审并 approved 的政策走此路径（免审核直发已在分析阶段完成）。"""
     from app.domain import review as review_domain
@@ -492,7 +539,7 @@ def generate_feedback_report(
     policy_id: str,
     body: ReportBody,
     db: Session = Depends(get_db),
-    _: str = Depends(require_roles("analyst", "approver", "publisher", "admin")),
+    _: str = Depends(require_roles("processor", "admin")),
 ):
     """审核员为某条反馈生成分析报告（结合公司内部政策）。"""
     from app.ai.chains.feedback_report import FeedbackReportChain
@@ -538,7 +585,7 @@ def restore_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    _: str = Depends(require_roles("admin", "analyst")),
+    _: str = Depends(require_roles("admin", "processor")),
 ):
     policy = db.get(Policy, policy_id)
     if not policy:

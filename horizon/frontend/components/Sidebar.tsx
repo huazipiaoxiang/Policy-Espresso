@@ -14,7 +14,7 @@ export default function Sidebar({ role }: { role: DemoRole }) {
         <div className="mark">✦</div>
         <div>
           <strong>Policy Espresso</strong>
-          <small>监管政策智能分析平台</small>
+          <small>政策智能分析平台</small>
         </div>
       </div>
       <div style={{ fontSize: "10px", color: "#9ca1a9", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", margin: "0 10px -18px" }}>

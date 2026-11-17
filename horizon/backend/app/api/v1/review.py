@@ -52,17 +52,13 @@ def _task_view(task: ReviewTask, policy: Policy | None) -> dict:
 def list_review_tasks(
     status: str | None = None,
     db: Session = Depends(get_db),
-    role: str = Depends(require_roles("analyst", "approver", "publisher")),
+    role: str = Depends(require_roles("processor")),
 ):
     stmt = select(ReviewTask).order_by(ReviewTask.sla_due_at.asc().nullslast())
     if status:
         stmt = stmt.where(ReviewTask.status == status)
     else:
         stmt = stmt.where(ReviewTask.status.in_(["pending", "claimed"]))
-    if role == "analyst":
-        stmt = stmt.where(ReviewTask.level == 1)
-    elif role == "approver":
-        stmt = stmt.where(ReviewTask.level == 2)
     tasks = db.scalars(stmt).all()
     return {"items": [_task_view(t, db.get(Policy, t.policy_id)) for t in tasks]}
 
@@ -71,13 +67,11 @@ def list_review_tasks(
 def get_review_task(
     task_id: str,
     db: Session = Depends(get_db),
-    role: str = Depends(require_roles("analyst", "approver", "publisher")),
+    role: str = Depends(require_roles("processor")),
 ):
     task = db.get(ReviewTask, task_id)
     if not task:
         raise not_found("审核任务", task_id)
-    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
-        raise ApiError("FORBIDDEN", "当前角色不能查看该级别的审核任务", 403)
     policy = db.get(Policy, task.policy_id)
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == task.policy_id)).first()
     evidence_count = db.query(Evidence).filter(Evidence.policy_id == task.policy_id).count()
@@ -129,7 +123,7 @@ def submit_review(
     body: SubmitBody,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    role: str = Depends(require_roles("analyst", "admin")),
+    role: str = Depends(require_roles("processor", "admin")),
 ):
     if body.level != 1:
         raise ApiError("FORBIDDEN", "初级审核员只能提交一级审核任务", 403)
@@ -144,13 +138,11 @@ def claim_task(
     task_id: str,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    role: str = Depends(require_roles("analyst", "approver")),
+    role: str = Depends(require_roles("processor")),
 ):
     task = db.get(ReviewTask, task_id)
     if not task:
         raise not_found("审核任务", task_id)
-    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
-        raise ApiError("FORBIDDEN", "当前角色不能领取该级别的审核任务", 403)
     task = review_domain.claim_task(db, task_id, actor=actor)
     return {"task_id": task.id, "status": task.status, "assignee": task.assignee}
 
@@ -161,13 +153,11 @@ def decide(
     body: DecisionBody,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    role: str = Depends(require_roles("analyst", "approver")),
+    role: str = Depends(require_roles("processor")),
 ):
     task = db.get(ReviewTask, task_id)
     if not task:
         raise not_found("审核任务", task_id)
-    if (role == "analyst" and task.level != 1) or (role == "approver" and task.level != 2):
-        raise ApiError("FORBIDDEN", "当前角色不能处理该级别的审核任务", 403)
     return review_domain.decide(
         db, task_id, actor=actor, action=body.action,
         reason_code=body.reason_code, note=body.note, field_diffs=body.field_diffs,
@@ -179,6 +169,6 @@ def batch_decide(
     body: BatchBody,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    role: str = Depends(require_roles("analyst")),
+    role: str = Depends(require_roles("processor")),
 ):
     return review_domain.batch_decide(db, body.task_ids, actor=actor, action=body.action)

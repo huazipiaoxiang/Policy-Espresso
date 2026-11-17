@@ -83,6 +83,7 @@ class PolicyOut(BaseModel):
     impacted_domains: list[str] = Field(default_factory=list)
     dispatched_at: datetime | None = None  # 系统内最近一次发布动作时间（区分于官方发布日期）
     direction: str | None = None  # 影响方向（positive/negative/mixed/neutral，来自最新影响分析）
+    impact_dimensions: dict[str, Any] | None = None  # 政策使用者视角影响维度评分（金钱损失/业务机会/声誉损失）
 
     model_config = {"from_attributes": True}
 

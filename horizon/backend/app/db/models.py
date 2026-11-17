@@ -377,3 +377,16 @@ class LLMCallLog(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     policy_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class User(Base):
+    """登录用户（用户名 + 密码 + 角色）。MVP 用 sha256 散列存密码，生产应替换为 OIDC。"""
+
+    __tablename__ = "user"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("u"))
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(128))
+    role: Mapped[str] = mapped_column(String(16))  # admin / consumer / processor
+    onboarded: Mapped[bool] = mapped_column(Boolean, default=False)  # 政策使用者是否已完成首次主题引导
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)

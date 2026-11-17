@@ -70,10 +70,7 @@ export default function ReviewPanel({
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const targetLevel = role === "analyst" ? 1 : role === "approver" ? 2 : null;
-  const actionableTask = targetLevel
-    ? reviewTasks.find((task) => task.level === targetLevel && (task.status === "pending" || task.status === "claimed"))
-    : undefined;
+  const actionableTask = reviewTasks.find((task) => task.status === "pending" || task.status === "claimed");
 
   const loadDetail = useCallback(async () => {
     if (!actionableTask) {
@@ -116,7 +113,7 @@ export default function ReviewPanel({
   const requestInfo = () => decide("request_info", { note: note || "需补充材料" });
   const reject = () => decide("reject", { reason_code: reasonCode, note });
 
-  const canAct = (role === "analyst" || role === "approver") && actionableTask;
+  const canAct = role === "processor" && Boolean(actionableTask);
 
   return (
     <section className="panel full">
@@ -149,8 +146,6 @@ export default function ReviewPanel({
             </span>
             {toast && <span style={{ width: "100%", fontSize: 12, color: "var(--green)" }}>{toast}</span>}
           </div>
-        ) : role === "publisher" ? (
-          <p className="textblock">发布者可查看审核依据，但不能代替审核员作决定。</p>
         ) : null}
 
         {rejectOpen && canAct && (

@@ -31,7 +31,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     if (role && (isLogin || pathname === "/")) {
-      router.replace(ROLE_CONFIG[role].home);
+      // 登录/注册后：优先按 login 页写入的目标跳转（如首次引导），否则回落到角色首页
+      const pending = window.localStorage.getItem("horizon-pending-redirect");
+      window.localStorage.removeItem("horizon-pending-redirect");
+      router.replace(pending || ROLE_CONFIG[role].home);
       return;
     }
     if (role && !canAccess(role, pathname)) {

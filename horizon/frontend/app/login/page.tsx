@@ -1,16 +1,53 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { DEMO_ROLES, ROLE_CONFIG, DemoRole } from "@/lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login } = useAuth();
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<DemoRole>("consumer");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const chooseRole = (role: DemoRole) => {
-    login(role);
-    router.replace(ROLE_CONFIG[role].home);
+  const submit = async () => {
+    if (!username.trim() || !password) {
+      setError("请输入用户名和密码");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const payload: Record<string, string> = { username: username.trim(), password };
+      if (mode === "register") payload.role = role;
+      const resp = await fetch(`/api/proxy/auth/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await resp.json();
+      if (!resp.ok) throw new Error(body?.error?.message || "操作失败");
+      // 登录/注册成功：以返回（或所选）角色进入系统
+      const finalRole = (body.role || role) as DemoRole;
+      window.localStorage.setItem("horizon-username", body.username || username.trim());
+      // 政策使用者首次登录：先引导选择关注主题；跳转目标交给 AppShell 统一执行，避免与 /login 重定向竞态
+      const isFirstConsumer = finalRole === "consumer" && body.onboarded === false;
+      if (isFirstConsumer) {
+        window.localStorage.setItem("horizon-onboarding", "1");
+      } else {
+        window.localStorage.removeItem("horizon-onboarding");
+      }
+      const target = isFirstConsumer ? "/subscriptions" : ROLE_CONFIG[finalRole].home;
+      window.localStorage.setItem("horizon-pending-redirect", target);
+      login(finalRole);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "操作失败");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -18,33 +55,68 @@ export default function LoginPage() {
       <section style={{ width: "min(980px, 100%)" }}>
         <div style={{ textAlign: "center", marginBottom: 30 }}>
           <div className="eyebrow">POLICY ESPRESSO</div>
-          <h1 style={{ margin: "8px 0 10px", fontSize: 32 }}>监管政策智能分析平台</h1>
-          <p className="sub">选择演示角色，一键进入对应工作空间</p>
+          <h1 style={{ margin: "8px 0 10px", fontSize: 32 }}>政策智能分析平台</h1>
+          <p className="sub">登录进入对应工作空间</p>
         </div>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          gap: 14,
-        }}>
-          {DEMO_ROLES.map((role) => {
-            const config = ROLE_CONFIG[role];
-            return (
-              <button
-                key={role}
-                className="panel login-card"
-                onClick={() => chooseRole(role)}
-              >
-                <div className="avatar" style={{ marginBottom: 16 }}>{config.avatar}</div>
-                <strong style={{ display: "block", fontSize: 17, marginBottom: 8 }}>{config.label}</strong>
-                <span className="login-desc">
-                  {config.description}
-                </span>
-                <span className="login-cta">
-                  以此角色登录 →
-                </span>
-              </button>
-            );
-          })}
+
+        <div className="panel" style={{ maxWidth: 420, margin: "0 auto", padding: 24 }}>
+          <div className="tabs" style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className={`tab${mode === "login" ? " active" : ""}`}
+              onClick={() => { setMode("login"); setError(""); }}
+            >
+              登录
+            </button>
+            <button
+              type="button"
+              className={`tab${mode === "register" ? " active" : ""}`}
+              onClick={() => { setMode("register"); setError(""); }}
+            >
+              注册
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <small>用户名</small>
+              <input
+                className="search"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="请输入用户名"
+                autoComplete="username"
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <small>密码</small>
+              <input
+                className="search"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+            </label>
+            {mode === "register" && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <small>用户角色</small>
+                <select
+                  className="filter"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as DemoRole)}
+                >
+                  {DEMO_ROLES.map((r) => (
+                    <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {error && <div className="notice" style={{ margin: 0 }}>{error}</div>}
+            <button className="btn primary" disabled={busy} onClick={submit}>
+              {busy ? "处理中…" : mode === "login" ? "登录" : "注册"}
+            </button>
+          </div>
         </div>
         <p className="login-note">
           演示登录不连接真实 SSO；刷新后保持当前角色，退出后返回本页。
