@@ -1,0 +1,100 @@
+name: Test and deploy ECS
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: horizon/backend/pyproject.toml
+      - run: pip install -e './horizon/backend[dev]'
+      - run: python -m pytest -q
+        working-directory: horizon/backend
+      - run: python -m pytest -q horizon/deploy/tests
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: horizon/frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: horizon/frontend
+      - run: npm run build
+        working-directory: horizon/frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_BASE: /api/v1
+          HORIZON_API_BASE: http://127.0.0.1:8000/api/v1
+      - name: Package source and standalone frontend
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          mkdir -p artifact
+          git archive "$GITHUB_SHA" horizon/backend horizon/seed | tar -x -C artifact --strip-components=1
+          mkdir -p artifact/frontend/.next
+          cp -a horizon/frontend/.next/standalone/. artifact/frontend/
+          cp -a horizon/frontend/.next/static artifact/frontend/.next/
+          if [ -d horizon/frontend/public ]; then cp -a horizon/frontend/public artifact/frontend/; fi
+          tar --dereference -czf release.tgz -C artifact .
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        with:
+          name: ecs-${{ github.sha }}
+          path: release.tgz
+          retention-days: 3
+
+  deploy:
+    needs: [backend, frontend]
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    concurrency:
+      group: ecs-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ecs-${{ github.sha }}
+      - name: Deploy verified artifact
+        shell: bash
+        env:
+          ECS_HOST: ${{ secrets.ECS_HOST }}
+          ECS_DEPLOY_KEY: ${{ secrets.ECS_DEPLOY_KEY }}
+          ECS_KNOWN_HOSTS: ${{ secrets.ECS_KNOWN_HOSTS }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq .object.sha)
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo 'A newer master commit is waiting; skip this deployment.'
+            exit 0
+          fi
+          test -n "$ECS_HOST" && test -n "$ECS_DEPLOY_KEY" && test -n "$ECS_KNOWN_HOSTS"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$ECS_DEPLOY_KEY" > ~/.ssh/ecs_key
+          printf '%s\n' "$ECS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/ecs_key ~/.ssh/known_hosts
+          digest=$(sha256sum release.tgz | cut -d ' ' -f 1)
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+            -i ~/.ssh/ecs_key "horizon-deploy@$ECS_HOST" "deploy $GITHUB_SHA $digest" < release.tgz
+          ssh -T -o BatchMode=yes -o StrictHostKeyChecking=yes -i ~/.ssh/ecs_key \
+            "horizon-deploy@$ECS_HOST" status

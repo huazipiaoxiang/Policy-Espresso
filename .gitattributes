@@ -1,0 +1,3 @@
+.github/workflows/*.yml text eol=lf
+horizon/deploy/*.sh text eol=lf
+horizon/deploy/ecs_release.py text eol=lf

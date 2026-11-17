@@ -19,7 +19,9 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
-    Base.metadata.create_all(bind)
+    # document_chunk belongs to revision 0003, even when current metadata includes it.
+    tables = [table for table in Base.metadata.sorted_tables if table.name != "document_chunk"]
+    Base.metadata.create_all(bind, tables=tables)
 
 
 def downgrade() -> None:
