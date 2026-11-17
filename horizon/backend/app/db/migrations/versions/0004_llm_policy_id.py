@@ -10,7 +10,7 @@ Create Date: 2026-11-14
 - 历史数据（迁移前分析的）policy_id 为空，界面显示为未关联；
 - 仅加 nullable 列 + 索引，SQLite / PG 双兼容。
 """
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 
 revision = "0004_llm_policy_id"
@@ -20,8 +20,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("llm_call_log", sa.Column("policy_id", sa.String(32), nullable=True))
-    op.create_index("ix_llm_call_log_policy_id", "llm_call_log", ["policy_id"])
+    # create_all-based installations may already contain the current model column.
+    inspector = None if context.is_offline_mode() else sa.inspect(op.get_bind())
+    columns = set() if inspector is None else {c["name"] for c in inspector.get_columns("llm_call_log")}
+    indexes = set() if inspector is None else {i["name"] for i in inspector.get_indexes("llm_call_log")}
+    if "policy_id" not in columns:
+        op.add_column("llm_call_log", sa.Column("policy_id", sa.String(32), nullable=True))
+    if "ix_llm_call_log_policy_id" not in indexes:
+        op.create_index("ix_llm_call_log_policy_id", "llm_call_log", ["policy_id"])
 
 
 def downgrade() -> None:
