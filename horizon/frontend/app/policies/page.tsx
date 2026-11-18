@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import NoticeDialog from "@/components/NoticeDialog";
@@ -40,7 +40,7 @@ function dateLabel(value: string | null) {
   return value ? value.slice(0, 10) : "—";
 }
 
-export default function PoliciesPage() {
+function PoliciesContent() {
   const { role } = useAuth();
   const searchParams = useSearchParams();
   const initialView = searchParams.get("view") as TabKey | null;
@@ -298,5 +298,15 @@ export default function PoliciesPage() {
       )}
       {noticeDialog && <NoticeDialog message={noticeDialog} onClose={() => setNoticeDialog(null)} />}
     </div>
+  );
+}
+
+// useSearchParams 必须包在 <Suspense> 边界内，否则生产构建会整页退化为客户端渲染（CSR bailout），
+// 导致上云后 hydration 异常、点击无响应。
+export default function PoliciesPage() {
+  return (
+    <Suspense fallback={<div className="content">加载中…</div>}>
+      <PoliciesContent />
+    </Suspense>
   );
 }
