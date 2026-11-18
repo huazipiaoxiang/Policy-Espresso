@@ -34,7 +34,7 @@ version: impact@v1
   "direction": "positive|negative|mixed|neutral",
   "transmission_chain": ["3-5 步可验证机制"],
   "affected": {
-    "business_lines": ["CMB|GBM|WPB|Markets|GTB|Insurance|PB"],
+    "business_lines": ["CIB|WPB|Markets|GTB|Insurance|PB"],
     "segments": [""],
     "exposure_range": {"low":0,"high":0,"currency":"","unit":"","basis":"计算口径说明","confidence":0.0}
   },

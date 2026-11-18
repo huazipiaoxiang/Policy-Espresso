@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import ScopeChip, { RELEVANCE_LABELS } from "@/components/ScopeChip";
+import { RELEVANCE_LABELS } from "@/components/ScopeChip";
 import ReviewPanel from "@/components/ReviewPanel";
 import AgentTrace from "@/components/AgentTrace";
 import NoticeDialog from "@/components/NoticeDialog";
-import { DIRECTION_LABELS, JURISDICTION_LABELS, POLICY_STATUS_LABELS, SCORE_DIMENSION_LABELS, SCORE_DIMENSION_ORDER, SCORE_DIMENSION_WEIGHTS, analysisModelLabel } from "@/lib/labels";
+import { DIRECTION_LABELS, JURISDICTION_LABELS, POLICY_STATUS_LABELS, analysisModelLabel } from "@/lib/labels";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
 interface ExposureRange {
@@ -86,6 +86,7 @@ export default function PolicyDetailPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [consumerView, setConsumerView] = useState<any>(null);
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -229,13 +230,6 @@ export default function PolicyDetailPage() {
         </div>
       )}
 
-      <div className="status-four">
-        <div><small>相关性筛选</small><span style={{ display: "block", marginTop: 8 }}><ScopeChip status={policy.target_entity_status} /></span></div>
-        <div><small>AI 深度分析</small><span className={`badge ${assessment ? "green" : ""}`}>{assessment ? "已完成" : "未生成"}</span></div>
-        <div><small>人工审核</small><span className={`badge ${["approved", "published"].includes(policy.status) ? "green" : "amber"}`}>{POLICY_STATUS_LABELS[policy.status] || policy.status}</span></div>
-        <div><small>发布日期</small><strong style={{ display: "block", marginTop: 8, fontSize: 12 }}>{dateLabel(policy.published_at)}</strong></div>
-      </div>
-
       <div className="stack">
         <section className="panel">
           <div className="panelhead"><h2>政策信息</h2></div>
@@ -254,10 +248,6 @@ export default function PolicyDetailPage() {
               <div className="divider" />
               <small>AI 政策摘要</small>
               <p className="textblock">{policy.summary_zh || "尚未生成摘要，请核对原文或重新分析。"}</p>
-              <div className="ai-confidence-overview">
-                <div><div className="label">分析可靠程度</div><div className="confidence-inline"><span className="value">{policy.confidence > 0 ? `${Math.round(policy.confidence * 100)}%` : "未评定"}</span></div></div>
-                <p className="explain">该数值来自当前分析结果，仅用于安排人工复核优先级，不替代合规判断。</p>
-              </div>
             </div>
           </section>
 
@@ -266,32 +256,7 @@ export default function PolicyDetailPage() {
             <div className="sectionbody">
               {assessment ? <>
                 <div className="fieldgrid">
-                  <div className="field"><small>影响评分（0–100 加权）</small><strong style={{ color: "var(--red)" }}>{assessment.score_total > 0 ? assessment.score_total.toFixed(1) : "未评定"}</strong></div>
-                  <div className="field"><small>影响方向</small><strong>{DIRECTION_LABELS[assessment.direction] || assessment.direction} <span style={{ fontSize: 10, color: "#8b929c", fontWeight: 400 }}>（单独呈现，不参与加权）</span></strong></div>
-                  <div className="field"><small>影响分析置信度</small><strong>{assessment.confidence > 0 ? `${Math.round(assessment.confidence * 100)}%` : "未评定"}</strong></div>
-                </div>
-                <p className="score-priority-note">综合分 = Σ(维度分 ÷ 5 × 权重)：P0 ≥ 80（当日处理）· P1 60–79（24 小时内）· P2 40–59（本周内）· P3 &lt; 40（归档观察）。每个维度必须给出评分理由；无证据的维度保持“未评定”并说明缺什么。</p>
-                <div className="divider" />
-                <small className="section-label">八维评分卡（0–5 分）</small>
-                <div className="scorecard">
-                  {SCORE_DIMENSION_ORDER.map((dim) => {
-                    const entry = assessment.scores[dim];
-                    const missing = !entry || entry.score == null;
-                    return (
-                      <div className={`scorecard-row${missing ? " missing" : ""}`} key={dim}>
-                        <div className="dim-head">
-                          <span className="dim-name">{SCORE_DIMENSION_LABELS[dim] || dim}</span>
-                          <span className="dim-weight">权重 {SCORE_DIMENSION_WEIGHTS[dim]}</span>
-                          <span className="dim-score">
-                            {missing
-                              ? <span className="badge amber">未评定</span>
-                              : <><strong>{entry?.score ?? "—"}</strong><small>/ 5</small></>}
-                          </span>
-                        </div>
-                        <p className="dim-reason">{entry?.reason || "未提供理由"}</p>
-                      </div>
-                    );
-                  })}
+                  <div className="field"><small>影响方向</small><strong>{DIRECTION_LABELS[assessment.direction] || assessment.direction}</strong></div>
                 </div>
                 <div className="divider" />
                 <small className="section-label">传导路径</small>
@@ -315,53 +280,90 @@ export default function PolicyDetailPage() {
         <section className="panel full">
           <div className="panelhead"><h2>政策解读</h2><small>面向所管理客户的影响</small></div>
           <div className="sectionbody">
+            {/* 页首第一句：本政策有无纳入外资银行 + 对汇丰影响简述 */}
+            <p className="textblock" style={{ fontWeight: 600 }}>{consumerView.foreign_bank_note}</p>
+            <div className="divider" />
+
+            {/* 政策摘要：重点话题（1.2.3 可点击展开三栏解读） */}
+            <small>政策摘要 · 重点话题</small>
+            <ol className="textblock" style={{ paddingLeft: 20 }}>
+              {(consumerView.topics || []).map((t: any, idx: number) => (
+                <li key={t.topic}>
+                  <button
+                    type="button"
+                    className="link"
+                    style={{ padding: 0, textAlign: "left" }}
+                    onClick={() => setActiveTopic(activeTopic === t.topic ? null : t.topic)}
+                  >
+                    {idx + 1}. {t.topic}
+                  </button>
+                  {activeTopic === t.topic && (
+                    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                      <div><small>汇丰解读</small><p className="textblock">{t.columns.hsbc}</p></div>
+                      <div><small>业界解读</small><p className="textblock">{t.columns.industry}</p></div>
+                      <div><small>市场案例</small><p className="textblock">{t.columns.market}</p></div>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ol>
+            <div className="divider" />
+
+            {/* 政策原文简化版 */}
             <div className="field">
               <small>政策原文简化版</small>
               <p className="textblock">{consumerView.simplified_summary}</p>
             </div>
             <div className="divider" />
-            <div className="field">
-              <small>对所管理用户的影响概述</small>
-              <p className="textblock">{consumerView.impact_overview}</p>
-            </div>
-            <div className="divider" />
-            <small>可能受影响的用户</small>
-            <div className="tablewrap" style={{ marginTop: 8 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>客户</th>
-                    <th>业务线</th>
-                    <th>贷款规模(亿)</th>
-                    <th>他行贷款(亿)</th>
-                    <th>海外业务</th>
-                    <th>具体影响</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {consumerView.affected_customers.map((c: any) => (
-                    <tr key={c.customer_id}>
-                      <td>{c.name_masked}</td>
-                      <td>{c.business_line}</td>
-                      <td>{c.loan_balance_cny_yi}</td>
-                      <td>{c.other_bank_loans_cny_yi}</td>
-                      <td>{c.overseas_business?.length ? c.overseas_business.join("、") : "—"}</td>
-                      <td>
-                        <details>
-                          <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
-                          <div style={{ marginTop: 6, fontSize: 12 }}>
-                            <p>{c.impact.impact_content}</p>
-                            <p>金钱损失 <b>{c.impact.money_loss}</b> · 业务机会 <b>{c.impact.business_opportunity}</b> · 声誉损失 <b>{c.impact.reputation_loss}</b></p>
-                            <p>{c.impact.outcome}</p>
-                          </div>
-                        </details>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="divider" />
+
+            {/* 所管理用户影响概述 + 所影响的客户（有客户才展示） */}
+            {consumerView.affected_customers?.length > 0 ? (
+              <>
+                <div className="field">
+                  <small>对所管理用户的影响概述</small>
+                  <p className="textblock">{consumerView.impact_overview}</p>
+                </div>
+                <div className="divider" />
+                <small>所影响的客户</small>
+                <div className="tablewrap" style={{ marginTop: 8 }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>客户</th>
+                        <th>业务线</th>
+                        <th>贷款规模(亿)</th>
+                        <th>他行贷款(亿)</th>
+                        <th>海外业务</th>
+                        <th>具体影响</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {consumerView.affected_customers.map((c: any) => (
+                        <tr key={c.customer_id}>
+                          <td>{c.name_masked}</td>
+                          <td>{c.business_line}</td>
+                          <td>{c.loan_balance_cny_yi}</td>
+                          <td>{c.other_bank_loans_cny_yi}</td>
+                          <td>{c.overseas_business?.length ? c.overseas_business.join("、") : "—"}</td>
+                          <td>
+                            <details>
+                              <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
+                              <div style={{ marginTop: 6, fontSize: 12 }}>
+                                <p>{c.impact.impact_content}</p>
+                                <p>业务损失 <b>{c.impact.business_loss}</b> · 业务机会 <b>{c.impact.business_opportunity}</b> · 声誉风险 <b>{c.impact.reputation_risk}</b></p>
+                                <p>{c.impact.outcome}</p>
+                              </div>
+                            </details>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="divider" />
+              </>
+            ) : null}
+
             <div className="field">
               <small>可能产生的收益或损失</small>
               <p className="textblock">{consumerView.benefit_loss}</p>

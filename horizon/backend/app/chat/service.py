@@ -155,7 +155,7 @@ def _time_intent(query: str) -> str:
 
 
 def _domain_intent(query: str) -> str | None:
-    """识别「WPB/CMB/GBM/GTB/Insurance」业务线代号，返回规范大小写；无则 None。"""
+    """识别「WPB/CIB/GTB/Insurance」业务线代号，返回规范大小写；无则 None。"""
     folded = query.casefold()
     for domain in BUSINESS_DOMAINS:
         if domain.casefold() in folded:

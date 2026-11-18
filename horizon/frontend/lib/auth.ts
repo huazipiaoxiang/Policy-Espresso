@@ -27,6 +27,7 @@ export const ROLE_CONFIG: Record<DemoRole, {
       { id: "health", icon: "◷", label: "系统概览", href: "/health" },
       { id: "library", icon: "▤", label: "政策数据库", href: "/policies" },
       { id: "documents", icon: "▧", label: "原文库", href: "/documents" },
+      { id: "customers", icon: "▤", label: "客户信息", href: "/customers" },
       { id: "mapping", icon: "▦", label: "业务图谱", href: "/business-map" },
       { id: "sources", icon: "▥", label: "数据源", href: "/sources" },
       { id: "rules", icon: "⌘", label: "Agent 与规则", href: "/rules" },

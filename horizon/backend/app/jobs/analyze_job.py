@@ -33,6 +33,7 @@ from app.db.models import (
 )
 from app.domain import scoring, state_machine
 from app.domain.business_map import slice_for_themes
+from app.domain.consumer_impact import affected_amount_by_business_lines, compute_consumer_impact
 from app.domain.case_match import match_cases
 from app.domain.exposure import aggregate_exposure
 from app.domain.scope_rules import detect_scope, entity_relevance_from_scope
@@ -296,7 +297,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     # 征求意见稿：certainty ≤3（T1-N3）
     if policy.policy_type == "consultation" and dim_scores.get("certainty") is not None:
         dim_scores["certainty"] = min(dim_scores["certainty"], 3)
-    score_result = scoring.compute_score(dim_scores, direction=i.get("direction", "neutral"))
+    direction = i.get("direction", "neutral")
 
     # 案例链接校验：只保留库内存在且相似度 ≥0.6 的；匹配器命中而 LLM 漏引时补入
     valid_ids = {c["case_id"] for c in similar_cases}
@@ -309,15 +310,25 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     exposure_range = affected.get("exposure_range") or exposure
     affected["exposure_range"] = exposure_range
 
+    # 三维影响评分（业务损失/业务机会/声誉风险）取代 8 维加权综合分。
+    # 业务损失按受影响客户金额额度分档；score_total = 三维综合分；priority 按阈值派生。
+    affected_amount, affected_count = affected_amount_by_business_lines(affected.get("business_lines"))
+    impact_dimensions = compute_consumer_impact(
+        dim_scores, direction=direction,
+        affected_amount_cny_yi=affected_amount, affected_customer_count=affected_count,
+    )
+    score_total = float(impact_dimensions["impact_total"])
+    priority = next(level for level, threshold in scoring.PRIORITY_THRESHOLDS if score_total >= threshold)
+
     null_dims = [d for d, v in dim_scores.items() if v is None]
     assessment = Assessment(
         policy_id=policy.id,
         scores={dim: {"score": dim_scores[dim],
                       "reason": (raw_scores.get(dim) or {}).get("reason", ""),
                       "evidence_ids": []} for dim in scoring.DIMENSIONS},
-        direction=i.get("direction", "neutral"),
-        score_total=score_result.score_total,
-        priority=score_result.priority,
+        direction=direction,
+        score_total=score_total,
+        priority=priority,
         transmission_chain=i.get("transmission_chain") or [],
         affected=affected,
         recommended_actions=i.get("recommended_actions") or [],
@@ -336,8 +347,8 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         # 以影响分析置信度为准（高/中相关 0.5，低相关 0.4，≥5 个空维度钳制到 ≤0.3）
         policy.confidence = assessment.confidence
 
-    policy.score_total = score_result.score_total
-    policy.priority = score_result.priority
+    policy.score_total = score_total
+    policy.priority = priority
     policy.status = state_machine.transition(policy.status, "ai_checked")
     _audit(db, "ai_analyze", "policy", policy.id, {},
            {"status": policy.status, "score_total": policy.score_total, "priority": policy.priority},
@@ -389,7 +400,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
                {"status": "pending_review"}, reason="offline 规则派生或 AI 低置信，转人工审核")
         db.add(ReviewTask(
             policy_id=policy.id, level=1, assignee="analyst.default",
-            sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[score_result.priority]),
+            sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[priority]),
             status="pending",
         ))
     else:

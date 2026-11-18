@@ -142,7 +142,7 @@ def seed_demo_subsidy_policy(db) -> int:  # noqa: ANN001
             "利息收入减少，业务损失评分上升",
         ],
         affected={
-            "business_lines": ["CMB", "GBM", "GTB", "WPB"],
+            "business_lines": ["CIB", "GTB", "WPB"],
             "segments": ["制造业中小微企业", "有贴息资格客户"],
         },
         recommended_actions=[

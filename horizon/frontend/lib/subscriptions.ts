@@ -113,14 +113,12 @@ export function matchesSelectedTopic(policyThemes: string[], selectedLabels: str
 export interface SubscriptionPreferences {
   topics: string[];
   markets: string[];
-  businessArea: string;
   emailNotify: boolean;
 }
 
 export const DEFAULT_SUBSCRIPTIONS: SubscriptionPreferences = {
   topics: ["跨境理财通", "人民币国际化", "债券与资本市场", "贷款与贴息"],
   markets: ["hk", "cn"],
-  businessArea: "财富管理与零售银行",
   emailNotify: true,
 };
 
@@ -141,7 +139,6 @@ export function loadSubscriptions(): SubscriptionPreferences {
       // 词表改版后旧浏览器里的取值会被全部过滤掉，此时回落到默认偏好而不是留下空订阅
       topics: storedTopics.length ? storedTopics : DEFAULT_SUBSCRIPTIONS.topics,
       markets: storedMarkets.length ? storedMarkets : DEFAULT_SUBSCRIPTIONS.markets,
-      businessArea: typeof stored.businessArea === "string" ? stored.businessArea : DEFAULT_SUBSCRIPTIONS.businessArea,
       emailNotify: typeof stored.emailNotify === "boolean" ? stored.emailNotify : DEFAULT_SUBSCRIPTIONS.emailNotify,
     };
   } catch {

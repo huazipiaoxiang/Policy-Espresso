@@ -129,7 +129,7 @@ def test_cases_search(client):
     items = r.json()["items"]
     assert items and any("贴息" in c["title"] for c in items)
 
-    r = client.get("/api/v1/cases?business_line=CMB")
+    r = client.get("/api/v1/cases?business_line=CIB")
     assert r.status_code == 200 and r.json()["items"]
 
 
@@ -139,8 +139,8 @@ def test_business_map_matrix(client):
     r = client.get("/api/v1/business-map")
     assert r.status_code == 200
     body = r.json()
-    assert "CMB" in body["matrix"]
+    assert "CIB" in body["matrix"]
     assert body["themes"], "主题列不能为空"
-    cells = body["matrix"]["CMB"]["cells"]
+    cells = body["matrix"]["CIB"]["cells"]
     assert "贷款与贴息" in cells
     assert cells["贷款与贴息"]["policy_count"] >= 1

@@ -16,7 +16,7 @@ version: classify@v1
 判断以下文本是否属于「金融相关政策」，输出 JSON：
 {
   "is_financial_policy": true|false,
-  "policy_type": "law|regulation|guideline|circular|consultation|press_release|budget|speech|news|report|other",
+  "policy_type": "law|regulation|guideline|circular|consultation|press_release|budget|speech|news|report|treaty|other",
   "jurisdictions": ["HK","GD","SZ","GBA","CN","MO"],
   "themes": ["受控词表标签，1-3 个"],
   "reason": "≤50 字",

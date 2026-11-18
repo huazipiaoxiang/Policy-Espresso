@@ -33,7 +33,7 @@ export default async function CasesPage({ searchParams }: { searchParams: { q?: 
           <button type="submit" className="rounded-btn bg-[var(--accent)] px-4 py-1.5 text-[12px] font-medium text-[var(--bg)]">
             搜索
           </button>
-          <span className="text-[11px] text-[var(--text-3)]">支持按业务线过滤：CMB / GBM / WPB / GTB / Insurance</span>
+          <span className="text-[11px] text-[var(--text-3)]">支持按业务线过滤：CIB / WPB / GTB / Insurance</span>
         </form>
 
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">

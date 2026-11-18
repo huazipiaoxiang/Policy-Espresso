@@ -98,22 +98,6 @@ export default function SubscriptionsPage() {
           <div className="panelhead"><h2>我的业务与通知</h2></div>
           <div className="sectionbody">
             <div style={{ marginBottom: 18 }}>
-              <label className="form-label" htmlFor="business-area">业务领域</label>
-              <select
-                id="business-area"
-                className="filter"
-                style={{ width: "100%", marginTop: 6 }}
-                value={preferences.businessArea}
-                onChange={(event) => { setNotice(""); setPreferences((current) => ({ ...current, businessArea: event.target.value })); }}
-              >
-                <option>财富管理与零售银行</option>
-                <option>工商金融</option>
-                <option>环球银行及资本市场</option>
-                <option>合规与风险管理</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 18 }}>
               <span className="form-label">关注市场</span>
               <div className="rowflex" style={{ marginTop: 6 }}>
                 {MARKET_OPTIONS.map((market) => (

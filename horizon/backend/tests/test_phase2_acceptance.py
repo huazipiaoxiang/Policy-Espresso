@@ -100,8 +100,8 @@ def test_case1_full_acceptance(client):
         # T1-09 传导链≥3步含续作率机制
         assert len(assessment.transmission_chain) >= 3
         assert any("续作率下降" in s for s in assessment.transmission_chain)
-        # T1-10 CMB + 制造业客群
-        assert "CMB" in assessment.affected["business_lines"]
+        # T1-10 CIB + 制造业客群
+        assert "CIB" in assessment.affected["business_lines"]
         assert any("制造业" in s for s in assessment.affected["segments"])
         # T1-11 暴露区间（合成数据）+ basis
         er = assessment.affected["exposure_range"]

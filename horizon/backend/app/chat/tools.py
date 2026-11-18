@@ -129,7 +129,7 @@ def _rank(query: str, rows: list[Any], title: Any, body: Any, extra: Any = None)
 _REVIEW_INTENT_WORDS = ("审核", "审查", "复核", "审批", "待办", "待审", "review", "assignee")
 _IMPACT_INTENT_WORDS = ("影响", "业务", "风险", "传导", "应对", "行动", "impact", "business")
 # 业务线代号（Domain），存于 Assessment.affected.business_lines；识别按大小写不敏感匹配。
-BUSINESS_DOMAINS = ("WPB", "CMB", "GBM", "GTB", "Insurance")
+BUSINESS_DOMAINS = ("WPB", "CIB", "GTB", "Insurance")
 
 
 def _has_review_intent(query: str) -> bool:
@@ -588,7 +588,7 @@ class ChatTools:
     def search_business_impacts_by_domain(self, domain: str, *, limit: int = RESULT_LIMIT) -> list[ChatEvidence]:
         """按受影响业务线（Domain）检索：返回 affected.business_lines 含指定代号的评估。
 
-        用于「WPB/CMB/GBM/GTB/Insurance 受影响的政策有哪些」这类按域过滤的问题。
+        用于「WPB/CIB/GTB/Insurance 受影响的政策有哪些」这类按域过滤的问题。
         business_lines 是 ASCII 代号，JSON 列不转义，SQL 层 ilike 可直接命中。
         """
         pattern = f'%"{domain}"%'

@@ -2,7 +2,7 @@
   {
     "customer_id": "SYN-CMB-0001",
     "name_masked": "某制造业企业A（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.5,
@@ -19,7 +19,7 @@
   {
     "customer_id": "SYN-CMB-0002",
     "name_masked": "某制造业企业B（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.5,
@@ -38,7 +38,7 @@
   {
     "customer_id": "SYN-CMB-0003",
     "name_masked": "某制造业企业C（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.7,
@@ -58,7 +58,7 @@
   {
     "customer_id": "SYN-CMB-0004",
     "name_masked": "某制造业企业D（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.7,
@@ -75,7 +75,7 @@
   {
     "customer_id": "SYN-CMB-0005",
     "name_masked": "某制造业企业E（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.7,
@@ -94,7 +94,7 @@
   {
     "customer_id": "SYN-CMB-0006",
     "name_masked": "某制造业企业F（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.7,
@@ -114,7 +114,7 @@
   {
     "customer_id": "SYN-CMB-0007",
     "name_masked": "某制造业企业G（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "SZ",
     "loan_balance_cny_yi": 0.7,
@@ -131,7 +131,7 @@
   {
     "customer_id": "SYN-CMB-0008",
     "name_masked": "某制造业企业H（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.7,
@@ -150,7 +150,7 @@
   {
     "customer_id": "SYN-CMB-0009",
     "name_masked": "某制造业企业I（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "SZ",
     "loan_balance_cny_yi": 0.72,
@@ -170,7 +170,7 @@
   {
     "customer_id": "SYN-CMB-0010",
     "name_masked": "某制造业企业J（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -187,7 +187,7 @@
   {
     "customer_id": "SYN-CMB-0011",
     "name_masked": "某制造业企业K（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -206,7 +206,7 @@
   {
     "customer_id": "SYN-CMB-0012",
     "name_masked": "某制造业企业L（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.72,
@@ -226,7 +226,7 @@
   {
     "customer_id": "SYN-CMB-0013",
     "name_masked": "某制造业企业M（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -243,7 +243,7 @@
   {
     "customer_id": "SYN-CMB-0014",
     "name_masked": "某制造业企业N（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.72,
@@ -262,7 +262,7 @@
   {
     "customer_id": "SYN-CMB-0015",
     "name_masked": "某制造业企业O（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -282,7 +282,7 @@
   {
     "customer_id": "SYN-CMB-0016",
     "name_masked": "某制造业企业P（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -299,7 +299,7 @@
   {
     "customer_id": "SYN-CMB-0017",
     "name_masked": "某制造业企业Q（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "大湾区制造业中小微企业",
     "region": "SZ",
     "loan_balance_cny_yi": 0.72,
@@ -318,7 +318,7 @@
   {
     "customer_id": "SYN-CMB-0018",
     "name_masked": "某制造业企业R（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.72,
@@ -338,7 +338,7 @@
   {
     "customer_id": "SYN-CMB-0019",
     "name_masked": "某有跨境结算需客户19（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 6.1,
@@ -354,7 +354,7 @@
   {
     "customer_id": "SYN-CMB-0020",
     "name_masked": "某零售商户客户20（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.4,
@@ -372,7 +372,7 @@
   {
     "customer_id": "SYN-CMB-0021",
     "name_masked": "某有跨境结算需客户21（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 2.8,
@@ -391,7 +391,7 @@
   {
     "customer_id": "SYN-CMB-0022",
     "name_masked": "某零售商户客户22（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 2.3,
@@ -407,7 +407,7 @@
   {
     "customer_id": "SYN-CMB-0023",
     "name_masked": "某有跨境结算需客户23（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 7.0,
@@ -425,7 +425,7 @@
   {
     "customer_id": "SYN-CMB-0024",
     "name_masked": "某零售商户客户24（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 6.5,
@@ -444,7 +444,7 @@
   {
     "customer_id": "SYN-CMB-0025",
     "name_masked": "某有跨境结算需客户25（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 8.5,
@@ -460,7 +460,7 @@
   {
     "customer_id": "SYN-CMB-0026",
     "name_masked": "某零售商户客户26（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 1.0,
@@ -478,7 +478,7 @@
   {
     "customer_id": "SYN-CMB-0027",
     "name_masked": "某有跨境结算需客户27（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 4.1,
@@ -497,7 +497,7 @@
   {
     "customer_id": "SYN-CMB-0028",
     "name_masked": "某零售商户客户28（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 0.5,
@@ -513,7 +513,7 @@
   {
     "customer_id": "SYN-CMB-0029",
     "name_masked": "某有跨境结算需客户29（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 2.2,
@@ -531,7 +531,7 @@
   {
     "customer_id": "SYN-CMB-0030",
     "name_masked": "某零售商户客户30（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 4.9,
@@ -550,7 +550,7 @@
   {
     "customer_id": "SYN-CMB-0031",
     "name_masked": "某有跨境结算需客户31（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 0.4,
@@ -566,7 +566,7 @@
   {
     "customer_id": "SYN-CMB-0032",
     "name_masked": "某零售商户客户32（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 2.0,
@@ -584,7 +584,7 @@
   {
     "customer_id": "SYN-CMB-0033",
     "name_masked": "某有跨境结算需客户33（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 6.2,
@@ -603,7 +603,7 @@
   {
     "customer_id": "SYN-CMB-0034",
     "name_masked": "某零售商户客户34（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 5.3,
@@ -619,7 +619,7 @@
   {
     "customer_id": "SYN-CMB-0035",
     "name_masked": "某有跨境结算需客户35（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 2.3,
@@ -637,7 +637,7 @@
   {
     "customer_id": "SYN-CMB-0036",
     "name_masked": "某零售商户客户36（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 5.7,
@@ -656,7 +656,7 @@
   {
     "customer_id": "SYN-CMB-0037",
     "name_masked": "某有跨境结算需客户37（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 7.7,
@@ -672,7 +672,7 @@
   {
     "customer_id": "SYN-CMB-0038",
     "name_masked": "某零售商户客户38（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 0.3,
@@ -690,7 +690,7 @@
   {
     "customer_id": "SYN-CMB-0039",
     "name_masked": "某有跨境结算需客户39（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 7.7,
@@ -709,7 +709,7 @@
   {
     "customer_id": "SYN-CMB-0040",
     "name_masked": "某零售商户客户40（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 6.7,
@@ -725,7 +725,7 @@
   {
     "customer_id": "SYN-CMB-0041",
     "name_masked": "某有跨境结算需客户41（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "HK",
     "loan_balance_cny_yi": 3.4,
@@ -743,7 +743,7 @@
   {
     "customer_id": "SYN-CMB-0042",
     "name_masked": "某零售商户客户42（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "ZH",
     "loan_balance_cny_yi": 1.6,
@@ -762,7 +762,7 @@
   {
     "customer_id": "SYN-CMB-0043",
     "name_masked": "某有跨境结算需客户43（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "有跨境结算需求的外贸客户",
     "region": "GD",
     "loan_balance_cny_yi": 9.1,
@@ -778,7 +778,7 @@
   {
     "customer_id": "SYN-CMB-0044",
     "name_masked": "某零售商户客户44（合成）",
-    "business_line": "CMB",
+    "business_line": "CIB",
     "segment": "零售商户",
     "region": "SZ",
     "loan_balance_cny_yi": 3.3,
@@ -796,7 +796,7 @@
   {
     "customer_id": "SYN-GBM-0045",
     "name_masked": "某大型跨境集团客户45（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 3.3,
@@ -817,7 +817,7 @@
   {
     "customer_id": "SYN-GBM-0046",
     "name_masked": "某金融机构同业客户46（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 3.3,
@@ -833,7 +833,7 @@
   {
     "customer_id": "SYN-GBM-0047",
     "name_masked": "某大型跨境集团客户47（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 24.3,
@@ -851,7 +851,7 @@
   {
     "customer_id": "SYN-GBM-0048",
     "name_masked": "某金融机构同业客户48（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 17.4,
@@ -870,7 +870,7 @@
   {
     "customer_id": "SYN-GBM-0049",
     "name_masked": "某大型跨境集团客户49（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 23.1,
@@ -890,7 +890,7 @@
   {
     "customer_id": "SYN-GBM-0050",
     "name_masked": "某金融机构同业客户50（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 21.0,
@@ -911,7 +911,7 @@
   {
     "customer_id": "SYN-GBM-0051",
     "name_masked": "某大型跨境集团客户51（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 15.6,
@@ -927,7 +927,7 @@
   {
     "customer_id": "SYN-GBM-0052",
     "name_masked": "某金融机构同业客户52（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 27.6,
@@ -945,7 +945,7 @@
   {
     "customer_id": "SYN-GBM-0053",
     "name_masked": "某大型跨境集团客户53（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 11.1,
@@ -964,7 +964,7 @@
   {
     "customer_id": "SYN-GBM-0054",
     "name_masked": "某金融机构同业客户54（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 15.9,
@@ -984,7 +984,7 @@
   {
     "customer_id": "SYN-GBM-0055",
     "name_masked": "某大型跨境集团客户55（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 23.7,
@@ -1005,7 +1005,7 @@
   {
     "customer_id": "SYN-GBM-0056",
     "name_masked": "某金融机构同业客户56（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 18.0,
@@ -1021,7 +1021,7 @@
   {
     "customer_id": "SYN-GBM-0057",
     "name_masked": "某大型跨境集团客户57（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 24.6,
@@ -1039,7 +1039,7 @@
   {
     "customer_id": "SYN-GBM-0058",
     "name_masked": "某金融机构同业客户58（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 16.8,
@@ -1058,7 +1058,7 @@
   {
     "customer_id": "SYN-GBM-0059",
     "name_masked": "某大型跨境集团客户59（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 20.4,
@@ -1078,7 +1078,7 @@
   {
     "customer_id": "SYN-GBM-0060",
     "name_masked": "某金融机构同业客户60（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 1.8,
@@ -1099,7 +1099,7 @@
   {
     "customer_id": "SYN-GBM-0061",
     "name_masked": "某大型跨境集团客户61（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 6.9,
@@ -1115,7 +1115,7 @@
   {
     "customer_id": "SYN-GBM-0062",
     "name_masked": "某金融机构同业客户62（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 8.7,
@@ -1133,7 +1133,7 @@
   {
     "customer_id": "SYN-GBM-0063",
     "name_masked": "某大型跨境集团客户63（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 2.7,
@@ -1152,7 +1152,7 @@
   {
     "customer_id": "SYN-GBM-0064",
     "name_masked": "某金融机构同业客户64（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 7.2,
@@ -1172,7 +1172,7 @@
   {
     "customer_id": "SYN-GBM-0065",
     "name_masked": "某大型跨境集团客户65（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 3.3,
@@ -1193,7 +1193,7 @@
   {
     "customer_id": "SYN-GBM-0066",
     "name_masked": "某金融机构同业客户66（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 8.4,
@@ -1209,7 +1209,7 @@
   {
     "customer_id": "SYN-GBM-0067",
     "name_masked": "某大型跨境集团客户67（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "HK",
     "loan_balance_cny_yi": 18.3,
@@ -1227,7 +1227,7 @@
   {
     "customer_id": "SYN-GBM-0068",
     "name_masked": "某金融机构同业客户68（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "ZH",
     "loan_balance_cny_yi": 10.8,
@@ -1246,7 +1246,7 @@
   {
     "customer_id": "SYN-GBM-0069",
     "name_masked": "某大型跨境集团客户69（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "大型跨境集团",
     "region": "GD",
     "loan_balance_cny_yi": 10.8,
@@ -1266,7 +1266,7 @@
   {
     "customer_id": "SYN-GBM-0070",
     "name_masked": "某金融机构同业客户70（合成）",
-    "business_line": "GBM",
+    "business_line": "CIB",
     "segment": "金融机构同业",
     "region": "SZ",
     "loan_balance_cny_yi": 6.3,

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import BusinessMapPage from "@/app/business-map/page";
 import { useAuth } from "@/components/AuthProvider";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { DIRECTION_LABELS, JURISDICTION_LABELS } from "@/lib/labels";
@@ -30,9 +29,9 @@ interface Policy {
   impacted_domains: string[];
   foreign_bank_differential: boolean;
   impact_dimensions?: {
-    money_loss: number;
+    business_loss: number;
     business_opportunity: number;
-    reputation_loss: number;
+    reputation_risk: number;
     impact_total: number;
     affected_customer_count: number;
   };
@@ -67,6 +66,8 @@ export default function ForYouPage() {
   const [directionFilter, setDirectionFilter] = useState("");
   const [sortBy, setSortBy] = useState<"impact" | "date">("impact");
   const [searchText, setSearchText] = useState("");
+  // 分页：每页 10 条，最多展示 100 条（10 页）
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,14 +139,17 @@ export default function ForYouPage() {
   // AI 聚合：按当前周期把匹配政策交给后端 LLM 生成速览
   const periodList = digestTab === "week" ? weekly : monthly;
   const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
-  // 周期表格（本周/本月共用）：先按影响方向筛选，再按排序方式排序
-  const periodSorted = useMemo(() => {
+  // 推荐列表：搜索扩大到整个数据库（全部已发布政策），按影响程度/日期排序，最多展示 100 条
+  const allSorted = useMemo(() => {
     let filtered = directionFilter
-      ? periodList.filter((p) => (p.direction || "neutral") === directionFilter)
-      : periodList;
+      ? policies.filter((p) => (p.direction || "neutral") === directionFilter)
+      : policies;
     const keyword = searchText.trim().toLowerCase();
     if (keyword) {
-      filtered = filtered.filter((p) => (p.title || "").toLowerCase().includes(keyword));
+      filtered = filtered.filter((p) =>
+        (p.title || "").toLowerCase().includes(keyword) ||
+        (p.issuing_body || "").toLowerCase().includes(keyword)
+      );
     }
     const sorted = [...filtered];
     if (sortBy === "impact") {
@@ -153,8 +157,19 @@ export default function ForYouPage() {
     } else {
       sorted.sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || ""));
     }
-    return sorted;
-  }, [periodList, directionFilter, sortBy, searchText]);
+    return sorted.slice(0, 100);
+  }, [policies, directionFilter, sortBy, searchText]);
+
+  // 分页：每页 10 条
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(allSorted.length / PAGE_SIZE));
+  const pagedPolicies = allSorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // 筛选/排序/搜索变化时回到第一页
+  useEffect(() => {
+    setPage(1);
+  }, [directionFilter, sortBy, searchText]);
+
   useEffect(() => {
     if (!periodList.length) {
       setDigestMd("");
@@ -299,9 +314,9 @@ export default function ForYouPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {periodSorted.length === 0 ? (
+                  {allSorted.length === 0 ? (
                     <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>没有符合当前筛选条件的政策</td></tr>
-                  ) : periodSorted.map((policy) => {
+                  ) : pagedPolicies.map((policy) => {
                     const topics = [...new Set(policy.themes.map(normalizeTheme))].filter(Boolean);
                     const dispatched = policy.dispatched_at || policy.published_at;
                     return (
@@ -332,9 +347,9 @@ export default function ForYouPage() {
                         <td style={{ whiteSpace: "nowrap" }}>
                           {policy.impact_dimensions ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
-                              <span>金钱损失 <b>{policy.impact_dimensions.money_loss}</b></span>
+                              <span>业务损失 <b>{policy.impact_dimensions.business_loss}</b></span>
                               <span>业务机会 <b>{policy.impact_dimensions.business_opportunity}</b></span>
-                              <span>声誉损失 <b>{policy.impact_dimensions.reputation_loss}</b></span>
+                              <span>声誉风险 <b>{policy.impact_dimensions.reputation_risk}</b></span>
                             </div>
                           ) : "—"}
                         </td>
@@ -355,17 +370,25 @@ export default function ForYouPage() {
                 </tbody>
               </table>
             </div>
+            {allSorted.length > 0 && (
+              <div className="rowflex" style={{ justifyContent: "center", marginTop: 12, gap: 12, alignItems: "center" }}>
+                <button className="btn" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  ← 上一页
+                </button>
+                <span style={{ fontSize: 12, color: "#8b929c" }}>
+                  第 {page} / {totalPages} 页 · 共 {allSorted.length} 条
+                </span>
+                <button className="btn" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                  下一页 →
+                </button>
+              </div>
+            )}
           </>
         )}
         <div className="ai-digest-foot">
           ✦ 生成来源：{digestModel || "—"} · 数据时间：{periodKey} 至 {hkToday}（香港时区）
         </div>
       </section>
-
-      {/* 业务图谱：与侧边栏「业务图谱」tab 打开的页面完全一致（与上方 AI 聚合区块保持大间距） */}
-      <div style={{ marginTop: 36 }}>
-        <BusinessMapPage />
-      </div>
     </div>
   );
 }

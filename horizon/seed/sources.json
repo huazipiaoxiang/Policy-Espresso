@@ -96,5 +96,21 @@
     },
     "lang": "zh-Hans",
     "poll_interval_min": 60
+  },
+  {
+    "code": "gdjr_gzdt",
+    "name": "广东省地方金融管理局 · 工作动态",
+    "org": "中共广东省委金融委员会办公室（广东省地方金融管理局）",
+    "jurisdiction": "GD",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.gdjr.gov.cn/gdjr/jrzx/gzdt/",
+    "config": {
+      "item_url_regex": "/gdjr/jrzx/gzdt/content/post_\\d+\\.html",
+      "max_pages": 1,
+      "verified_at": "2026-11-18"
+    },
+    "lang": "zh-Hans",
+    "poll_interval_min": 60
   }
 ]

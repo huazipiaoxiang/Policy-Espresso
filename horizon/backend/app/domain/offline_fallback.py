@@ -332,7 +332,7 @@ def offline_impact(
         })
     if exposure:
         actions.append({
-            "owner": "business.cmb",
+            "owner": "business.cib",
             "action": "按合成暴露口径排查相关客户，并核实用真实数据",
             "deadline": (today + timedelta(days=3)).isoformat(),
         })

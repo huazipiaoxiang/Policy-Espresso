@@ -55,7 +55,7 @@ export default function LoginPage() {
       <section style={{ width: "min(980px, 100%)" }}>
         <div style={{ textAlign: "center", marginBottom: 30 }}>
           <div className="eyebrow">POLICY ESPRESSO</div>
-          <h1 style={{ margin: "8px 0 10px", fontSize: 32 }}>政策智能分析平台</h1>
+          <h1 style={{ margin: "8px 0 10px", fontSize: 32 }}>政策智能速递及分析平台</h1>
           <p className="sub">登录进入对应工作空间</p>
         </div>
 

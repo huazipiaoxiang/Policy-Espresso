@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     scheduler_heartbeat_cron: str = "0 8 * * mon"
 
     llm_provider: str = "mock"  # mock | ollama | dashscope
-    # 未接入真实 LLM 时改用离线规则派生政策内容，避免 mock 样例把每篇文档写成同一份内容
-    llm_offline_rules: bool = False
+    # 未接入真实 LLM 时改用离线规则派生政策内容，避免 mock 样例把每篇文档写成同一份内容。
+    # 默认开启：mock 模式下统一从原文派生真实标题/主题/摘要，而非返回固定样例。
+    llm_offline_rules: bool = True
     llm_model_flash: str = "qwen-flash"
     llm_model_plus: str = "qwen-plus"
     llm_model_max: str = "qwen-max"

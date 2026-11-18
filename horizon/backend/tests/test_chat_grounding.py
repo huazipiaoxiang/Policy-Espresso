@@ -403,13 +403,13 @@ def test_domain_intent_detection():
     from app.chat.service import _domain_intent
 
     assert _domain_intent("根据政策解读后 Domain 为 WPB 受影响的政策有哪些") == "WPB"
-    assert _domain_intent("cmb 受影响的政策有哪些") == "CMB"  # 大小写不敏感
+    assert _domain_intent("cib 受影响的政策有哪些") == "CIB"  # 大小写不敏感
     assert _domain_intent("Insurance 受影响") == "Insurance"
     assert _domain_intent("虚拟银行监管新规是什么") is None
 
 
 def test_domain_impact_retrieval_lists_affected_policies(db):
-    """按业务线代号（WPB/CMB/...）检索受影响政策。"""
+    """按业务线代号（WPB/CIB/...）检索受影响政策。"""
     policy = add_policy(db, title="某监管政策")
     db.add(Assessment(id="a_wpb", policy_id=policy.id, affected={"business_lines": ["WPB"]}))
     db.commit()
@@ -419,7 +419,7 @@ def test_domain_impact_retrieval_lists_affected_policies(db):
     assert len(result) == 1
     assert result[0].citation["policy_id"] == policy.id
     assert "WPB" in result[0].text  # 人话文本里带出业务线代号
-    assert tools.search_business_impacts_by_domain("CMB") == []
+    assert tools.search_business_impacts_by_domain("CIB") == []
 
 
 def test_domain_question_is_answered_not_rejected(db):

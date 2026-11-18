@@ -138,7 +138,7 @@ def test_offline_impact_derives_only_rule_backed_dimensions(offline_on):
     assert len(result["transmission_chain"]) >= 3
     assert result["affected"]["exposure_range"]["high"] == 14.0
     owners = {a["owner"] for a in result["recommended_actions"]}
-    assert {"analyst.default", "reviewer.l2", "business.cmb"} <= owners
+    assert {"analyst.default", "reviewer.l2", "business.cib"} <= owners
     assert any("缺" in u or "未" in u for u in result["unknowns"])
 
 

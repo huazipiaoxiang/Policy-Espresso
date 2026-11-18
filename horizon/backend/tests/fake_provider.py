@@ -76,8 +76,8 @@ class FakeProvider:
                 "scores": {d: {"score": values[d], "reason": "fake", "evidence_ids": []} for d in dims},
                 "direction": "neutral",
                 "transmission_chain": ["信贷投放鼓励 → 行业竞争格局不变 → 汇丰(中国)存量业务稳定"],
-                "affected": {"business_lines": ["CMB"], "segments": ["制造业企业"]},
-                "recommended_actions": [{"owner": "CMB", "action": "持续跟踪", "deadline": "2027-01-31"}],
+                "affected": {"business_lines": ["CIB"], "segments": ["制造业企业"]},
+                "recommended_actions": [{"owner": "CIB", "action": "持续跟踪", "deadline": "2027-01-31"}],
                 "case_links": [], "unknowns": ["fake 场景"], "confidence": 0.6,
             }
         elif task == "alert":

@@ -15,7 +15,7 @@ from app.core.security import get_demo_role, require_api_key, require_roles
 from app.db.models import Alert, Assessment, ConsumerReport, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
-from app.domain.consumer_impact import compute_consumer_impact, compute_customer_impact
+from app.domain.consumer_impact import affected_amount_by_business_lines, compute_consumer_impact, compute_customer_impact
 from app.domain.policy_admin import delete_policy
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
@@ -121,12 +121,19 @@ def _policy_view(db: Session, policy: Policy) -> dict:
         .join(Assessment, Assessment.id == Alert.assessment_id)
         .where(Assessment.policy_id == policy.id)
     )
+    scores = assessment.scores if assessment else None
+    direction = assessment.direction if assessment else None
+    business_lines = (assessment.affected.get("business_lines", []) if assessment else [])
+    amount, count = affected_amount_by_business_lines(business_lines)
     return {
         **PolicyOut.model_validate(policy).model_dump(),
-        "impacted_domains": (assessment.affected.get("business_lines", []) if assessment else []),
+        "impacted_domains": business_lines,
         "dispatched_at": (dispatched_at.isoformat() if dispatched_at else None),
-        "direction": (assessment.direction if assessment else None),
-        "impact_dimensions": compute_consumer_impact(assessment.direction if assessment else None),
+        "direction": direction,
+        "impact_dimensions": compute_consumer_impact(
+            scores, direction=direction,
+            affected_amount_cny_yi=amount, affected_customer_count=count,
+        ),
     }
 
 
@@ -294,15 +301,64 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     }
 
 
+def _foreign_bank_note(policy: Policy) -> str:
+    """政策有无纳入外资银行 + 对汇丰影响简述（政策解读大页面第一句）。"""
+    if policy.foreign_bank_differential:
+        return "本政策涉及外资银行差异条款，对汇丰的适用存在区别对待，影响需重点关注。"
+    if policy.target_entity_status in ("high", "medium"):
+        return "本政策纳入外资银行（汇丰）适用范围，需关注其对汇丰业务的影响。"
+    return "本政策未明确是否纳入外资银行，需人工复核适用主体范围。"
+
+
+def _topic_columns(db: Session, topic: str) -> dict:
+    """按重点话题关键词检索内部库与网络，生成三栏解读（离线模板，不调用 LLM）。"""
+    from app.chat.tools import ChatTools
+    from app.chat.web_search import search_web
+
+    tools = ChatTools(db, "consumer")
+    internal = [e for e in (tools.search_policies(topic) + tools.search_documents(topic)) if e.text][:3]
+    hsbc = "\n".join(f"{e.title}：{e.text[:220]}" for e in internal) or "暂无内部解读记录，可结合原文人工研判。"
+
+    web: list = []
+    try:
+        web = search_web(topic, limit=3)
+    except Exception:
+        web = []
+    industry = "\n".join(f"{e.title}：{e.text[:220]}" for e in web[:3]) or "暂无业界公开解读，可联网补充检索。"
+    market = "\n".join(f"{e.title}：{e.text[:220]}" for e in web[:3]) or "暂无相关市场案例。"
+    return {"hsbc": hsbc, "industry": industry, "market": market}
+
+
 def _consumer_view(db: Session, policy: Policy) -> dict:
-    """政策使用者视角的政策解读：简化版、影响概述、受影响客户、收益/损失。"""
+    """政策使用者视角的政策解读：外资银行句、重点话题三栏解读、原文简化版、影响概述、受影响客户。"""
     from app.domain.exposure import load_customers
 
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+    scores = assessment.scores if assessment else None
     direction = assessment.direction if assessment else None
+    business_lines = (assessment.affected.get("business_lines", []) if assessment else [])
 
+    # 三维影响评分（业务损失按受影响客户金额额度分档；无匹配时按所有相关用户）
+    amount, count = affected_amount_by_business_lines(business_lines)
+    dimensions = compute_consumer_impact(
+        scores, direction=direction,
+        affected_amount_cny_yi=amount, affected_customer_count=count,
+    )
+    direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(direction, "中性")
+
+    # 重点话题（政策主题）→ 三栏解读（左：汇丰解读 / 中：业界解读 / 右：市场案例）
+    topics = [
+        {"topic": topic, "columns": _topic_columns(db, topic)}
+        for topic in (policy.themes or [])[:5]
+    ]
+
+    # 受影响客户：按业务线匹配；有业务线但匹配不到客户 → 视为「无客户」，不返回客户列表
     customers = load_customers()
-    sorted_customers = sorted(customers, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
+    lines = {line for line in business_lines if line}
+    matched = [c for c in customers if c.get("business_line") in lines] if lines else customers
+    if lines and not matched:
+        matched = []
+    sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
     affected = [
         {
             "customer_id": c["customer_id"],
@@ -312,21 +368,20 @@ def _consumer_view(db: Session, policy: Policy) -> dict:
             "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
             "other_bank_loans_cny_yi": c.get("other_bank_loans_cny_yi", 0),
             "overseas_business": c.get("overseas_business", []),
-            "impact": compute_customer_impact(c, direction),
+            "impact": compute_customer_impact(c, scores, direction=direction),
         }
-        for c in sorted_customers[:30]
+        for c in sorted_matched[:30]
     ]
 
-    dimensions = compute_consumer_impact(direction)
-    direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(direction, "中性")
-
     impact_overview = (
-        f"该政策整体呈{direction_label}方向，影响客户经理所管理客户合计 {len(customers)} 户；"
-        f"金钱损失维度 {dimensions['money_loss']} 分、业务机会维度 {dimensions['business_opportunity']} 分、"
-        f"声誉损失维度 {dimensions['reputation_loss']} 分。"
+        f"该政策整体呈{direction_label}方向，涉及客户经理所管理客户合计 {len(matched)} 户；"
+        f"业务损失 {dimensions['business_loss']} 分、业务机会 {dimensions['business_opportunity']} 分、"
+        f"声誉风险 {dimensions['reputation_risk']} 分。"
     )
 
     return {
+        "foreign_bank_note": _foreign_bank_note(policy),
+        "topics": topics,
         "simplified_summary": policy.summary_zh or "尚未生成摘要",
         "impact_overview": impact_overview,
         "dimensions": dimensions,

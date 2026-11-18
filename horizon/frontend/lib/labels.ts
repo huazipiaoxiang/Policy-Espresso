@@ -24,31 +24,6 @@ export const DIRECTION_LABELS: Record<string, string> = {
   positive: "利好", negative: "利空", mixed: "利弊并存", neutral: "中性",
 };
 
-// 8 维评分卡（02 §5.2）：direction 不参与加权，权重只对 7 个评分维度生效
-export const SCORE_DIMENSION_ORDER = [
-  "relevance", "exposure", "urgency", "certainty", "actionability", "differential", "compliance",
-];
-
-export const SCORE_DIMENSION_LABELS: Record<string, string> = {
-  relevance: "相关性",
-  exposure: "暴露规模",
-  urgency: "紧迫性",
-  certainty: "确定性",
-  actionability: "可行动性",
-  differential: "差异化",
-  compliance: "合规敏感度",
-};
-
-export const SCORE_DIMENSION_WEIGHTS: Record<string, string> = {
-  relevance: "25%",
-  exposure: "20%",
-  urgency: "15%",
-  certainty: "10%",
-  actionability: "10%",
-  differential: "15%",
-  compliance: "5%",
-};
-
 export const JURISDICTION_LABELS: Record<string, string> = {
   HK: "香港", CN: "中国内地", GD: "广东", SZ: "深圳", GBA: "大湾区",
   MO: "澳门", GB: "英国", SG: "新加坡", EU: "欧盟",

@@ -197,7 +197,7 @@ def test_p2_single_level_approval_needs_no_second_level(client):
         db.add(policy)
         db.flush()
         db.add(Assessment(policy_id=policy.id, affected={"business_lines": ["RBWM"]},
-                          recommended_actions=[{"owner": "CMB", "action": "跟进", "deadline": "7 天"}]))
+                          recommended_actions=[{"owner": "CIB", "action": "跟进", "deadline": "7 天"}]))
         db.add(Evidence(policy_id=policy.id, document_id=doc.id, span_start=0, span_end=4, quote="政策原文"))
         task = ReviewTask(policy_id=policy.id, level=1, status="pending")
         db.add(task)
