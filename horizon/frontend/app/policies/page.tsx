@@ -208,7 +208,7 @@ export default function PoliciesPage() {
         </div>
         <div className="rowflex">
           {role === "admin" && <Link href="/documents?upload=1" className="btn primary">上传政策</Link>}
-          {role === "processor" && <Link href="/policies?view=pending_review" className="btn primary">前往待审核政策 →</Link>}
+          {role === "processor" && <button className="btn primary" onClick={() => { setActiveTab("pending_review"); setSearch(""); }}>前往待审核政策 →</button>}
           {role === "processor" && <Link href="/publications" className="btn primary">前往发布中心 →</Link>}
         </div>
       </div>

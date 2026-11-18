@@ -15,7 +15,9 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-ENV NEXT_PUBLIC_API_BASE=http://api:8000/api/v1
-COPY --from=build /app ./
+# next.config 使用 output: "standalone"，`next start` 与之不兼容（见 prod.err 警告）。
+# standalone 已产出最小化生产服务器 server.js，只需补上静态资源，再用 node 直接启动。
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
