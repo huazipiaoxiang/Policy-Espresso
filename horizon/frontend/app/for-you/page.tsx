@@ -66,6 +66,7 @@ export default function ForYouPage() {
   // 政策列表筛选与排序
   const [directionFilter, setDirectionFilter] = useState("");
   const [sortBy, setSortBy] = useState<"impact" | "date">("impact");
+  const [searchText, setSearchText] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,9 +140,13 @@ export default function ForYouPage() {
   const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
   // 周期表格（本周/本月共用）：先按影响方向筛选，再按排序方式排序
   const periodSorted = useMemo(() => {
-    const filtered = directionFilter
+    let filtered = directionFilter
       ? periodList.filter((p) => (p.direction || "neutral") === directionFilter)
       : periodList;
+    const keyword = searchText.trim().toLowerCase();
+    if (keyword) {
+      filtered = filtered.filter((p) => (p.title || "").toLowerCase().includes(keyword));
+    }
     const sorted = [...filtered];
     if (sortBy === "impact") {
       sorted.sort((a, b) => (b.impact_dimensions?.impact_total ?? 0) - (a.impact_dimensions?.impact_total ?? 0));
@@ -149,7 +154,7 @@ export default function ForYouPage() {
       sorted.sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || ""));
     }
     return sorted;
-  }, [periodList, directionFilter, sortBy]);
+  }, [periodList, directionFilter, sortBy, searchText]);
   useEffect(() => {
     if (!periodList.length) {
       setDigestMd("");
@@ -271,6 +276,13 @@ export default function ForYouPage() {
                   <option value="date">按发布日期</option>
                 </select>
               </label>
+              <input
+                className="search"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="搜索政策名称…"
+                style={{ width: 200 }}
+              />
             </div>
             <div className="ai-digest-table tablewrap">
               <table>

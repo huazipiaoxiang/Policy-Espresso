@@ -173,7 +173,7 @@ export default function PolicyDetailPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error?.message || "发送失败");
-      setNotice("影响报告已发送给政策加工者 review");
+      setNoticeDialog(`影响报告已发送给政策加工者 review，可到发布中心继续研究。`);
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "发送失败");
