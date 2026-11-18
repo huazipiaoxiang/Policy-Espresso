@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ApiError, not_found
 from app.core.security import require_api_key, require_roles
-from app.db.models import Assessment, Evidence, Policy, ReviewDecision, ReviewTask, ScopeJudgement
+from app.db.models import Assessment, ConsumerReport, Evidence, Policy, ReviewDecision, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import review as review_domain
 
@@ -61,6 +61,32 @@ def list_review_tasks(
         stmt = stmt.where(ReviewTask.status.in_(["pending", "claimed"]))
     tasks = db.scalars(stmt).all()
     return {"items": [_task_view(t, db.get(Policy, t.policy_id)) for t in tasks]}
+
+
+@router.get("/consumer-reports")
+def list_consumer_reports(
+    status: str | None = None,
+    db: Session = Depends(get_db),
+    role: str = Depends(require_roles("processor")),
+):
+    """政策加工者查看 consumer 发来的影响报告（结构化解读）。"""
+    stmt = select(ConsumerReport).order_by(ConsumerReport.created_at.desc())
+    if status:
+        stmt = stmt.where(ConsumerReport.status == status)
+    reports = db.scalars(stmt).all()
+    items = []
+    for r in reports:
+        policy = db.get(Policy, r.policy_id)
+        items.append({
+            "id": r.id,
+            "policy_id": r.policy_id,
+            "policy_title": policy.title if policy else "",
+            "actor": r.actor,
+            "report": r.report,
+            "status": r.status,
+            "created_at": r.created_at,
+        })
+    return {"items": items}
 
 
 @router.get("/review-tasks/{task_id}")

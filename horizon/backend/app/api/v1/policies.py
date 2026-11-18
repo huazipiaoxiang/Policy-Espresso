@@ -12,7 +12,7 @@ from sqlalchemy.types import Text
 from app.api.v1.schemas import Page, PolicyOut
 from app.core.errors import ApiError, not_found, not_approved
 from app.core.security import get_demo_role, require_api_key, require_roles
-from app.db.models import Alert, Assessment, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
+from app.db.models import Alert, Assessment, ConsumerReport, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
 from app.domain.consumer_impact import compute_consumer_impact, compute_customer_impact
@@ -294,15 +294,11 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     }
 
 
-@router.get("/{policy_id}/consumer-view")
-def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str = Depends(require_roles("consumer"))):
+def _consumer_view(db: Session, policy: Policy) -> dict:
     """政策使用者视角的政策解读：简化版、影响概述、受影响客户、收益/损失。"""
     from app.domain.exposure import load_customers
 
-    policy = db.get(Policy, policy_id)
-    if not policy:
-        raise not_found("政策", policy_id)
-    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy_id)).first()
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
     direction = assessment.direction if assessment else None
 
     customers = load_customers()
@@ -337,6 +333,32 @@ def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str =
         "benefit_loss": f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。",
         "affected_customers": affected,
     }
+
+
+@router.get("/{policy_id}/consumer-view")
+def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str = Depends(require_roles("consumer"))):
+    """政策使用者视角的政策解读。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    return _consumer_view(db, policy)
+
+
+@router.post("/{policy_id}/consumer-view/send-review", status_code=201)
+def send_consumer_report(
+    policy_id: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("consumer")),
+):
+    """consumer 把影响报告发送给政策加工者 review。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    report = ConsumerReport(policy_id=policy_id, actor="consumer", report=_consumer_view(db, policy))
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+    return {"id": report.id, "policy_id": policy_id, "status": report.status, "created_at": report.created_at}
 
 
 @router.get("/{policy_id}/analysis")

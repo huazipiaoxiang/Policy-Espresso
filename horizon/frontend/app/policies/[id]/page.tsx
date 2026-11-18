@@ -164,6 +164,24 @@ export default function PolicyDetailPage() {
     }
   }
 
+  async function sendConsumerReport() {
+    setBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/policies/${policy?.id}/consumer-view/send-review`, {
+        method: "POST",
+        headers: demoApiHeaders(),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error?.message || "发送失败");
+      setNotice("影响报告已发送给政策加工者 review");
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "发送失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <div className="content"><div className="panel" style={{ padding: 40, textAlign: "center" }}>加载政策详情…</div></div>;
   if (!policy) return <div className="content"><Link href="/policies" className="back">← 返回政策库</Link><div className="notice">{error || "政策不存在"}</div></div>;
 
@@ -348,6 +366,12 @@ export default function PolicyDetailPage() {
               <small>可能产生的收益或损失</small>
               <p className="textblock">{consumerView.benefit_loss}</p>
             </div>
+            <div className="divider" />
+            <div className="rowflex" style={{ marginTop: 8 }}>
+              <button className="btn primary" disabled={busy} onClick={sendConsumerReport}>
+                {busy ? "发送中…" : "发送给政策加工者 review →"}
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -360,19 +384,23 @@ export default function PolicyDetailPage() {
             </div>
           </section>
 
-      <section className="panel full">
-        <div className="panelhead"><h2>原文证据</h2><small>{policy.evidence.length} 条</small></div>
+      {role === "admin" && (
+        <>
+          <section className="panel full">
+            <div className="panelhead"><h2>原文证据</h2><small>{policy.evidence.length} 条</small></div>
             <div className="sectionbody">
               {policy.evidence.length ? policy.evidence.map((evidence) => <div className="evidence" key={evidence.id} style={{ marginBottom: 12 }}><small>{evidence.field_name || "政策字段"} · {evidence.span_start}–{evidence.span_end}</small><blockquote>{evidence.quote}</blockquote></div>) : <p className="textblock">没有可定位证据，提交审核前应打回补充。</p>}
             </div>
           </section>
 
-      <section className="panel full">
-        <div className="panelhead"><h2>相关性判定</h2><small>规则与 AI 双通道</small></div>
+          <section className="panel full">
+            <div className="panelhead"><h2>相关性判定</h2><small>规则与 AI 双通道</small></div>
             <div className="sectionbody">
               {policy.scope_judgements.map((judgement) => <div key={judgement.entity_id} className="scope-tip" style={{ marginBottom: 10 }}><strong>{entityLabels[judgement.entity_id] || judgement.entity_id}</strong> <span className={`badge ${judgement.conflict ? "red" : ""}`}>{RELEVANCE_LABELS[judgement.result]?.text ?? judgement.result}</span><p>{judgement.llm_reason || "未提供判定理由"}</p>{judgement.conflict && <small style={{ color: "var(--red)" }}>规则与 AI 判定冲突，需要人工复核。</small>}</div>)}
             </div>
           </section>
+        </>
+      )}
 
       {role !== "consumer" && (
         <>

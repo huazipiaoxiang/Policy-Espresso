@@ -297,6 +297,19 @@ class Feedback(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
+class ConsumerReport(Base):
+    """consumer 发送给政策加工者的影响报告（政策使用者视角的结构化解读）。"""
+
+    __tablename__ = "consumer_report"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("cr"))
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policy.id"), index=True)
+    actor: Mapped[str] = mapped_column(String(64), default="consumer")
+    report: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(24), default="pending")  # pending/processed
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
 class Alert(Base):
     __tablename__ = "alert"
 

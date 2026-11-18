@@ -118,7 +118,7 @@ export interface SubscriptionPreferences {
 }
 
 export const DEFAULT_SUBSCRIPTIONS: SubscriptionPreferences = {
-  topics: ["跨境理财通", "人民币国际化", "债券与资本市场"],
+  topics: ["跨境理财通", "人民币国际化", "债券与资本市场", "贷款与贴息"],
   markets: ["hk", "cn"],
   businessArea: "财富管理与零售银行",
   emailNotify: true,

@@ -80,5 +80,21 @@
     },
     "lang": "zh-Hans",
     "poll_interval_min": 30
+  },
+  {
+    "code": "gov_cn_zhengce",
+    "name": "中国政府网 · 政策文件库",
+    "org": "国务院",
+    "jurisdiction": "CN",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.gov.cn/zhengce/zuixin/",
+    "config": {
+      "item_url_regex": "/zhengce/content/\\d{6}/content_\\d+\\.htm",
+      "max_pages": 1,
+      "verified_at": "2026-11-18"
+    },
+    "lang": "zh-Hans",
+    "poll_interval_min": 60
   }
 ]

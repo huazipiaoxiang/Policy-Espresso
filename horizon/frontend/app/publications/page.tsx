@@ -17,6 +17,21 @@ interface Publication {
   dispatched_at: string | null; // 系统发布动作时间（区分于官方发布日期）
 }
 
+interface ConsumerReport {
+  id: string;
+  policy_id: string;
+  policy_title: string;
+  actor: string;
+  report: {
+    impact_overview?: string;
+    benefit_loss?: string;
+    dimensions?: Record<string, number>;
+    affected_customers?: { customer_id: string; name_masked: string; business_line: string; impact?: Record<string, unknown> }[];
+  };
+  status: string;
+  created_at: string;
+}
+
 type FilterKey = "today" | "pending" | "month" | "total";
 
 const filterKeys: FilterKey[] = ["today", "pending", "month", "total"];
@@ -40,6 +55,7 @@ export default function PublicationsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [reports, setReports] = useState<ConsumerReport[]>([]);
 
   const fetchAll = useCallback(async (status: string) => {
     const all: Publication[] = [];
@@ -60,13 +76,20 @@ export default function PublicationsPage() {
       const [pendingItems, publishedItems] = await Promise.all([fetchAll("approved"), fetchAll("published")]);
       setApproved(pendingItems);
       setPublished(publishedItems);
+      if (role === "processor") {
+        const reportsResp = await fetch(`${API_BASE}/consumer-reports`, { headers: demoApiHeaders() });
+        if (reportsResp.ok) {
+          const body = await reportsResp.json();
+          setReports(body.items || []);
+        }
+      }
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "发布数据加载失败");
     } finally {
       setLoading(false);
     }
-  }, [fetchAll]);
+  }, [fetchAll, role]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -146,6 +169,27 @@ export default function PublicationsPage() {
           </tr>)}
         </tbody></table></div>
       </section>
+
+      {role === "processor" && (
+        <section className="panel" style={{ marginTop: 18 }}>
+          <div className="panelhead"><h2>政策使用者发来的影响报告</h2><small>{reports.length} 条</small></div>
+          {reports.length === 0 ? (
+            <div className="sectionbody"><p className="textblock" style={{ color: "#949aa3" }}>暂无政策使用者发来的影响报告。</p></div>
+          ) : (
+            <div className="tablewrap"><table><thead><tr><th>政策</th><th>发送人</th><th>影响概述</th><th>状态</th><th>操作</th></tr></thead><tbody>
+              {reports.map((report) => (
+                <tr key={report.id}>
+                  <td style={{ minWidth: 220 }}><Link href={`/policies/${report.policy_id}`}>{report.policy_title || report.policy_id}</Link></td>
+                  <td>{report.actor === "consumer" ? "政策使用者" : report.actor}</td>
+                  <td style={{ maxWidth: 320 }}><span style={{ fontSize: 12 }}>{report.report?.impact_overview || "—"}</span></td>
+                  <td><span className={`badge ${report.status === "processed" ? "green" : "amber"}`}>{report.status === "processed" ? "已处理" : "待处理"}</span></td>
+                  <td><Link href={`/policies/${report.policy_id}`} className="link">查看研究 →</Link></td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          )}
+        </section>
+      )}
       <p className="footnote">发布权限仅属于发布者；其他运营角色可查看但不能执行发布。</p>
     </main>
   );
