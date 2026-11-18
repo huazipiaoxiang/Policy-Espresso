@@ -41,6 +41,8 @@ services:
       STORAGE_BACKEND: ${STORAGE_BACKEND:-oss}
     volumes:
       - horizon-storage:/data/storage
+      # seed 数据（数据源清单/案例/演示政策）挂载到 /seed，供启动时自动导入
+      - ../seed:/seed:ro
     # 不暴露 8000 到公网；FC 定时触发走内网 + X-Job-Token
     expose:
       - "8000"
