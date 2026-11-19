@@ -253,9 +253,9 @@ export default function ForYouPage() {
                 本月
               </button>
             </div>
-            <div className="ai-digest-count" title={`${periodKey} 至 ${hkToday}`}>
-              <b>{periodList.length}</b>
-              <small>条相关动态</small>
+            <div className="ai-digest-count" title="全部已发布政策">
+              <b>{allSorted.length}</b>
+              <small>条政策</small>
             </div>
           </div>
         </div>
