@@ -346,11 +346,9 @@ def _consumer_view(db: Session, policy: Policy) -> dict:
     )
     direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(direction, "中性")
 
-    # 重点话题（政策主题）→ 三栏解读（左：汇丰解读 / 中：业界解读 / 右：市场案例）
-    topics = [
-        {"topic": topic, "columns": _topic_columns(db, topic)}
-        for topic in (policy.themes or [])[:5]
-    ]
+    # 重点话题（政策主题）列表；三栏解读按需懒加载（见 /{policy_id}/topic/{topic} 接口），
+    # 避免在详情接口里串行联网检索（search_web）导致页面长时间 loading。
+    topics = [{"topic": topic} for topic in (policy.themes or [])[:5]]
 
     # 受影响客户：按业务线匹配；有业务线但匹配不到客户 → 视为「无客户」，不返回客户列表
     customers = load_customers()
@@ -397,6 +395,20 @@ def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str =
     if not policy:
         raise not_found("政策", policy_id)
     return _consumer_view(db, policy)
+
+
+@router.get("/{policy_id}/topic/{topic}")
+def policy_topic_columns(
+    policy_id: str,
+    topic: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("consumer")),
+):
+    """按需懒加载单个重点话题的三栏解读（内部库 + 网络检索）。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    return {"topic": topic, "columns": _topic_columns(db, topic)}
 
 
 @router.post("/{policy_id}/consumer-view/send-review", status_code=201)

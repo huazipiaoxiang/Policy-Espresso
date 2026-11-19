@@ -87,6 +87,9 @@ export default function PolicyDetailPage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [consumerView, setConsumerView] = useState<any>(null);
   const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  // 三栏解读懒加载：点击重点话题时才请求，避免详情页因联网检索卡在 loading
+  const [topicColumns, setTopicColumns] = useState<Record<string, any>>({});
+  const [topicLoading, setTopicLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -180,6 +183,22 @@ export default function PolicyDetailPage() {
       setError(reason instanceof Error ? reason.message : "发送失败");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function loadTopicColumns(topic: string) {
+    if (topicColumns[topic] || topicLoading === topic) return;
+    setTopicLoading(topic);
+    try {
+      const resp = await fetch(`${API_BASE}/policies/${policy?.id}/topic/${encodeURIComponent(topic)}`, {
+        headers: demoApiHeaders(),
+      });
+      const body = await resp.json();
+      if (resp.ok) setTopicColumns((cur) => ({ ...cur, [topic]: body.columns }));
+    } catch {
+      // 忽略，columns 保持空，前端显示占位
+    } finally {
+      setTopicLoading(null);
     }
   }
 
@@ -293,15 +312,27 @@ export default function PolicyDetailPage() {
                     type="button"
                     className="link"
                     style={{ padding: 0, textAlign: "left" }}
-                    onClick={() => setActiveTopic(activeTopic === t.topic ? null : t.topic)}
+                    onClick={() => {
+                      const next = activeTopic === t.topic ? null : t.topic;
+                      setActiveTopic(next);
+                      if (next) void loadTopicColumns(next);
+                    }}
                   >
                     {idx + 1}. {t.topic}
                   </button>
                   {activeTopic === t.topic && (
                     <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                      <div><small>汇丰解读</small><p className="textblock">{t.columns.hsbc}</p></div>
-                      <div><small>业界解读</small><p className="textblock">{t.columns.industry}</p></div>
-                      <div><small>市场案例</small><p className="textblock">{t.columns.market}</p></div>
+                      {topicLoading === t.topic ? (
+                        <div style={{ gridColumn: "1 / -1" }}><p className="textblock">正在加载该话题解读…</p></div>
+                      ) : topicColumns[t.topic] ? (
+                        <>
+                          <div><small>汇丰解读</small><p className="textblock">{topicColumns[t.topic].hsbc}</p></div>
+                          <div><small>业界解读</small><p className="textblock">{topicColumns[t.topic].industry}</p></div>
+                          <div><small>市场案例</small><p className="textblock">{topicColumns[t.topic].market}</p></div>
+                        </>
+                      ) : (
+                        <div style={{ gridColumn: "1 / -1" }}><p className="textblock">解读加载失败，请稍后重试。</p></div>
+                      )}
                     </div>
                   )}
                 </li>

@@ -68,7 +68,7 @@ def search_web(question: str, *, limit: int = 5) -> list[ChatEvidence]:
             "https://html.duckduckgo.com/html/",
             params={"q": question.strip()[:300]},
             headers={"User-Agent": "HORIZON-PolicyMonitor/0.1"},
-            timeout=12,
+            timeout=3,
             follow_redirects=True,
         )
         response.raise_for_status()
