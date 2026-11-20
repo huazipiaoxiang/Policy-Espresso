@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.db.models import Document, Policy, PolicyPreprocess, Source
 from app.db.session import SessionLocal
+from app.jobs.seed_job import seed_preprocess
 
 CONSUMER = {"X-Demo-Role": "consumer"}
 
@@ -16,6 +17,7 @@ def _make_policy(
     impact_total: float,
     days_ago: int = 0,
     status: str = "published",
+    with_preprocess: bool = True,
 ) -> str:
     """造一条政策 + 其预处理记录；days_ago 控制"入库时间"（PolicyPreprocess.created_at）。"""
     with SessionLocal() as db:
@@ -41,16 +43,17 @@ def _make_policy(
         )
         db.add(policy)
         db.flush()
-        db.add(PolicyPreprocess(
-            policy_id=policy.id,
-            loss_pct=loss,
-            opportunity_pct=opportunity,
-            reputation_pct=reputation,
-            profit_pct=0.0,
-            impact_total=impact_total,
-            direction="negative",
-            created_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
-        ))
+        if with_preprocess:
+            db.add(PolicyPreprocess(
+                policy_id=policy.id,
+                loss_pct=loss,
+                opportunity_pct=opportunity,
+                reputation_pct=reputation,
+                profit_pct=0.0,
+                impact_total=impact_total,
+                direction="negative",
+                created_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
+            ))
         db.commit()
         return policy.id
 
@@ -104,3 +107,40 @@ def test_for_you_excludes_unpublished_policy(client):
     body = resp.json()
 
     assert body["total"] == 0
+
+
+def test_for_you_recovers_after_seeding_preprocess_for_policy_only_db(client):
+    """云端迁移后可能出现「有已发布政策、无预处理记录」，seed 后必须能推荐。"""
+    _make_policy(
+        title="云端存量政策",
+        loss=30, opportunity=20, reputation=10, impact_total=20.0,
+        with_preprocess=False,
+    )
+    with SessionLocal() as db:
+        assert seed_preprocess(db) == 1
+
+    resp = client.get("/api/v1/policies/for-you?username=demo_user", headers=CONSUMER)
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["window"] == "week"
+    assert body["items"][0]["title"] == "云端存量政策"
+
+
+def test_seed_preprocess_never_calls_web_research(client, monkeypatch):
+    """启动补齐必须离线完成，不能因 PREPROCESS_WEB_RESEARCH=true 拖慢/卡住启动。"""
+    import app.domain.preprocess as preprocess_module
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "preprocess_web_research", True)
+
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("seed 不应触发联网检索")
+
+    monkeypatch.setattr(preprocess_module, "_research", _fail)
+    _make_policy(
+        title="离线补齐政策",
+        loss=10, opportunity=5, reputation=5, impact_total=6.7,
+        with_preprocess=False,
+    )
+    with SessionLocal() as db:
+        assert seed_preprocess(db) == 1

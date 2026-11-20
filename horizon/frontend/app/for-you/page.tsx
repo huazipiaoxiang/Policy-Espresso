@@ -322,7 +322,7 @@ export default function ForYouPage() {
         )}
         {/* 为你推荐：即使没有客户画像或聚合内容为空，也展示预处理表格三维分数的推荐列表 */}
         <div className="notice" style={{ margin: "12px 0", fontSize: 12 }}>
-          {reco?.window === "all" && (
+          {reco?.window === "all" && (reco.items?.length ?? 0) > 0 && (
             <span style={{ color: "#b08900" }}>本周暂无新入库的已发布政策，已回退展示最近入库的政策</span>
           )}
           {reco && (

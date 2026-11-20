@@ -464,13 +464,13 @@ def build_payload(
     policy: Policy,
     assessment: Assessment | None,
     *,
-    research: bool = False,
+    research: bool | None = None,
     provider_name: str = "offline-rules",
 ) -> dict:
-    # 先联网（默认开启），再用检索到的公开语料参与关键词/业务线/客户类型的提取
+    # research=None 跟随配置；显式 True/False 强制开/关，避免 seed 时触发外网检索。
     from app.core.config import get_settings
 
-    do_research = research or get_settings().preprocess_web_research
+    do_research = get_settings().preprocess_web_research if research is None else research
     found = _research(policy) if do_research else {}
     corpus = found.get("corpus", "")
 
@@ -537,12 +537,13 @@ def upsert_preprocess(
     policy: Policy,
     *,
     assessment: Assessment | None = None,
-    research: bool = False,
+    research: bool | None = None,
     provider_name: str | None = None,
     use_agent: bool | None = None,
 ) -> PolicyPreprocess:
     """生成/更新政策预处理记录（幂等：同政策只保留一条）。
 
+    `research=None` 跟随 PREPROCESS_WEB_RESEARCH；显式 False 可关闭外网检索。
     `use_agent`：默认跟随 PREPROCESS_AGENT_ENABLED。
     开启时由政策流水线 Agent 在规则结果之上复核/补全（读原文、业务图谱、客户暴露、公开检索），
     Agent 不可用或调用失败时自动退回规则结果。

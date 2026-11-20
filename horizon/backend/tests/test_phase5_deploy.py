@@ -180,3 +180,45 @@ def test_dashscope_missing_key_fails_fast():
         os.environ["LLM_PROVIDER"] = "mock"
         os.environ["DASHSCOPE_API_KEY"] = "test-key"
         get_settings.cache_clear()
+
+
+def test_sqlite_to_pg_migration_covers_all_models():
+    """PG 迁移清单必须覆盖全部模型，尤其推荐依赖的 policy_preprocess。"""
+    import importlib.util
+    from app.db.models import Base
+
+    script = Path(__file__).resolve().parents[2] / "deploy" / "scripts" / "migrate_sqlite_to_pg.py"
+    spec = importlib.util.spec_from_file_location("migrate_sqlite_to_pg", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert set(module.TABLES) == set(Base.metadata.tables)
+    assert "policy_preprocess" in module.TABLES
+
+
+def test_startup_seed_includes_preprocess(monkeypatch):
+    """上云启动自动 seed 必须补齐预处理，否则「为你推荐」为空。"""
+    from contextlib import contextmanager
+
+    import app.db.session as session_module
+    import app.jobs.seed_job as seed_job
+    import app.main as main
+
+    calls: list[str] = []
+
+    @contextmanager
+    def fake_session():
+        yield object()
+
+    monkeypatch.setattr(session_module, "SessionLocal", fake_session)
+    names = (
+        "seed_sources", "seed_cases", "seed_demo_subsidy_policy",
+        "seed_known_policies", "seed_rm_users", "seed_preprocess",
+    )
+    for name in names:
+        monkeypatch.setattr(seed_job, name, lambda db, _n=name: calls.append(_n) or 0)
+
+    counts = main.seed_on_startup()
+
+    assert set(calls) == set(names)
+    assert counts["preprocess"] == 0

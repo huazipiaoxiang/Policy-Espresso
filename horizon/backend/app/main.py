@@ -17,25 +17,52 @@ configure_logging()
 log = get_logger("app")
 
 
+def seed_on_startup() -> dict[str, int]:
+    """补齐启动种子数据（幂等）。
+
+    与 `make seed` 保持一致：除数据源/案例/政策外，还要补客户经理账号和预处理记录。
+    「为你推荐」只消费 policy_preprocess，漏掉这一步会导致云端有政策却无推荐。
+    """
+    from app.db.session import SessionLocal
+    from app.jobs.seed_job import (
+        seed_cases,
+        seed_demo_subsidy_policy,
+        seed_known_policies,
+        seed_preprocess,
+        seed_rm_users,
+        seed_sources,
+    )
+
+    with SessionLocal() as db:
+        return {
+            "sources": seed_sources(db),
+            "cases": seed_cases(db),
+            "demo_policies": seed_demo_subsidy_policy(db),
+            "known_policies": seed_known_policies(db),
+            "users": seed_rm_users(db),
+            "preprocess": seed_preprocess(db),
+        }
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     from app.db.models import Base
-    from app.db.session import SessionLocal, engine
+    from app.db.session import engine
 
     Base.metadata.create_all(engine)  # 本地直跑兜底；生产走 alembic upgrade head
-    # 启动时自动导入种子数据（幂等）：数据源 / 案例 / 演示政策，确保上云后无需手动 seed。
-    # 测试环境通过 HORIZON_AUTO_SEED=0 关闭，避免与用例自造的数据（如重复 source code）冲突。
+    # 测试环境通过 HORIZON_AUTO_SEED=0 关闭，避免与用例自造的数据冲突。
+    seeded: dict[str, int] = {}
     if os.environ.get("HORIZON_AUTO_SEED", "1") != "0":
-        from app.jobs.seed_job import seed_cases, seed_demo_subsidy_policy, seed_known_policies, seed_sources
-        with SessionLocal() as db:
-            seed_sources(db)
-            seed_cases(db)
-            seed_demo_subsidy_policy(db)
-            seed_known_policies(db)
+        seeded = seed_on_startup()
     recovered = recover_interrupted_runs()
     scheduler = build_scheduler()
     scheduler.start()
-    log.info("startup", llm_provider=get_settings().llm_provider, recovered_runs=recovered)
+    log.info(
+        "startup",
+        llm_provider=get_settings().llm_provider,
+        recovered_runs=recovered,
+        seeded=seeded,
+    )
     yield
     scheduler.shutdown(wait=False)
 

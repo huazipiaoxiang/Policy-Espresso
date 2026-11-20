@@ -153,7 +153,7 @@ def get_preprocess(
 @router.post("/{policy_id}/rebuild")
 def rebuild_preprocess(
     policy_id: str,
-    research: bool = Query(default=False, description="是否联网检索汇丰/他行反应与市场应用"),
+    research: bool | None = Query(default=None, description="是否联网检索；留空跟随 PREPROCESS_WEB_RESEARCH"),
     agent: bool | None = Query(default=None, description="是否由 AI Agent 复核（默认跟随 PREPROCESS_AGENT_ENABLED）"),
     db: Session = Depends(get_db),
     _: str = Depends(require_roles("admin")),

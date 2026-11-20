@@ -257,9 +257,11 @@ def for_you(
     week_start_date = (hk_now - timedelta(days=7)).date()
     week_start = week_start_date.isoformat()
     week_end = hk_now.date().isoformat()
+    # 时间列在 PG/SQLite 中均为 naive UTC（UTCDateTime 只在读回时补时区），
+    # 查询条件也必须用 naive UTC，否则 PG 会按 session TimeZone 解释而偏移 8 小时。
     week_start_utc = datetime.combine(
         week_start_date, datetime.min.time(), tzinfo=hk
-    ).astimezone(timezone.utc)
+    ).astimezone(timezone.utc).replace(tzinfo=None)
 
     customers = customers_of(username)
     match_mode = "rm_matched" if customers else "fallback"

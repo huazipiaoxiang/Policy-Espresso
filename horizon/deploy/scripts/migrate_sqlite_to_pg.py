@@ -7,6 +7,7 @@
     python deploy/scripts/migrate_sqlite_to_pg.py
 
 幂等：按主键 upsert（ON CONFLICT DO UPDATE），可重复执行。
+执行前需先 `alembic upgrade head` 在目标库建好全部表。
 """
 from __future__ import annotations
 
@@ -16,10 +17,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
+# 与 app/db/models.py 中的全部表保持一致；新增模型时必须同步这里。
 TABLES = [
-    "source", "job_run", "document", "document_version", "policy", "assessment",
-    "evidence", "scope_judgement", "case", "policy_case_link", "review_task",
-    "review_decision", "alert", "dispatch", "studio_project", "proposal",
+    "source", "job_run", "user", "document", "document_version", "document_chunk",
+    "policy", "assessment", "policy_preprocess", "evidence", "scope_judgement",
+    "case", "policy_case_link", "review_task", "review_decision", "feedback",
+    "consumer_report", "alert", "dispatch", "studio_project", "proposal",
     "audit_log", "llm_call_log",
 ]
 
@@ -41,8 +44,17 @@ def main() -> None:
 
     total = 0
     with src.connect() as s, dst.begin() as d:
+        existing = {
+            row[0]
+            for row in s.execute(sa.text("SELECT name FROM sqlite_master WHERE type = 'table'"))
+        }
         for table in TABLES:
-            rows = [dict(r) for r in s.execute(sa.text(f"SELECT * FROM {table}"))]
+            if table not in existing:
+                print(f"[skip] {table}: 源库无此表")
+                continue
+            # user 是 PostgreSQL 关键字，表名统一加双引号。
+            table_sql = f'"{table}"'
+            rows = [dict(r) for r in s.execute(sa.text(f"SELECT * FROM {table_sql}"))]
             if not rows:
                 print(f"[skip] {table}: 0 行")
                 continue
@@ -50,9 +62,12 @@ def main() -> None:
             placeholders = ", ".join(f":{c}" for c in cols)
             col_list = ", ".join(f'"{c}"' for c in cols)
             updates = ", ".join(f'"{c}" = EXCLUDED."{c}"' for c in cols if c != "id")
+            conflict = (
+                f"ON CONFLICT (id) DO UPDATE SET {updates}" if updates
+                else "ON CONFLICT (id) DO NOTHING"
+            )
             stmt = sa.text(
-                f'INSERT INTO {table} ({col_list}) VALUES ({placeholders}) '
-                f'ON CONFLICT (id) DO UPDATE SET {updates}'
+                f'INSERT INTO {table_sql} ({col_list}) VALUES ({placeholders}) {conflict}'
             )
             for row in rows:
                 d.execute(stmt, row)
