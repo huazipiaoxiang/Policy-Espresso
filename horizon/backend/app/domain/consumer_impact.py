@@ -69,6 +69,57 @@ def affected_amount_by_business_lines(
     return round(total, 2), len(matched)
 
 
+def matched_customers(
+    business_lines: list[str] | None,
+    customers: list[dict] | None = None,
+) -> list[dict]:
+    """按政策业务线匹配全量合成客户（不按客户经理归属过滤）。
+
+    政策运营专员查看使用者影响报告时需要看到「政策影响到的所有客户」，
+    因此这里以合成客户数据集为准做全量匹配，按贷款规模倒序返回。
+    """
+    customers = customers if customers is not None else load_customers()
+    lines = {line for line in (business_lines or []) if line}
+    matched = [c for c in customers if not lines or c.get("business_line") in lines]
+    return sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
+
+
+def customer_impact_rows(
+    customers: list[dict],
+    scores: dict | None = None,
+    *,
+    direction: str | None = "neutral",
+) -> list[dict]:
+    """把合成客户记录转换成前端可直接展示的受影响客户行（含具体影响）。"""
+    return [
+        {
+            "customer_id": c["customer_id"],
+            "name_masked": c["name_masked"],
+            "business_line": c["business_line"],
+            "segment": c.get("segment", ""),
+            "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
+            "other_bank_loans_cny_yi": c.get("other_bank_loans_cny_yi", 0),
+            "overseas_business": c.get("overseas_business", []),
+            "impact": compute_customer_impact(c, scores, direction=direction),
+        }
+        for c in customers
+    ]
+
+
+def has_no_direct_impact(scores: dict | None) -> bool:
+    """规则/模型是否明确判定「本行不在适用范围内且无红线、无差异化条款」。
+
+    相关度为 0 表示政策原文未提及汇丰两个目标实体，此时若也没有合规红线与
+    外资行差异条款，就不存在可评估的直接冲击：金额档位分档不应再凭空算出
+    业务损失（否则所有无关政策会共享同一组分数）。
+    """
+    return (
+        _dim(scores, "relevance") <= 0
+        and _dim(scores, "compliance") <= 0
+        and _dim(scores, "differential") <= 0
+    )
+
+
 def compute_consumer_impact(
     scores: dict | None = None,
     *,
@@ -82,6 +133,16 @@ def compute_consumer_impact(
     direction：positive/negative/mixed/neutral。
     """
     direction = direction or "neutral"
+    if has_no_direct_impact(scores):
+        # 本行不在适用范围内：三维度归零，而不是按金额档位给出同一档"损失"
+        return {
+            "business_loss": 0,
+            "business_opportunity": 0,
+            "reputation_risk": 0,
+            "impact_total": 0,
+            "affected_customer_count": int(affected_customer_count or 0),
+            "no_direct_impact": True,
+        }
     actionability = _dim(scores, "actionability")
     differential = _dim(scores, "differential")
     compliance = _dim(scores, "compliance")

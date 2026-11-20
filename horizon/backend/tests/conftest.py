@@ -14,6 +14,8 @@ os.environ.setdefault("API_KEY", "test-key")
 os.environ["LLM_OFFLINE_RULES"] = "false"
 # 测试环境关闭启动自动 seed，避免与用例自造的数据（如重复 source code）冲突
 os.environ["HORIZON_AUTO_SEED"] = "0"
+# 单元测试不联网：预处理的外部检索一律关闭，保证离线可重复、不依赖网络
+os.environ["PREPROCESS_WEB_RESEARCH"] = "false"
 
 TEST_DB = BACKEND_DIR / "tests" / "test_horizon.db"
 

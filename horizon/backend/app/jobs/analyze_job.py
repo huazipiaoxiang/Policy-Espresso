@@ -307,6 +307,11 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
                        "takeaway": "；".join(similar_cases[0]["lessons"][:2]) or "同类先例"}]
 
     affected = dict(i.get("affected") or {})
+    if not affected.get("business_lines"):
+        # 模型未给出业务线时按主题/关键词推断，保证入库即写入影响 Domain
+        from app.domain.preprocess import infer_business_lines
+
+        affected["business_lines"] = infer_business_lines(policy, doc.content_text or "")
     exposure_range = affected.get("exposure_range") or exposure
     affected["exposure_range"] = exposure_range
 
@@ -355,6 +360,15 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
            reason="AI 分析完成")
     db.flush()
 
+    # ---- 预处理表格：把分析结果固化为可复用的预处理记录（关键词/业务/客群/百分比/外部反应）----
+    from app.domain.preprocess import upsert_preprocess
+
+    upsert_preprocess(
+        db, policy, assessment=assessment,
+        provider_name=impact.model if impact else "offline-rules",
+    )
+    db.flush()
+
     # ---- P5 预警草稿 ----
     assessment_view = {
         "scores": assessment.scores, "direction": assessment.direction,
@@ -387,24 +401,21 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
     db.add(alert)
     db.flush()  # 生成 alert.id，供后续分发（dispatch.alert_id）使用
 
-    # ---- 发布决策（免审核直发：仅 offline 规则派生或 AI 不明确转人审）----
+    # ---- 发布决策：抓取→分析→预处理→发布全自动；仅排除场景与低置信转人审 ----
     relevant = any(v in ("high", "medium") for v in entity_relevance.values())
+    settings = get_settings()
+    auto_ready = bool(settings.auto_publish_enabled) and (
+        float(assessment.confidence or 0) >= float(settings.auto_publish_min_confidence)
+    )
+    # 关闭自动发布时回落到原语义：offline 规则派生或 AI 低置信 → 人审
+    llm_confident = not offline and float(assessment.confidence or 0) > 0.3
+
     if not relevant:
         _audit(db, "skip_publish", "policy", policy.id, {"status": "ai_checked"},
                {"status": policy.status, "reason": "非覆盖/排除场景"},
                reason="不满足预警触发条件")
-    elif offline or assessment.confidence <= 0.3:
-        # offline 规则派生结论（未经模型判断）或 AI 低置信 → 转人审
-        policy.status = state_machine.transition(policy.status, "pending_review")
-        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"},
-               {"status": "pending_review"}, reason="offline 规则派生或 AI 低置信，转人工审核")
-        db.add(ReviewTask(
-            policy_id=policy.id, level=1, assignee="analyst.default",
-            sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[priority]),
-            status="pending",
-        ))
-    else:
-        # AI 明确（LLM 模式且置信度达标）→ 免审核直接发布：Alert 置 approved 并触发分发
+    elif auto_ready or llm_confident:
+        # 免人工点击直接发布：Alert 置 approved 并触发分发（站内/邮件等按配置）
         from app.notifications import get_notifiers
 
         policy.status = state_machine.transition(policy.status, "published")
@@ -415,7 +426,19 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
                             target=result.get("target", "default"),
                             sent_at=datetime.now(timezone.utc), result=result))
         _audit(db, "auto_publish", "policy", policy.id, {"status": "ai_checked"},
-               {"status": "published"}, reason="AI 明确，免审核直接发布")
+               {"status": "published"},
+               reason="抓取后自动发布（免人工审核）" if auto_ready else "AI 明确，免审核直接发布")
+    else:
+        # 低置信兜底：转人审，避免把未经模型判断的结论直接对外发布
+        policy.status = state_machine.transition(policy.status, "pending_review")
+        _audit(db, "submit_review", "policy", policy.id, {"status": "ai_checked"},
+               {"status": "pending_review"},
+               reason="低于自动发布置信度门槛，转人工审核")
+        db.add(ReviewTask(
+            policy_id=policy.id, level=1, assignee="analyst.default",
+            sla_due_at=datetime.now(timezone.utc) + timedelta(hours=SLA_HOURS[priority]),
+            status="pending",
+        ))
 
     doc.status = "processed"
     db.commit()

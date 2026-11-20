@@ -43,6 +43,9 @@ export default function LoginPage() {
       const target = isFirstConsumer ? "/subscriptions" : ROLE_CONFIG[finalRole].home;
       window.localStorage.setItem("horizon-pending-redirect", target);
       login(finalRole);
+      // 登录成功后整页跳转（不用客户端 router.replace）：开发服务器重启后旧标签页的
+      // JS chunk 可能失效，客户端路由会静默失败，页面停在登录页/占位页。
+      window.location.assign(target);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "操作失败");
     } finally {

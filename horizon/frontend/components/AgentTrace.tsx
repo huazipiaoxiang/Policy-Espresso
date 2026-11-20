@@ -6,7 +6,7 @@ import { AUDIT_ACTION_LABELS, DIRECTION_LABELS, POLICY_STATUS_LABELS } from "@/l
 import { RELEVANCE_LABELS } from "./ScopeChip";
 
 // 「AI 分析过程」时间线：五步链路（分类打标 → 结构化抽取 → 适用性判定 → 影响分析 → 预警草稿）
-// → 提交人工审核 → 审核决策 → 发布。数据源：
+// → 分发/发布。数据源：
 // - GET /policies/{id}/analysis（五步结论 + 每步 LLM 调用明细）
 // - GET /admin/audit（生命周期事件；ai_analyze 已由五步节点代表，数据修复类为运维噪音不展示）
 
@@ -72,6 +72,8 @@ const EVENT_COLOR: Record<string, string> = {
   review_reject: "var(--danger)",
   review_request_info: "var(--warn)",
   skip_review: "var(--text-3)",
+  auto_publish: "var(--ok)",
+  skip_publish: "var(--text-3)",
   dispatch: "var(--ok)",
   delete_policy: "var(--danger)",
   refresh_scorecard: "var(--accent)",
@@ -167,7 +169,7 @@ export default function AgentTrace({ policyId }: { policyId: string }) {
         <small>
           {analysis
             ? `${steps.length} 步链路 · prompt ${analysis.prompt_version || "未记录"} · 另有 ${events.length} 个流转事件`
-            : "五步链路 → 提交人工审核"}
+            : "五步链路 → AI 自动发布"}
         </small>
       </div>
       <div className="sectionbody">

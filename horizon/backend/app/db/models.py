@@ -87,10 +87,11 @@ class Document(Base):
     content_text: Mapped[str] = mapped_column(Text, default="")
     content_html_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), default="", index=True)  # 标题+正文指纹（跨源转载判重）
     simhash: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     doc_type: Mapped[str] = mapped_column(String(32), default="news")
     attachments: Mapped[list] = mapped_column(JSON, default=list)
-    status: Mapped[str] = mapped_column(String(16), default="new")  # new/processing/processed/failed/ignored
+    status: Mapped[str] = mapped_column(String(16), default="new")  # new/processing/processed/failed/ignored/duplicate
     duplicate_of: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     source: Mapped[Source] = relationship(back_populates="documents")
@@ -170,6 +171,9 @@ class Policy(Base):
     document: Mapped[Document] = relationship(back_populates="policy")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="policy")
     evidence_items: Mapped[list["Evidence"]] = relationship(back_populates="policy")
+    preprocess: Mapped["PolicyPreprocess | None"] = relationship(
+        back_populates="policy", uselist=False, cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_policy_status_priority", "status", "priority"),
@@ -196,6 +200,46 @@ class Assessment(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
     policy: Mapped[Policy] = relationship(back_populates="assessments")
+
+
+class PolicyPreprocess(Base):
+    """政策预处理表：政策抓取入库并完成 AI 分析后自动生成，供网站各处消费。
+
+    一政策一条（policy_id 唯一）。百分比一律 0–100 的程度分，口径复用
+    domain/consumer_impact.compute_consumer_impact（不另起公式）。
+    """
+
+    __tablename__ = "policy_preprocess"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=lambda: new_id("pp"))
+    policy_id: Mapped[str] = mapped_column(ForeignKey("policy.id"), unique=True, index=True)
+
+    keywords: Mapped[list] = mapped_column(JSON, default=list)           # 关键词
+    affected_business: Mapped[list] = mapped_column(JSON, default=list)  # 影响的业务（业务线）
+    customer_segments: Mapped[list] = mapped_column(JSON, default=list)  # 可能影响的客户类型
+
+    loss_pct: Mapped[float] = mapped_column(Float, default=0.0)         # 可能造成的损失百分比
+    profit_pct: Mapped[float] = mapped_column(Float, default=0.0)       # 可能造成的盈利百分比
+    reputation_pct: Mapped[float] = mapped_column(Float, default=0.0)   # 信誉影响百分比
+    opportunity_pct: Mapped[float] = mapped_column(Float, default=0.0)  # 业务机会创造百分比
+    impact_total: Mapped[float] = mapped_column(Float, default=0.0)     # 综合分（推荐排序口径）
+    direction: Mapped[str] = mapped_column(String(16), default="neutral")  # positive/negative/mixed/neutral
+
+    # 外部反应与落地情况：[{summary, url}]（仅简述 + 原文链接），离线不检索时为空数组
+    hsbc_response: Mapped[list] = mapped_column(JSON, default=list)        # 汇丰对此政策/话题的反应链接
+    peer_bank_response: Mapped[list] = mapped_column(JSON, default=list)   # 其他银行反应链接
+    market_applications: Mapped[list] = mapped_column(JSON, default=list)  # 市面上实际应用
+
+    extras: Mapped[dict] = mapped_column(JSON, default=dict)  # 金额/期限/义务等其余预处理信息
+    source: Mapped[str] = mapped_column(String(32), default="offline-rules")  # offline-rules / 模型名
+    prompt_version: Mapped[str] = mapped_column(String(64), default="")
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+    policy: Mapped[Policy] = relationship(back_populates="preprocess")
+
+    __table_args__ = (Index("idx_preprocess_total", "impact_total"),)
 
 
 class Evidence(Base):
@@ -298,7 +342,7 @@ class Feedback(Base):
 
 
 class ConsumerReport(Base):
-    """consumer 发送给政策加工者的影响报告（政策使用者视角的结构化解读）。"""
+    """consumer 发送给政策运营专员的影响报告（政策使用者视角的结构化解读）。"""
 
     __tablename__ = "consumer_report"
 

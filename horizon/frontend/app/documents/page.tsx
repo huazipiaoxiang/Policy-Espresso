@@ -84,7 +84,7 @@ export default function DocumentsPage() {
   const getStatusLabel = (s: string) => {
     const labels: Record<string, string> = {
       new: "待解析", processed: "已解析", failed: "解析失败",
-      ignored: "已忽略", needs_full_text: "待补充",
+      ignored: "已忽略", needs_full_text: "待补充", duplicate: "重复转载",
     };
     return labels[s] || s;
   };
@@ -107,7 +107,7 @@ export default function DocumentsPage() {
       if (!response.ok) throw new Error(data?.error?.message || "上传失败");
       setUploadResult(data.status === "failed"
         ? `已保存原文件，但处理失败：${data.processing_error}`
-        : data.policy_id ? "上传、解析和 AI 分析已完成" : `上传完成：${data.processing_error || "未生成政策"}`);
+        : data.policy_id ? "上传、解析和分析已完成" : `上传完成：${data.processing_error || "未生成政策"}`);
       setUploadFile(null);
       setUploadTitle("");
       await fetchDocuments();
@@ -220,6 +220,7 @@ export default function DocumentsPage() {
           <option value="new">待解析</option>
           <option value="failed">解析失败</option>
           <option value="ignored">已忽略</option>
+          <option value="duplicate">重复转载</option>
           <option value="needs_full_text">待补充</option>
         </select>
         <span>共 {total.toLocaleString()} 份文档{search.trim() ? `（当前页匹配 ${filteredDocs.length} 份）` : ""}</span>
@@ -355,7 +356,7 @@ export default function DocumentsPage() {
           description={<>
             <p>文档编号：{deleteTarget.id}（{deleteTarget.source_name || deleteTarget.source_id}）</p>
             {deleteTarget.policy_id ? (
-              <p>该文档已生成政策，删除后政策的 AI 分析、审核、预警和图谱关联会一并清除。</p>
+              <p>该文档已生成政策，删除后政策的分析结论、预警和图谱关联会一并清除。</p>
             ) : (
               <p>删除后仅移除原文记录及其本地文件。</p>
             )}

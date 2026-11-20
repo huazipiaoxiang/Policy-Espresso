@@ -34,9 +34,9 @@ const SETTINGS_SECTIONS = [
         description: "当前使用 API Key 鉴权，正式版需接入 SSO / RBAC",
       },
       {
-        label: "审核角色",
-        value: "Reviewer A / B / C",
-        description: "三个人工审核角色，按业务线分配任务",
+        label: "流转角色",
+        value: "AI 自动处理",
+        description: "政策分析与发布由 AI 自动完成，人工仅保留管理员兜底",
       },
       {
         label: "管理员",
@@ -57,7 +57,7 @@ const SETTINGS_SECTIONS = [
       {
         label: "站内通知",
         value: "已启用",
-        description: "系统内消息通知，审核任务与异常告警",
+        description: "系统内消息通知，政策发布与异常告警",
         status: "green",
       },
       {
@@ -69,7 +69,7 @@ const SETTINGS_SECTIONS = [
       {
         label: "企业微信 Webhook",
         value: "已配置",
-        description: "企业微信群机器人，实时推送审核任务",
+        description: "企业微信群机器人，实时推送政策发布与异常告警",
         status: "green",
       },
       {

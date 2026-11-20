@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     Alert, Assessment, AuditLog, ConsumerReport, Dispatch, DocumentChunk, Evidence, Feedback,
-    Policy, PolicyCaseLink, ReviewDecision, ReviewTask, ScopeJudgement,
+    Policy, PolicyCaseLink, PolicyPreprocess, ReviewDecision, ReviewTask, ScopeJudgement,
 )
 
 
@@ -26,6 +26,7 @@ def delete_policy_records(db: Session, policy: Policy) -> None:
     db.query(Feedback).filter(Feedback.policy_id == policy_id).delete(synchronize_session=False)
     db.query(ConsumerReport).filter(ConsumerReport.policy_id == policy_id).delete(synchronize_session=False)
     db.query(DocumentChunk).filter(DocumentChunk.policy_id == policy_id).delete(synchronize_session=False)
+    db.query(PolicyPreprocess).filter(PolicyPreprocess.policy_id == policy_id).delete(synchronize_session=False)
     if assessment_ids:
         db.query(Assessment).filter(Assessment.id.in_(assessment_ids)).delete(synchronize_session=False)
     db.delete(policy)

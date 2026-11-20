@@ -35,7 +35,7 @@ export default async function AlertsPage() {
           ))}
           {items.length === 0 && (
             <div className="card p-8 text-center text-[12px] text-[var(--text-3)]">
-              暂无预警（审核通过并分发后在此可见）
+              暂无预警（AI 发布并分发后在此可见）
             </div>
           )}
         </div>

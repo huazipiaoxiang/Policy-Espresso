@@ -139,6 +139,16 @@ def main() -> None:
         f"跳过 {analysis.get('skipped', 0)} 条 | 失败 {analysis.get('failed', 0)} 条"
     )
 
+    # 与定时 crawl_all 保持一致：抓取 + 分析后回填指纹并标记跨源重复（幂等、不删数据）
+    from app.jobs.dedup_job import mark_duplicates
+
+    with SessionLocal() as db:
+        dedup = mark_duplicates(db)
+    print(
+        f"去重标记：新增重复 {dedup.get('marked', 0)} 条 | "
+        f"唯一指纹 {dedup.get('unique_fingerprints', 0)} 个"
+    )
+
 
 if __name__ == "__main__":
     main()

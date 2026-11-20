@@ -28,6 +28,28 @@ def offline_on(monkeypatch):
                         lambda: real.model_copy(update={"llm_offline_rules": True}))
 
 
+@pytest.fixture()
+def offline_auto_publish(monkeypatch):
+    """离线规则 + 自动发布：抓取→分析→预处理→发布不等人点（默认产品行为）。"""
+    from app.core import config as config_module
+
+    real = config_module.get_settings()
+    monkeypatch.setattr(config_module, "get_settings", lambda: real.model_copy(update={
+        "llm_offline_rules": True, "auto_publish_enabled": True, "auto_publish_min_confidence": 0.0,
+    }))
+
+
+@pytest.fixture()
+def offline_manual_review(monkeypatch):
+    """离线规则 + 关闭自动发布：回到「分析完转人工审核」的旧语义。"""
+    from app.core import config as config_module
+
+    real = config_module.get_settings()
+    monkeypatch.setattr(config_module, "get_settings", lambda: real.model_copy(update={
+        "llm_offline_rules": True, "auto_publish_enabled": False,
+    }))
+
+
 def _seed_and_analyze(client, url: str, title: str, html: str):
     from sqlalchemy import select
 
@@ -78,11 +100,11 @@ def test_offline_extract_derives_content_from_document(client, offline_on):
         # 样例中的金额/期限/义务不得出现在离线结论里
         assert p.amounts == [] and p.deadlines == [] and p.obligations == []
         assert p.doc_number is None
-        assert p.status in ("ai_checked", "pending_review")
+        assert p.status in ("ai_checked", "pending_review", "published")
         assert p.prompt_version.startswith("offline-rules")
 
 
-def test_offline_rule_derived_scores_still_queue_for_human_review(client, offline_on):
+def test_offline_rule_derived_scores_still_queue_for_human_review(client, offline_manual_review):
     """规则派生评分（未经模型判断）也要进审核队列，不能因低分被静默跳过。"""
     policy = _seed_and_analyze(
         client, "https://www.hkma.gov.hk/chi/offline/manufacturing/",
@@ -104,6 +126,29 @@ def test_offline_rule_derived_scores_still_queue_for_human_review(client, offlin
         assert len(tasks) == 1 and tasks[0].level == 1
         # 详情页“分析可靠程度”取 Policy.confidence，离线模式应回写影响分析置信度
         assert p.confidence > 0, "policy.confidence 未从 assessment 回写"
+
+
+def test_policy_published_automatically_after_analysis(client, offline_auto_publish):
+    """抓取→分析→预处理→发布全自动：分析完成即 published，不产生人工审核任务。"""
+    policy = _seed_and_analyze(
+        client, "https://www.hkma.gov.hk/chi/offline/autopublish/",
+        "关于辖内银行业金融机构支持制造业发展的通知", GENERIC_BANK,
+    )
+
+    from sqlalchemy import select
+
+    from app.db.models import Policy, PolicyPreprocess, ReviewTask
+    from app.db.session import SessionLocal
+
+    with SessionLocal() as db:
+        p = db.get(Policy, policy.id)
+        assert p.status == "published", p.status
+        assert db.scalars(select(ReviewTask).where(ReviewTask.policy_id == p.id)).all() == []
+        preprocess = db.scalars(
+            select(PolicyPreprocess).where(PolicyPreprocess.policy_id == p.id)
+        ).first()
+        assert preprocess is not None, "发布的同时应已生成预处理记录"
+        assert preprocess.keywords
 
 
 def test_offline_impact_derives_only_rule_backed_dimensions(offline_on):

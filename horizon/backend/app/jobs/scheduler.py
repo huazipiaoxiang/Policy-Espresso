@@ -84,6 +84,18 @@ def crawl_all() -> dict:
             analyze_stats = analyze_all_pending()
             stats.update({k: v for k, v in analyze_stats.items() if k in ("analyzed", "skipped", "errors")})
             stats["failed"] += analyze_stats.get("failed", 0)
+            # 抓取 + 分析结束后，回填「标题+正文」指纹并标记跨源重复（幂等、不删数据）。
+            # 失败只记日志与 stats.errors，不影响本轮抓取结果。
+            try:
+                from app.jobs.dedup_job import mark_duplicates
+
+                dedup_stats = mark_duplicates(db)
+                stats["duplicates_marked"] = dedup_stats.get("marked", 0)
+                log.info("dedup_done", **dedup_stats)
+            except Exception as e:
+                db.rollback()
+                stats["errors"].append(f"dedup: {type(e).__name__}: {e}")
+                log.error("dedup_failed", error=str(e))
             return stats
     finally:
         _crawl_lock.release()

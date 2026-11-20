@@ -56,7 +56,7 @@ export default function StudioConsole({
     <div className="space-y-4">
       {/* 免责声明常驻条 */}
       <div className="rounded-card border border-[var(--warn)] bg-[var(--warn)]/10 px-4 py-2 text-[12px] text-[var(--warn)]">
-        ⚠ AI 辅助生成，仅供内部研讨，未经政策与合规审核不得对外。
+        ⚠ 自动生成内容，仅供内部研讨，未经政策与合规审核不得对外。
       </div>
 
       <div className="grid grid-cols-12 gap-4">

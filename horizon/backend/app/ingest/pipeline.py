@@ -26,22 +26,42 @@ def _existing_by_canonical(db: Session, canonical_url: str) -> Document | None:
     return db.scalar(select(Document).where(Document.canonical_url == canonical_url))
 
 
-def _find_near_duplicate(db: Session, source: Source, simhash: int) -> Document | None:
-    """跨源近重复聚类（06 §5.5）：同一政策多源转载，保留先到的为 primary。
+def _find_duplicate(
+    db: Session, source: Source, *, title: str, fingerprint: str, simhash: int
+) -> tuple[Document | None, str]:
+    """判重：标题+正文指纹精确命中优先，其次 simhash 近重复（均只跨源比对）。
 
-    只在近 30 天、其他源的文档中比对（同源同内容按 canonical URL 精确去重已覆盖）。
+    - 指纹：同标题 + 同正文 → 视为同一政策被多站转载，只保留先到的为 primary；
+    - simhash：跨源汉明距离 ≤3 的近重复（同源不同 URL 交给 canonical URL 精确去重，
+      避免同站栏目页/多语言版本被误合并）；
+    只在近 30 天、且自身不是重复主体的文档中比对。
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    if fingerprint:
+        exact = db.scalars(
+            select(Document).where(
+                Document.content_fingerprint == fingerprint,
+                Document.fetched_at >= cutoff,
+                Document.duplicate_of.is_(None),
+                Document.source_id != source.id,
+            ).limit(1)
+        ).first()
+        if exact is not None:
+            return exact, "fingerprint"
+    if simhash is None:  # 正文为空或未计算 simhash 时只做指纹判重
+        return None, ""
     candidates = db.scalars(
         select(Document).where(
-            Document.fetched_at >= cutoff, Document.simhash.isnot(None),
+            Document.fetched_at >= cutoff,
+            Document.simhash.isnot(None),
+            Document.duplicate_of.is_(None),
             Document.source_id != source.id,
         ).limit(500)
     ).all()
     for doc in candidates:
         if doc.simhash is not None and dedupe.is_near_duplicate(simhash, doc.simhash):
-            return doc
-    return None
+            return doc, "simhash_cross_source"
+    return None, ""
 
 
 def ingest_document(db: Session, source: Source, raw, ref) -> tuple[Document | None, str]:  # noqa: ANN001
@@ -69,6 +89,7 @@ def ingest_document(db: Session, source: Source, raw, ref) -> tuple[Document | N
 
     new_hash = dedupe.content_hash(norm.content_text)
     new_simhash = dedupe.simhash64(norm.content_text)
+    new_fingerprint = dedupe.fingerprint(norm.title or ref.title or raw.url, norm.content_text)
 
     if existing is not None:
         if existing.content_hash == new_hash:
@@ -82,6 +103,7 @@ def ingest_document(db: Session, source: Source, raw, ref) -> tuple[Document | N
         ))
         existing.content_text = norm.content_text
         existing.content_hash = new_hash
+        existing.content_fingerprint = new_fingerprint
         existing.simhash = new_simhash
         existing.title = norm.title or existing.title
         existing.fetched_at = datetime.now(timezone.utc)
@@ -97,17 +119,21 @@ def ingest_document(db: Session, source: Source, raw, ref) -> tuple[Document | N
         source_id=source.id, url=raw.url, canonical_url=canonical,
         title=norm.title or ref.title or raw.url, lang=norm.lang or source.lang,
         published_at=norm.published_at, fetched_at=datetime.now(timezone.utc),
-        content_text=norm.content_text, content_hash=new_hash, simhash=new_simhash,
+        content_text=norm.content_text, content_hash=new_hash,
+        content_fingerprint=new_fingerprint, simhash=new_simhash,
         attachments=enrich_attachments(norm.attachments) if norm.attachments else norm.attachments,
         status="new",
     )
-    # 跨源近重复：同一政策多源转载，保留先到的为 primary
-    dup = _find_near_duplicate(db, source, new_simhash)
+    # 标题+正文指纹精确命中 → 近重复 simhash → 标记 duplicate（不入分析队列）
+    dup, reason = _find_duplicate(
+        db, source, title=doc.title, fingerprint=new_fingerprint, simhash=new_simhash,
+    )
     if dup is not None:
         doc.duplicate_of = dup.id
-        doc.status = "ignored"
+        doc.status = "duplicate"
         db.add(doc)
         db.flush()
+        log.info("doc_duplicate", url=canonical, duplicate_of=dup.id, reason=reason)
         return doc, "duplicate"
 
     passed, hits = gate1.gate1_pass(doc.title, doc.content_text)

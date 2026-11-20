@@ -27,6 +27,10 @@ async function proxy(request: NextRequest, path: string[]) {
     const bytes = await resp.arrayBuffer();
     return new NextResponse(bytes, { status: resp.status, headers: { "content-type": contentType } });
   }
+  // 204/304 不能带 body，需显式返回空响应
+  if (resp.status === 204 || resp.status === 304) {
+    return new NextResponse(null, { status: resp.status });
+  }
   const payload = await resp.text();
   return new NextResponse(payload, { status: resp.status, headers: { "content-type": contentType } });
 }

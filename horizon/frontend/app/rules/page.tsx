@@ -46,7 +46,7 @@ const PIPELINE_STEPS = [
   { step: 4, name: "P3 适用范围", desc: "规则 + LLM 双通道判定汇丰实体适用性，冲突标记人工复核" },
   { step: 5, name: "P4 影响分析", desc: "案例匹配 + 业务图谱 + 暴露聚合 → 8 维评分卡出优先级" },
   { step: 6, name: "P5 预警草稿", desc: "生成六段预警，结构校验失败时降级为保底文案" },
-  { step: 7, name: "发布决策", desc: "AI 明确免审核直发；低置信或离线规则派生转人工审核" },
+  { step: 7, name: "发布决策", desc: "判定明确时由 AI 直接发布；低置信结论仅在内部分析页留痕，不再进入人工流转" },
 ];
 
 export default function RulesPage() {

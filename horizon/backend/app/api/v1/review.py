@@ -9,6 +9,7 @@ from app.core.security import require_api_key, require_roles
 from app.db.models import Assessment, ConsumerReport, Evidence, Policy, ReviewDecision, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import review as review_domain
+from app.domain.consumer_impact import customer_impact_rows, matched_customers
 
 router = APIRouter(tags=["review"], dependencies=[Depends(require_api_key)])
 
@@ -69,7 +70,11 @@ def list_consumer_reports(
     db: Session = Depends(get_db),
     role: str = Depends(require_roles("processor")),
 ):
-    """政策加工者查看 consumer 发来的影响报告（结构化解读）。"""
+    """政策运营专员查看 consumer 发来的影响报告（结构化解读 + 政策影响到的全部客户）。
+
+    报告本体只覆盖发送者名下客户，运营专员还需要看到该政策影响到的所有客户，
+    因此这里按政策业务线在全量合成客户中重新匹配，并把完整名单一并返回。
+    """
     stmt = select(ConsumerReport).order_by(ConsumerReport.created_at.desc())
     if status:
         stmt = stmt.where(ConsumerReport.status == status)
@@ -77,16 +82,52 @@ def list_consumer_reports(
     items = []
     for r in reports:
         policy = db.get(Policy, r.policy_id)
+        assessment = db.scalars(
+            select(Assessment).where(Assessment.policy_id == r.policy_id)
+        ).first()
+        business_lines = (assessment.affected.get("business_lines", []) if assessment else []) or []
+        if business_lines:
+            rows = customer_impact_rows(
+                matched_customers(business_lines),
+                assessment.scores if assessment else None,
+                direction=assessment.direction if assessment else None,
+            )
+            scope_note = f"按政策业务线（{'、'.join(business_lines)}）匹配全部客户"
+        else:
+            # 政策未标注业务线时，退回使用者报告中已识别的客户，避免把全部客户都算作受影响
+            rows = (r.report or {}).get("affected_customers", []) or []
+            scope_note = "政策未标注业务线，展示使用者报告中的客户"
         items.append({
             "id": r.id,
             "policy_id": r.policy_id,
             "policy_title": policy.title if policy else "",
+            "policy_priority": policy.priority if policy else "",
             "actor": r.actor,
             "report": r.report,
             "status": r.status,
             "created_at": r.created_at,
+            "affected_customers": rows,
+            "affected_customer_count": len(rows),
+            "affected_scope_note": scope_note,
         })
     return {"items": items}
+
+
+@router.post("/consumer-reports/{report_id}/process")
+def process_consumer_report(
+    report_id: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("processor")),
+):
+    """运营专员跟进使用者影响报告：标记为已跟进，政策随之进入「已跟进的政策」。"""
+    report = db.get(ConsumerReport, report_id)
+    if not report:
+        raise not_found("影响报告", report_id)
+    if report.status != "processed":
+        report.status = "processed"
+        db.commit()
+        db.refresh(report)
+    return {"id": report.id, "policy_id": report.policy_id, "status": report.status}
 
 
 @router.get("/review-tasks/{task_id}")

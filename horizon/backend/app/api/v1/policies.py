@@ -1,6 +1,6 @@
 """政策列表/详情/分发拦截。完整实现随 Phase 2/3 补齐；分发 409 硬规则已在此生效。"""
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
@@ -15,7 +15,12 @@ from app.core.security import get_demo_role, require_api_key, require_roles
 from app.db.models import Alert, Assessment, ConsumerReport, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import state_machine
-from app.domain.consumer_impact import affected_amount_by_business_lines, compute_consumer_impact, compute_customer_impact
+from app.domain.consumer_impact import (
+    affected_amount_by_business_lines,
+    compute_consumer_impact,
+    customer_impact_rows,
+    matched_customers,
+)
 from app.domain.policy_admin import delete_policy
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
@@ -123,7 +128,16 @@ def _policy_view(db: Session, policy: Policy) -> dict:
     )
     scores = assessment.scores if assessment else None
     direction = assessment.direction if assessment else None
-    business_lines = (assessment.affected.get("business_lines", []) if assessment else [])
+    business_lines = [
+        str(line)
+        for line in (assessment.affected.get("business_lines", []) if assessment else [])
+        if line
+    ]
+    if not business_lines:
+        # 评估未标注业务线时按主题/关键词推断，避免政策库「影响 Domain」长期空白
+        from app.domain.preprocess import infer_business_lines
+
+        business_lines = infer_business_lines(policy)
     amount, count = affected_amount_by_business_lines(business_lines)
     return {
         **PolicyOut.model_validate(policy).model_dump(),
@@ -211,6 +225,178 @@ def list_policies(
         items=[_policy_view(db, policy) for policy in items],
         total=total, page=page, page_size=page_size,
     )
+
+
+@router.get("/for-you")
+def for_you(
+    username: str | None = None,
+    db: Session = Depends(get_db),
+    role: str = Depends(get_demo_role),
+) -> dict:
+    """「为你推荐」：按政策预处理表格的三维分数降序返回本周新入库政策。
+
+    规则 A：登录用户名匹配到客户经理（relationship_manager）→ 用其名下客户的敞口
+            重算业务损失维度，其余维度沿用预处理结果；
+    规则 B：未匹配（含没有客户的政策使用者）→ 直接使用预处理表格里的百分比，
+            因此推荐不会因为缺少客户画像而为空。
+
+    时间口径：与预处理表格「本周新入库」一致，取 PolicyPreprocess.created_at；
+             本周没有新入库的已发布政策时，回退展示最近入库的已发布政策
+             （window="all"），保证推荐列表不为空。
+    """
+    from app.db.models import PolicyPreprocess
+    from app.domain.preprocess import normalize_research_items, percentages
+    from app.domain.rm_matching import customers_of, match_rm
+
+    hk = ZoneInfo("Asia/Hong_Kong")
+    hk_now = datetime.now(hk)
+    week_start_date = (hk_now - timedelta(days=7)).date()
+    week_start = week_start_date.isoformat()
+    week_end = hk_now.date().isoformat()
+    week_start_utc = datetime.combine(
+        week_start_date, datetime.min.time(), tzinfo=hk
+    ).astimezone(timezone.utc)
+
+    customers = customers_of(username)
+    match_mode = "rm_matched" if customers else "fallback"
+    rm = match_rm(username)
+    assessment_map = {a.policy_id: a for a in db.scalars(select(Assessment)).all()}
+
+    def _date_of(value) -> str:  # noqa: ANN001
+        if not value:
+            return ""
+        return value[:10] if isinstance(value, str) else value.date().isoformat()
+
+    def _load_rows(since: datetime | None, limit: int) -> list:
+        """取已发布政策的预处理记录；since 为空表示不限入库时间。"""
+        stmt = (
+            select(PolicyPreprocess, Policy)
+            .join(Policy, Policy.id == PolicyPreprocess.policy_id)
+            .where(Policy.status == "published")
+        )
+        if since is not None:
+            stmt = stmt.where(PolicyPreprocess.created_at >= since)
+        order = (
+            PolicyPreprocess.created_at.desc()
+            if since is not None
+            else PolicyPreprocess.impact_total.desc()
+        )
+        return list(db.execute(stmt.order_by(order).limit(limit)).all())
+
+    rows = _load_rows(week_start_utc, 200)
+    window = "week"
+    if not rows:  # 本周没有新入库：回退最近入库，避免推荐空着
+        rows = _load_rows(None, 100)
+        window = "all"
+
+    items: list[dict] = []
+    for record, policy in rows:
+        view = _policy_view(db, policy)
+        matched: list[dict] = []
+        if customers:
+            lines = {b.get("code") for b in (record.affected_business or []) if b.get("code")}
+            matched = [c for c in customers if not lines or c.get("business_line") in lines]
+            amount = round(sum(
+                float(c.get("loan_balance_cny_yi", 0) or 0) + float(c.get("other_bank_loans_cny_yi", 0) or 0)
+                for c in matched
+            ), 2)
+            assessment = assessment_map.get(policy.id)
+            pct = percentages(
+                assessment.scores if assessment else None,
+                record.direction,
+                affected_amount_cny_yi=amount,
+                affected_customer_count=len(matched),
+            )
+        else:
+            # 规则 B：三维分数直接取预处理表格百分比，不受客户画像影响
+            pct = {
+                "loss_pct": record.loss_pct,
+                "profit_pct": record.profit_pct,
+                "reputation_pct": record.reputation_pct,
+                "opportunity_pct": record.opportunity_pct,
+                "impact_total": record.impact_total,
+                "business_loss": round(float(record.loss_pct or 0)),
+                "business_opportunity": round(float(record.opportunity_pct or 0)),
+                "reputation_risk": round(float(record.reputation_pct or 0)),
+            }
+
+        items.append({
+            **view,
+            "impact_dimensions": {
+                "business_loss": pct["business_loss"],
+                "business_opportunity": pct["business_opportunity"],
+                "reputation_risk": pct["reputation_risk"],
+                "impact_total": pct["impact_total"],
+                "affected_customer_count": len(matched) if customers else
+                int((record.extras or {}).get("affected_customer_count", 0) or 0),
+            },
+            "preprocess": {
+                "id": record.id,
+                "keywords": record.keywords or [],
+                "affected_business": record.affected_business or [],
+                "customer_segments": record.customer_segments or [],
+                "loss_pct": pct["loss_pct"],
+                "profit_pct": pct["profit_pct"],
+                "reputation_pct": pct["reputation_pct"],
+                "opportunity_pct": pct["opportunity_pct"],
+                "hsbc_response": normalize_research_items(record.hsbc_response),
+                "peer_bank_response": normalize_research_items(record.peer_bank_response),
+                "market_applications": normalize_research_items(record.market_applications),
+                "source": record.source,
+            },
+            "match_mode": match_mode,
+            "matched_customers": [
+                {
+                    "customer_id": c.get("customer_id"),
+                    "name_masked": c.get("name_masked"),
+                    "business_line": c.get("business_line"),
+                    "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
+                }
+                for c in matched[:5]
+            ],
+            "unassessed": False,
+        })
+
+    def _triple_total(item: dict) -> float:
+        dims = item.get("impact_dimensions") or {}
+        return (
+            float(dims.get("business_loss") or 0)
+            + float(dims.get("business_opportunity") or 0)
+            + float(dims.get("reputation_risk") or 0)
+        )
+
+    # 按三维分数（业务损失 + 业务机会 + 声誉风险）由高到低
+    items.sort(key=lambda item: (
+        -_triple_total(item),
+        -float((item.get("impact_dimensions") or {}).get("impact_total") or 0),
+        -float(_date_of(item.get("published_at")).replace("-", "") or 0),
+    ))
+    # 「相关度 0 且无红线/差异条款」的政策对本行没有直接冲击（多为地方金融组织
+    # 设立/注销类公告），不进入推荐列表，否则整张表会被同一组 0 分刷屏。
+    def _has_impact(item: dict) -> bool:
+        dims = item.get("impact_dimensions") or {}
+        return any(
+            float(dims.get(key) or 0) > 0
+            for key in ("business_loss", "business_opportunity", "reputation_risk")
+        )
+
+    impactful = [item for item in items if _has_impact(item)]
+    hidden_no_impact = len(items) - len(impactful)
+    if impactful:
+        items = impactful
+    else:
+        hidden_no_impact = 0  # 全部无直接冲击时保留原列表，避免推荐页空白
+    return {
+        "items": items,
+        "total": len(items),
+        "hidden_no_impact": hidden_no_impact,
+        "match_mode": match_mode,
+        "rm": rm,
+        "matched_customer_count": len(customers),
+        "scores_source": "customer_exposure" if customers else "preprocess_percent",
+        "window": window,
+        "period": {"start": week_start, "end": week_end},
+    }
 
 
 @router.get("/{policy_id}")
@@ -311,27 +497,49 @@ def _foreign_bank_note(policy: Policy) -> str:
 
 
 def _topic_columns(db: Session, topic: str) -> dict:
-    """按重点话题关键词检索内部库与网络，生成三栏解读（离线模板，不调用 LLM）。"""
+    """按重点话题关键词检索内部库与网络，生成三栏解读（离线模板，不调用 LLM）。
+
+    与政策预处理表格口径一致：每栏只返回「简述 + 原文链接」，
+    没有可核查来源时返回空数组，由前端显示占位。
+    """
     from app.chat.tools import ChatTools
     from app.chat.web_search import search_web
+    from app.domain.preprocess import normalize_research_items
 
     tools = ChatTools(db, "consumer")
-    internal = [e for e in (tools.search_policies(topic) + tools.search_documents(topic)) if e.text][:3]
-    hsbc = "\n".join(f"{e.title}：{e.text[:220]}" for e in internal) or "暂无内部解读记录，可结合原文人工研判。"
+    internal_evidence = [
+        e for e in (tools.search_policies(topic) + tools.search_documents(topic)) if e.text
+    ][:3]
+    hsbc = normalize_research_items([
+        {
+            "summary": (e.text or "").strip()[:200],
+            "url": (e.citation or {}).get("url", ""),
+        }
+        for e in internal_evidence
+    ])
 
     web: list = []
     try:
         web = search_web(topic, limit=3)
     except Exception:
         web = []
-    industry = "\n".join(f"{e.title}：{e.text[:220]}" for e in web[:3]) or "暂无业界公开解读，可联网补充检索。"
-    market = "\n".join(f"{e.title}：{e.text[:220]}" for e in web[:3]) or "暂无相关市场案例。"
-    return {"hsbc": hsbc, "industry": industry, "market": market}
+    web_links = normalize_research_items([
+        {
+            "summary": ((e.text or "").strip() or e.title)[:200],
+            "url": (e.citation or {}).get("url", ""),
+        }
+        for e in web[:3]
+    ])
+    return {"hsbc": hsbc, "industry": web_links, "market": web_links}
 
 
-def _consumer_view(db: Session, policy: Policy) -> dict:
-    """政策使用者视角的政策解读：外资银行句、重点话题三栏解读、原文简化版、影响概述、受影响客户。"""
-    from app.domain.exposure import load_customers
+def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> dict:
+    """政策使用者视角的政策解读：外资银行句、重点话题三栏解读、原文简化版、影响概述、受影响客户。
+
+    受影响客户只对「名下有客户」的使用者展示：没有客户的政策使用者看不到
+    「对所管理用户的影响概述」与客户名单，避免凭空展示与本人无关的合成客户。
+    """
+    from app.domain.rm_matching import customers_of
 
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
     scores = assessment.scores if assessment else None
@@ -350,59 +558,242 @@ def _consumer_view(db: Session, policy: Policy) -> dict:
     # 避免在详情接口里串行联网检索（search_web）导致页面长时间 loading。
     topics = [{"topic": topic} for topic in (policy.themes or [])[:5]]
 
-    # 受影响客户：按业务线匹配；有业务线但匹配不到客户 → 视为「无客户」，不返回客户列表
-    customers = load_customers()
+    # 受影响客户：只取该使用者名下客户，再按政策业务线过滤；没有客户 → 不返回客户列表
+    managed = customers_of(username)
     lines = {line for line in business_lines if line}
-    matched = [c for c in customers if c.get("business_line") in lines] if lines else customers
-    if lines and not matched:
-        matched = []
+    matched = [c for c in managed if not lines or c.get("business_line") in lines]
     sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
-    match_basis = {
-        "rule": ("按政策业务线匹配" if lines else "政策未标注业务线，展示全部合成客户"),
-        "business_lines": sorted(lines),
-        "total_matched": len(matched),
-        "shown": min(len(sorted_matched), 30),
-        "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
-    }
-    affected = [
-        {
-            "customer_id": c["customer_id"],
-            "name_masked": c["name_masked"],
-            "business_line": c["business_line"],
-            "segment": c.get("segment", ""),
-            "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
-            "other_bank_loans_cny_yi": c.get("other_bank_loans_cny_yi", 0),
-            "overseas_business": c.get("overseas_business", []),
-            "impact": compute_customer_impact(c, scores, direction=direction),
-        }
-        for c in sorted_matched[:30]
-    ]
+    affected = customer_impact_rows(sorted_matched[:30], scores, direction=direction)
 
-    impact_overview = (
-        f"该政策整体呈{direction_label}方向，涉及客户经理所管理客户合计 {len(matched)} 户；"
-        f"业务损失 {dimensions['business_loss']} 分、业务机会 {dimensions['business_opportunity']} 分、"
-        f"声誉风险 {dimensions['reputation_risk']} 分。"
-    )
+    if matched:
+        impact_overview = (
+            f"该政策整体呈{direction_label}方向，涉及客户经理所管理客户合计 {len(matched)} 户；"
+            f"业务损失 {dimensions['business_loss']} 分、业务机会 {dimensions['business_opportunity']} 分、"
+            f"声誉风险 {dimensions['reputation_risk']} 分。"
+        )
+        match_basis = {
+            "rule": ("按名下客户 × 政策业务线匹配" if lines else "名下客户（政策未标注业务线）"),
+            "business_lines": sorted(lines),
+            "total_matched": len(matched),
+            "shown": min(len(sorted_matched), 30),
+            "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
+        }
+        benefit_loss = f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。"
+    else:
+        # 没有客户：不给影响概述与客户名单留空壳，前端据此整块隐藏
+        impact_overview = ""
+        match_basis = {
+            "rule": "未匹配到客户经理或名下暂无客户",
+            "business_lines": sorted(lines),
+            "total_matched": 0,
+            "shown": 0,
+            "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
+        }
+        benefit_loss = f"综合影响分 {dimensions['impact_total']} 分。"
+
+    # 外部公开反应：只输出「简述 + 原文链接」，避免把标题/来源等冗余字段带到使用者页面
+    from app.domain.preprocess import normalize_research_items
+
+    record = policy.preprocess
+    research = {
+        "hsbc_response": normalize_research_items(record.hsbc_response if record else None),
+        "peer_bank_response": normalize_research_items(record.peer_bank_response if record else None),
+        "market_applications": normalize_research_items(record.market_applications if record else None),
+    }
 
     return {
         "foreign_bank_note": _foreign_bank_note(policy),
         "topics": topics,
         "simplified_summary": policy.summary_zh or "尚未生成摘要",
+        "research": research,
         "impact_overview": impact_overview,
         "dimensions": dimensions,
-        "benefit_loss": f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。",
+        "benefit_loss": benefit_loss,
         "match_basis": match_basis,
         "affected_customers": affected,
     }
 
 
 @router.get("/{policy_id}/consumer-view")
-def policy_consumer_view(policy_id: str, db: Session = Depends(get_db), _: str = Depends(require_roles("consumer"))):
-    """政策使用者视角的政策解读。"""
+def policy_consumer_view(
+    policy_id: str,
+    username: str | None = None,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("consumer")),
+):
+    """政策使用者视角的政策解读；username 用于判断该使用者名下是否有客户。"""
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    return _consumer_view(db, policy)
+    return _consumer_view(db, policy, username)
+
+
+def _affected_customer_stats(db: Session, policy: Policy) -> dict:
+    """政策影响到的全部客户统计（客户库全量口径，与使用者客户归属无关）。"""
+    from app.domain.exposure import load_customers
+
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+    scores = assessment.scores if assessment else None
+    direction = assessment.direction if assessment else None
+    business_lines = (assessment.affected.get("business_lines", []) if assessment else []) or []
+    rows = customer_impact_rows(
+        matched_customers(business_lines, load_customers()), scores, direction=direction
+    )
+
+    by_line: dict[str, dict] = {}
+    by_segment: dict[str, dict] = {}
+    loan_total = 0.0
+    other_total = 0.0
+    overseas_count = 0
+    for row in rows:
+        line = row["business_line"] or "未标注"
+        line_bucket = by_line.setdefault(
+            line, {"business_line": line, "customers": 0, "loan_balance_cny_yi": 0.0}
+        )
+        line_bucket["customers"] += 1
+        segment = row.get("segment") or "未标注客群"
+        segment_bucket = by_segment.setdefault(
+            segment, {"segment": segment, "customers": 0, "loan_balance_cny_yi": 0.0}
+        )
+        segment_bucket["customers"] += 1
+        loan = float(row.get("loan_balance_cny_yi") or 0)
+        other = float(row.get("other_bank_loans_cny_yi") or 0)
+        loan_total += loan
+        other_total += other
+        line_bucket["loan_balance_cny_yi"] = round(line_bucket["loan_balance_cny_yi"] + loan, 2)
+        segment_bucket["loan_balance_cny_yi"] = round(segment_bucket["loan_balance_cny_yi"] + loan, 2)
+        if row.get("overseas_business"):
+            overseas_count += 1
+
+    sorted_lines = sorted(by_line.values(), key=lambda item: -item["loan_balance_cny_yi"])
+    sorted_segments = sorted(by_segment.values(), key=lambda item: -item["loan_balance_cny_yi"])
+
+    return {
+        "direction": direction,
+        "business_lines": sorted(business_lines),
+        "match_rule": (
+            f"按政策受影响业务线（{'、'.join(sorted(business_lines))}）匹配客户库全部客户"
+            if business_lines else "政策未标注业务线，按客户库全部客户统计"
+        ),
+        "total_customers": len(rows),
+        "loan_balance_total_cny_yi": round(loan_total, 2),
+        "other_bank_loans_total_cny_yi": round(other_total, 2),
+        "overseas_customers": overseas_count,
+        "by_business_line": sorted_lines,
+        "by_segment": sorted_segments,
+        # 概况表先给前 10 户（按贷款规模），完整名单在 customers 里
+        "top_customers": rows[:10],
+        "customers": rows,
+        "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
+    }
+
+
+def _followup_policy_card(db: Session, policy: Policy) -> dict:
+    """交给跟进 Agent 的政策卡片：只包含政策字段与 AI 分析结论。"""
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+    document = db.get(Document, policy.document_id)
+    return {
+        "id": policy.id,
+        "title": policy.title,
+        "doc_number": policy.doc_number,
+        "issuing_body": policy.issuing_body,
+        "jurisdiction": policy.jurisdiction,
+        "policy_type": policy.policy_type,
+        "priority": policy.priority,
+        "score_total": policy.score_total,
+        "confidence": policy.confidence,
+        "summary_zh": policy.summary_zh,
+        "themes": policy.themes,
+        "published_at": policy.published_at.date().isoformat() if policy.published_at else "",
+        "effective_at": policy.effective_at.date().isoformat() if policy.effective_at else "",
+        "url": document.url if document else "",
+        "direction": assessment.direction if assessment else "",
+        "transmission_chain": assessment.transmission_chain if assessment else [],
+        "recommended_actions": assessment.recommended_actions if assessment else [],
+        "affected": assessment.affected if assessment else {},
+    }
+
+
+def _followup_report_summary(db: Session, policy_id: str) -> dict:
+    """使用者影响报告汇总（份数 / 待跟进 / 涉及客户），供跟进 Agent 组织结论。"""
+    reports = db.scalars(
+        select(ConsumerReport)
+        .where(ConsumerReport.policy_id == policy_id)
+        .order_by(ConsumerReport.created_at.desc())
+    ).all()
+    customer_ids: set[str] = set()
+    for report in reports:
+        for customer in (report.report or {}).get("affected_customers") or []:
+            if isinstance(customer, dict) and customer.get("customer_id"):
+                customer_ids.add(str(customer["customer_id"]))
+    return {
+        "count": len(reports),
+        "pending": sum(1 for report in reports if report.status != "processed"),
+        "processed": sum(1 for report in reports if report.status == "processed"),
+        "customers": len(customer_ids),
+        "latest_at": reports[0].created_at.isoformat() if reports else None,
+    }
+
+
+@router.get("/{policy_id}/affected-customers")
+def policy_affected_customers(
+    policy_id: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("processor", "admin")),
+):
+    """政策影响到的全部客户统计（政策运营专员视角）。
+
+    口径为合成客户库全量：按政策受影响业务线匹配所有客户后聚合，
+    与「发来影响报告的使用者名下是否有客户」无关。
+    """
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    return {"policy_id": policy_id, **_affected_customer_stats(db, policy)}
+
+
+@router.post("/{policy_id}/affected-customers/analysis")
+def policy_affected_customers_analysis(
+    policy_id: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("processor", "admin")),
+):
+    """由跟进 Agent 动态分析受影响客户，返回实时统计 + AI 概况结论。
+
+    Agent 未接入或调用失败时退回数据驱动归纳，接口始终返回可用内容。
+    """
+    from app.ai.followup import affected_customer_brief
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    stats = _affected_customer_stats(db, policy)
+    reports = _followup_report_summary(db, policy_id)
+    brief = affected_customer_brief(_followup_policy_card(db, policy), stats, reports)
+    return {
+        "policy_id": policy_id,
+        "stats": stats,
+        "brief": brief,
+        "reports": reports,
+    }
+
+
+@router.post("/{policy_id}/tracking-email")
+def policy_tracking_email(
+    policy_id: str,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("processor", "admin")),
+):
+    """由跟进 Agent 生成政策跟踪报告邮件（主题 + 正文）。"""
+    from app.ai.followup import tracking_email
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    stats = _affected_customer_stats(db, policy)
+    reports = _followup_report_summary(db, policy_id)
+    email = tracking_email(_followup_policy_card(db, policy), stats, reports)
+    return {"policy_id": policy_id, **email}
 
 
 @router.get("/{policy_id}/topic/{topic}")
@@ -422,14 +813,15 @@ def policy_topic_columns(
 @router.post("/{policy_id}/consumer-view/send-review", status_code=201)
 def send_consumer_report(
     policy_id: str,
+    username: str | None = None,
     db: Session = Depends(get_db),
     _: str = Depends(require_roles("consumer")),
 ):
-    """consumer 把影响报告发送给政策加工者 review。"""
+    """consumer 把影响报告发送给政策运营专员 review。"""
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    report = ConsumerReport(policy_id=policy_id, actor="consumer", report=_consumer_view(db, policy))
+    report = ConsumerReport(policy_id=policy_id, actor="consumer", report=_consumer_view(db, policy, username))
     db.add(report)
     db.commit()
     db.refresh(report)
@@ -572,9 +964,9 @@ def dispatch_policy(
     policy_id: str,
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
-    _: str = Depends(require_roles("processor")),
+    _: str = Depends(require_roles("processor", "admin")),
 ):
-    """人工分发：仅 AI 不明确转入人审并 approved 的政策走此路径（免审核直发已在分析阶段完成）。"""
+    """发布：已分析（ai_checked）或已审核通过（approved）的政策均可直接发布。"""
     from app.domain import review as review_domain
 
     return review_domain.dispatch_policy(db, policy_id, actor=actor)
@@ -600,7 +992,7 @@ def submit_feedback(
     db: Session = Depends(get_db),
     actor: str = Depends(require_api_key),
 ):
-    """用户对已发布政策提交反馈意见（反馈至审核员）。"""
+    """用户对已发布政策提交反馈意见（反馈至平台管理员）。"""
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)

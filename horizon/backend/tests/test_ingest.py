@@ -39,6 +39,17 @@ def test_simhash_near_duplicate():
     assert dedupe.is_near_duplicate(a, dedupe.simhash64(base))
 
 
+def test_fingerprint_title_and_content():
+    """标题+正文指纹：空白/全角差异归一后同指纹；正文改动则不同指纹。"""
+    a = dedupe.fingerprint("广东省制造业贷款贴息实施办法", "本办法自2026年11月1日起施行。")
+    b = dedupe.fingerprint(" 广东省制造业贷款贴息实施办法 ", " 本办法自 2026 年 11 月 1 日起施行。 ")
+    c = dedupe.fingerprint("广东省制造业贷款贴息实施办法", "本办法自2027年1月1日起施行。")
+    d = dedupe.fingerprint("另一篇政策", "本办法自2026年11月1日起施行。")
+    assert a == b
+    assert a != c
+    assert a != d
+
+
 def test_change_detect_ratio():
     old = "第一段。\n第二段。\n第三段。\n第四段。"
     minor = "第一段。\n第二段改了。\n第三段。\n第四段。"

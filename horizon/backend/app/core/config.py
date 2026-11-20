@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_key: str = "dev-local-key"
+    # 抓取 → 分析 → 预处理 → 发布 全自动：免人工点击直接发布（仍可用用户反馈打回人审）
+    auto_publish_enabled: bool = True
+    # 自动发布的最低影响分析置信度；低于该值转人工审核（0 = 不设门槛）
+    # 默认 0.3 与「≥5 个维度缺失即低置信」的口径对齐：极端缺证据仍走人审
+    auto_publish_min_confidence: float = 0.3
+    # 预处理时自动联网检索「汇丰/他行反应、市场落地案例」。
+    # 出网内容仅限政策标题与主题（本身已公开），不含客户数据、内部评分等非公开信息。
+    preprocess_web_research: bool = True
+    # 可选：专业检索 API（Tavily / Serper / 博查等）。留空则用 Bing → DuckDuckGo 免费检索。
+    search_api_url: str = ""
+    search_api_key: str = ""
     # 前端跨域白名单，逗号分隔；本地换端口（如 3002）在这里加，不用改代码
     cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
     tz_display: str = "Asia/Hong_Kong"

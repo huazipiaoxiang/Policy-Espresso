@@ -2,7 +2,7 @@ import { RELEVANCE_LABELS } from "./ScopeChip";
 import type { PolicyItem } from "@/lib/api";
 
 // 政策行组件 — 基于 Policy Espresso V8.4 原型
-// 显示四维度状态：Scope / AI / 审核 / 发布
+// 显示三维度状态：Scope / AI 分析 / 发布（发布由 AI 自动完成，不再展示审核流转）
 
 const PRIORITY_COLOR: Record<string, string> = {
   P0: "var(--p0)",
@@ -55,12 +55,11 @@ export default function PolicyRow({ policy }: { policy: PolicyItem }) {
         <div className="text-[11px] text-[var(--text-3)] mt-0.5">{policy.issuing_body} · {fmtTime(policy.published_at)}</div>
       </div>
 
-      {/* 四维度状态 */}
+      {/* 三维度状态 */}
       <div className="flex gap-2 shrink-0">
         <StatusBadge label="相关性" value={relevanceStatus} />
-        <StatusBadge label="AI" value={policy.status === "processed" ? "已完成" : policy.status === "processing" ? "处理中" : "未开始"} />
-        <StatusBadge label="审核" value={policy.status === "pending_review" ? "待审核" : policy.status === "approved" ? "已批准" : policy.status} />
-        <StatusBadge label="发布" value={policy.status === "published" ? "已发布" : "未发布"} />
+        <StatusBadge label="分析" value={policy.status === "processed" ? "已完成" : policy.status === "processing" ? "处理中" : "未开始"} />
+        <StatusBadge label="发布" value={policy.status === "published" ? "已发布" : "等待 AI 发布"} />
       </div>
 
       {/* 优先级 */}

@@ -5,6 +5,7 @@ description = "HORIZON 政策雷达 Agent — 后端"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
+    "starlette>=1.6,<1.9",  # starlette 1.9+ 下 app.include_router 的延迟注册不生效，全部路由 404
     "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.30",
     "sqlalchemy>=2.0",

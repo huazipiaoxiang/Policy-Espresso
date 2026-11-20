@@ -223,12 +223,17 @@ def batch_decide(db: Session, task_ids: list[str], *, actor: str, action: str, r
 
 
 def dispatch_policy(db: Session, policy_id: str, actor: str) -> dict:
-    """分发：非 approved → 409；approved → published（留痕）→ 建 Alert + Dispatch。"""
+    """分发：ai_checked / approved → published（留痕）→ 建 Alert + Dispatch。
+
+    当前业务规则允许「已分析」政策跳过人工审核直接发布；
+    仍在审核流程中的状态（pending_review / in_review 等）仍然禁止分发。
+    """
     policy = db.get(Policy, policy_id)
     if not policy:
         raise ApiError("NOT_FOUND", "政策不存在", 404, {"id": policy_id})
-    if policy.status != "approved":
-        raise ApiError("NOT_APPROVED", "内容未通过人工审核，禁止分发", 409,
+    publishable = {"ai_checked", "approved"}
+    if policy.status not in publishable:
+        raise ApiError("NOT_APPROVED", "该政策当前状态不允许直接发布", 409,
                        {"policy_id": policy_id, "current_status": policy.status})
 
     before = policy.status
@@ -251,7 +256,7 @@ def dispatch_policy(db: Session, policy_id: str, actor: str) -> dict:
         results.append({"channel": notifier.name, **result})
     db.add(AuditLog(actor=actor, action="dispatch", object_type="policy", object_id=policy_id,
                     before={"status": before}, after={"status": policy.status, "alert_id": alert.id},
-                    reason="人工审核通过后分发"))
+                    reason=("免审核直接发布" if before == "ai_checked" else "人工审核通过后分发")))
     db.commit()
     return {"policy_id": policy_id, "alert_id": alert.id, "status": policy.status, "channels": results}
 

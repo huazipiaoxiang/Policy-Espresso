@@ -35,6 +35,29 @@ interface Policy {
     impact_total: number;
     affected_customer_count: number;
   };
+  unassessed?: boolean;
+  preprocess?: {
+    loss_pct: number;
+    profit_pct: number;
+    reputation_pct: number;
+    opportunity_pct: number;
+    keywords: string[];
+    affected_business: { code: string; name: string }[];
+    customer_segments: string[];
+  } | null;
+}
+
+interface Recommendation {
+  items: Policy[];
+  match_mode: "rm_matched" | "fallback";
+  rm: string | null;
+  matched_customer_count: number;
+  scores_source: string;
+  // 与本行无直接关联（相关度 0）而未进入列表的政策数量
+  hidden_no_impact?: number;
+  // week：本周新入库；all：本周无新入库时回退最近入库
+  window?: "week" | "all";
+  period: { start: string; end: string };
 }
 
 function dateLabel(value: string | null | undefined) {
@@ -49,8 +72,10 @@ function directionBadgeClass(direction: string | null): string {
 }
 
 export default function ForYouPage() {
-  const { ready, role } = useAuth();
+  const { ready, role, username } = useAuth();
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [reco, setReco] = useState<Recommendation | null>(null);
+  const [recoLoading, setRecoLoading] = useState(true);
   const [preferences, setPreferences] = useState<SubscriptionPreferences>(DEFAULT_SUBSCRIPTIONS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,6 +93,25 @@ export default function ForYouPage() {
   const [searchText, setSearchText] = useState("");
   // 分页：每页 10 条，最多展示 100 条（10 页）
   const [page, setPage] = useState(1);
+
+  // 推荐列表：本周新入库政策 + 预处理表格三维分（后端已按综合分降序）
+  const loadReco = useCallback(async () => {
+    setRecoLoading(true);
+    try {
+      const query = username ? `?username=${encodeURIComponent(username)}` : "";
+      const response = await fetch(`${API_BASE}/policies/for-you${query}`, {
+        headers: demoApiHeaders(),
+        cache: "no-store",
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message || "推荐政策加载失败");
+      setReco(body);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "推荐政策加载失败");
+    } finally {
+      setRecoLoading(false);
+    }
+  }, [username]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,7 +142,8 @@ export default function ForYouPage() {
     if (!ready) return;
     setPreferences(loadSubscriptions());
     void load();
-  }, [load, ready, role]);
+    void loadReco();
+  }, [load, loadReco, ready, role]);
 
   const selectedTopics = useMemo(
     () => TOPIC_OPTIONS.filter((topic) => preferences.topics.includes(topic.value)).map((topic) => topic.label),
@@ -139,26 +184,26 @@ export default function ForYouPage() {
   // AI 聚合：按当前周期把匹配政策交给后端 LLM 生成速览
   const periodList = digestTab === "week" ? weekly : monthly;
   const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
-  // 推荐列表：搜索扩大到整个数据库（全部已发布政策），按影响程度/日期排序，最多展示 100 条
+  // 推荐列表：本周新入库政策（后端已按预处理综合分降序），前端只做筛选与按日期重排
   const allSorted = useMemo(() => {
-    let filtered = directionFilter
-      ? policies.filter((p) => (p.direction || "neutral") === directionFilter)
-      : policies;
+    let filtered = reco?.items ?? [];
+    if (directionFilter) {
+      filtered = filtered.filter((policy) => (policy.direction || "neutral") === directionFilter);
+    }
     const keyword = searchText.trim().toLowerCase();
     if (keyword) {
-      filtered = filtered.filter((p) =>
-        (p.title || "").toLowerCase().includes(keyword) ||
-        (p.issuing_body || "").toLowerCase().includes(keyword)
+      filtered = filtered.filter((policy) =>
+        (policy.title || "").toLowerCase().includes(keyword) ||
+        (policy.issuing_body || "").toLowerCase().includes(keyword)
       );
     }
-    const sorted = [...filtered];
-    if (sortBy === "impact") {
-      sorted.sort((a, b) => (b.impact_dimensions?.impact_total ?? 0) - (a.impact_dimensions?.impact_total ?? 0));
-    } else {
-      sorted.sort((a, b) => (b.dispatched_at || "").localeCompare(a.dispatched_at || ""));
+    if (sortBy === "date") {
+      return [...filtered].sort((a, b) =>
+        (b.dispatched_at || b.published_at || "").localeCompare(a.dispatched_at || a.published_at || "")
+      );
     }
-    return sorted.slice(0, 100);
-  }, [policies, directionFilter, sortBy, searchText]);
+    return filtered; // 综合分排序由后端给出（预处理表格口径）
+  }, [reco, directionFilter, sortBy, searchText]);
 
   // 分页：每页 10 条
   const PAGE_SIZE = 10;
@@ -185,7 +230,7 @@ export default function ForYouPage() {
     })
       .then(async (response) => {
         const body = await response.json();
-        if (!response.ok) throw new Error(body?.error?.message || "AI 聚合生成失败");
+        if (!response.ok) throw new Error(body?.error?.message || "速览生成失败");
         return body;
       })
       .then((body) => {
@@ -196,7 +241,7 @@ export default function ForYouPage() {
         }
       })
       .catch(() => {
-        if (active) setDigestMd("AI 聚合暂时不可用，请稍后再试。");
+        if (active) setDigestMd("速览暂时不可用，请稍后再试。");
       })
       .finally(() => {
         if (active) setDigestLoading(false);
@@ -212,7 +257,7 @@ export default function ForYouPage() {
         <div>
           <div className="eyebrow">POLICY INTELLIGENCE</div>
           <h1>为你推荐</h1>
-          <p className="sub">AI 聚合本周 / 本月与你相关的政策动态 · 关联业务图谱</p>
+          <p className="sub">本周 / 本月与你相关的政策动态 · 关联业务图谱</p>
         </div>
       </div>
 
@@ -220,9 +265,9 @@ export default function ForYouPage() {
 
       <div className="section-title">
         <div>
-          <div className="insight-eyebrow">✦ Your AI Policy Insights</div>
+          <div className="insight-eyebrow">✦ Your Policy Insights</div>
           <h2>本周 / 本月与你相关的政策动态</h2>
-          <small>AI 聚合 · 基于你的订阅偏好匹配结果</small>
+          <small>政策动态 · 基于你的订阅偏好匹配结果</small>
         </div>
         <Link href="/subscriptions" className="btn">管理订阅</Link>
       </div>
@@ -230,7 +275,7 @@ export default function ForYouPage() {
         <div className="ai-digest-head">
           <div className="ai-digest-titles">
             <h3>{digestTab === "week" ? "本周与你相关的政策动态" : "本月与你相关的政策动态"}</h3>
-            <p>按你的订阅偏好（关注主题 × 关注市场）匹配本周期内发布的政策，由 AI 聚合为一段动态速览。</p>
+            <p>按你的订阅偏好（关注主题 × 关注市场）匹配本周期内发布的政策，自动聚合为一段动态速览。</p>
           </div>
           <div className="ai-digest-side">
             <div className="ai-digest-tabs" role="tablist">
@@ -264,15 +309,28 @@ export default function ForYouPage() {
         ) : periodList.length === 0 ? (
           <div className="ai-digest-body"><p className="ai-digest-placeholder">该周期内没有与你订阅偏好匹配的新发布政策，切换周期或调整订阅后再试。</p></div>
         ) : (
-          <>
+          <div className="ai-digest-body">
             {digestLoading ? (
-              <p className="ai-digest-placeholder" style={{ marginTop: 14 }}>✦ AI 正在生成本{digestTab === "week" ? "周" : "月"}速览…</p>
+              <p className="ai-digest-placeholder" style={{ marginTop: 14 }}>✦ 正在生成本{digestTab === "week" ? "周" : "月"}速览…</p>
             ) : digestMd ? (
               <details className="ai-digest-summary">
-                <summary>✦ AI 本{digestTab === "week" ? "周" : "月"}速览：{digestMd.split("\n")[0]}</summary>
+                <summary>✦ 本{digestTab === "week" ? "周" : "月"}速览：{digestMd.split("\n")[0]}</summary>
                 <div className="inside">{digestMd}</div>
               </details>
             ) : null}
+          </div>
+        )}
+        {/* 为你推荐：即使没有客户画像或聚合内容为空，也展示预处理表格三维分数的推荐列表 */}
+        <div className="notice" style={{ margin: "12px 0", fontSize: 12 }}>
+          {reco?.window === "all" && (
+            <span style={{ color: "#b08900" }}>本周暂无新入库的已发布政策，已回退展示最近入库的政策</span>
+          )}
+          {reco && (
+            <span style={{ color: "#8b929c" }}>
+              {reco.window === "all" ? " · " : ""}统计区间 {reco.period.start} ~ {reco.period.end}
+            </span>
+          )}
+        </div>
             <div className="rowflex" style={{ margin: "12px 0", gap: 12, flexWrap: "wrap" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                 <span>影响方向</span>
@@ -314,8 +372,10 @@ export default function ForYouPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allSorted.length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>没有符合当前筛选条件的政策</td></tr>
+                  {recoLoading ? (
+                    <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>正在加载本周推荐政策…</td></tr>
+                  ) : allSorted.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>当前没有符合条件的推荐政策，请调整筛选或稍后再试</td></tr>
                   ) : pagedPolicies.map((policy) => {
                     const topics = [...new Set(policy.themes.map(normalizeTheme))].filter(Boolean);
                     const dispatched = policy.dispatched_at || policy.published_at;
@@ -346,11 +406,14 @@ export default function ForYouPage() {
                         </td>
                         <td style={{ whiteSpace: "nowrap" }}>
                           {policy.impact_dimensions ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
-                              <span>业务损失 <b>{policy.impact_dimensions.business_loss}</b></span>
-                              <span>业务机会 <b>{policy.impact_dimensions.business_opportunity}</b></span>
-                              <span>声誉风险 <b>{policy.impact_dimensions.reputation_risk}</b></span>
-                            </div>
+                            policy.impact_dimensions.business_loss || policy.impact_dimensions.business_opportunity || policy.impact_dimensions.reputation_risk ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 12 }}>
+                                <span>业务损失 <b>{policy.impact_dimensions.business_loss}</b></span>
+                                <span>业务机会 <b>{policy.impact_dimensions.business_opportunity}</b></span>
+                                <span>声誉风险 <b>{policy.impact_dimensions.reputation_risk}</b></span>
+                                <span style={{ color: "#8b929c" }}>综合 <b>{policy.impact_dimensions.impact_total}</b></span>
+                              </div>
+                            ) : <span style={{ fontSize: 12, color: "#8b929c" }}>无直接影响</span>
                           ) : "—"}
                         </td>
                         <td>
@@ -383,8 +446,11 @@ export default function ForYouPage() {
                 </button>
               </div>
             )}
-          </>
-        )}
+        {reco?.hidden_no_impact ? (
+          <p className="footnote" style={{ marginTop: 8 }}>
+            已隐藏 {reco.hidden_no_impact} 条与本行无直接关联的政策（相关度为 0，不计入影响评分）
+          </p>
+        ) : null}
         <div className="ai-digest-foot">
           ✦ 生成来源：{digestModel || "—"} · 数据时间：{periodKey} 至 {hkToday}（香港时区）
         </div>

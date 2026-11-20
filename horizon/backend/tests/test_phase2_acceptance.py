@@ -129,9 +129,13 @@ def test_case1_full_acceptance(client):
         # 低相关政策保留分析结果，但不自动进入审核队列。
         assert p.status == "ai_checked"
         assert not tasks
-        # T1-18 未审核分发 409
-        resp = client.post(f"/api/v1/policies/{p.id}/dispatch", headers={"X-Demo-Role": "processor"})
-        assert resp.status_code == 409 and resp.json()["error"]["code"] == "NOT_APPROVED"
+        dispatch_target = p.id
+
+    # 免审核直发：已分析（ai_checked）政策可直接发布，无需先走人工审核
+    resp = client.post(
+        f"/api/v1/policies/{dispatch_target}/dispatch", headers={"X-Demo-Role": "processor"}
+    )
+    assert resp.status_code == 200 and resp.json()["status"] == "published"
 
 
 def test_case1_reverse_all_banks_covered(client):

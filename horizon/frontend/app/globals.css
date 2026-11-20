@@ -112,6 +112,81 @@ a {
   gap: 6px;
 }
 
+/* 侧边栏导航：每个功能独立成框，当前页关联功能高亮 */
+.nav a {
+  display: flex;
+  align-items: center;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #555b64;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.nav a:hover {
+  border-color: var(--border-strong);
+  background: #fafbfc;
+  color: var(--text);
+}
+
+.nav a.active {
+  background: #fff0f1;
+  border-color: #f0c2c6;
+  color: #b4000f;
+  font-weight: 700;
+}
+
+/* 政策解读页：侧边栏以当前政策标题作为高亮项 */
+.nav-current {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid #f0c2c6;
+  border-radius: 8px;
+  background: #fff0f1;
+  color: #b4000f;
+}
+
+.nav-current small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+/* 标题完整展示：按侧边栏宽度自动换行，卡片高度随标题长短动态调整 */
+.nav-current strong {
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 详情页返回入口（政策解读等） */
+.side-back {
+  align-self: flex-start;
+  margin-top: -12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.side-back:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 .nav button {
   border: 0;
   background: transparent;
@@ -1453,6 +1528,19 @@ tbody tr.clickable:hover {
     white-space: nowrap;
     padding: 9px;
   }
+  .nav a {
+    white-space: nowrap;
+    padding: 9px;
+  }
+  .nav-current {
+    flex-shrink: 0;
+    min-width: 180px;
+    max-width: 280px;
+    padding: 9px;
+  }
+  .side-back {
+    margin-top: 0;
+  }
   .sidebar-foot {
     display: none;
   }
@@ -1746,6 +1834,121 @@ tbody tr.clickable:hover {
   margin-top: 18px;
 }
 
+/* 政策跟踪报告邮件弹窗（政策详情页 · 政策运营专员） */
+.email-modal {
+  width: min(760px, 100%);
+  max-height: min(84vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+
+.email-modal .confirm-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.email-field small {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.email-field span {
+  color: var(--ink);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.email-preview {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 46vh;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.email-copied {
+  margin-right: auto;
+  align-self: center;
+  font-size: 12px;
+  color: var(--green);
+}
+
+.email-modal .confirm-actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 跟进 Agent 动态分析结论（政策详情页 · 受影响客户概况） */
+.agent-brief {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.agent-brief-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-brief-head strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.agent-brief-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.agent-brief-cols small {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.agent-brief-cols ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+
+.agent-brief-meta {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+@media (max-width: 760px) {
+  .agent-brief-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
 .btn.danger {
   background: var(--red);
   border-color: var(--red);
@@ -1757,7 +1960,7 @@ tbody tr.clickable:hover {
   cursor: not-allowed;
 }
 
-/* 8 维评分卡（02 §5.2）：政策详情页「AI 结论与业务影响」面板 */
+/* 8 维评分卡（02 §5.2）：政策详情页「业务影响」面板 */
 .scorecard {
   display: grid;
   gap: 10px;
@@ -1928,6 +2131,36 @@ tbody tr.clickable:hover {
 :root[data-theme="dark"] .nav button.active {
   background: var(--accent-weak);
   color: #ff8d95;
+}
+
+:root[data-theme="dark"] .nav a {
+  background: transparent;
+  border-color: #2b2f36;
+  color: #8a929d;
+}
+:root[data-theme="dark"] .nav a:hover {
+  border-color: #3b4048;
+  background: #17191e;
+  color: #d4d8de;
+}
+:root[data-theme="dark"] .nav a.active {
+  background: var(--accent-weak);
+  border-color: var(--accent-weak);
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .nav-current {
+  background: var(--accent-weak);
+  border-color: var(--accent-weak);
+  color: #ff8d95;
+}
+:root[data-theme="dark"] .side-back {
+  background: transparent;
+  border-color: #2b2f36;
+  color: #8a929d;
+}
+:root[data-theme="dark"] .side-back:hover {
+  border-color: #3b4048;
+  color: #d4d8de;
 }
 
 :root[data-theme="dark"] .breadcrumb,
@@ -2389,7 +2622,7 @@ tbody tr.clickable:hover {
   margin-top: 3px;
 }
 
-/* 「本周 / 本月与你相关」AI 聚合卡片（为你推荐首页） */
+/* 「本周 / 本月与你相关」动态卡片（为你推荐首页） */
 .insight-eyebrow {
   font-size: 11px;
   font-weight: 750;
@@ -2525,7 +2758,7 @@ tbody tr.clickable:hover {
   overflow-x: auto;
 }
 
-/* AI 分析过程时间线节点内容（政策详情页，复用 .agent-trace 骨架） */
+/* 分析过程时间线节点内容（政策详情页，复用 .agent-trace 骨架） */
 .agent-trace-desc {
   margin: 3px 0 0;
   font-size: 11px;

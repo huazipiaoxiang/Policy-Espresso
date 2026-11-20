@@ -7,7 +7,7 @@ export default function SoonPage() {
       <EmptyState
         title="该页面将在后续 Phase 交付"
         hint="政策详情（Phase 2）· 审核台（Phase 3）· 案例库与 Studio（Phase 4）"
-        action="返回 /radar"
+        action="返回政策跟进中心"
       />
     </main>
   );

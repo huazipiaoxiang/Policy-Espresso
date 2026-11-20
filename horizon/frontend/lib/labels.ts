@@ -1,7 +1,8 @@
 // 界面中文标签：后端枚举只在此处映射一次，避免各页面各写一份。
+// 政策由 AI 自动抓取、分析并发布：状态文案不再出现「待审核 / 审核中」等人工流转字眼。
 export const POLICY_STATUS_LABELS: Record<string, string> = {
-  draft: "草稿", ai_checked: "已分析", pending_review: "待审核", in_review: "审核中",
-  approved: "审核通过", published: "已发布", rejected: "已驳回", needs_info: "待补资料",
+  draft: "草稿", ai_checked: "已分析", pending_review: "待处理", in_review: "处理中",
+  approved: "已确认", published: "已发布", rejected: "已驳回", needs_info: "待补资料",
 };
 
 // 未接入 LLM 时影响分保持为 0，界面按"未评定"显示，避免把占位 0 当成模型结论
@@ -11,8 +12,8 @@ export function impactScoreLabel(score: number, digits = 0, withUnit = true): st
 }
 
 export const ANALYSIS_MODEL_LABELS: Record<string, string> = {
-  "offline-rules": "离线规则（未接入 AI）",
-  "mock-deterministic": "演示模型（未接入 AI）",
+  "offline-rules": "离线规则（未接入模型）",
+  "mock-deterministic": "演示模型（未接入外部模型）",
 };
 
 export function analysisModelLabel(model?: string | null): string {
@@ -57,12 +58,14 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
 
 // 审计 / 执行轨迹动作标签（政策生命周期事件，audit_log.action）
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
-  ai_analyze: "AI 分析完成",
-  submit_review: "提交人工审核",
-  skip_review: "跳过审核",
-  claim_task: "领取审核任务",
-  review_approve: "审核通过",
-  review_reject: "审核驳回",
+  ai_analyze: "分析完成",
+  auto_publish: "AI 自动发布",
+  skip_publish: "无需发布",
+  submit_review: "转入待处理",
+  skip_review: "跳过处理",
+  claim_task: "领取任务",
+  review_approve: "确认通过",
+  review_reject: "驳回",
   review_request_info: "退回补充",
   dispatch: "发布政策",
   delete_policy: "删除政策",

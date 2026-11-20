@@ -39,8 +39,19 @@ def normalize_content(text: str) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFKC", text or ""))
 
 
+def normalize_title(title: str) -> str:
+    """标题归一化：全角转半角、去空白、转小写（保留标点，标题同名判重依赖它）。"""
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", title or "")).lower()
+
+
 def content_hash(text: str) -> str:
     return hashlib.sha256(normalize_content(text).encode("utf-8")).hexdigest()
+
+
+def fingerprint(title: str, content: str) -> str:
+    """标题 + 正文指纹：同一政策被多站转载（URL 不同）时靠它一次命中判重。"""
+    raw = f"{normalize_title(title)}\x1f{normalize_content(content)}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _tokens(text: str) -> list[str]:

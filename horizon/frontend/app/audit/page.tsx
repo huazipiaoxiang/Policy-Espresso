@@ -23,7 +23,7 @@ const ACTION_BADGE: Record<string, string> = {
 const OBJECT_LABELS: Record<string, string> = {
   policy: "政策",
   document: "原文",
-  review_task: "审核任务",
+  review_task: "处理任务",
 };
 
 function fmtTime(at: string): string {
@@ -265,7 +265,7 @@ export default function AuditPage() {
       </div>
 
       <p className="footnote">
-        审计日志为只追加模式，所有采集、AI 分析、审核、发布与删除动作均在此留痕。日志保留期限 ≥7 年，满足金融监管合规要求。
+        审计日志为只追加模式，所有采集、分析、发布与删除动作均在此留痕。日志保留期限 ≥7 年，满足金融监管合规要求。
       </p>
     </main>
   );

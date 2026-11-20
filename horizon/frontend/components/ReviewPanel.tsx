@@ -5,9 +5,9 @@ import { useAuth } from "./AuthProvider";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { DECISION_LABELS, TASK_STATUS_LABELS } from "@/lib/labels";
 
-// 政策详情页内的审核面板：审批动作从原「审核工作台」迁移到此处（审批发生在政策详情页）。
-// 依据当前角色定位可处理任务（analyst → 一级，approver → 二级），拉取该任务的「AI 质疑」，
-// 提供通过 / 驳回（必填原因码）/ 退回补充 三个动作，并展示完整审核记录。
+// 政策详情页内的处理面板（仅管理员可见）：
+// 拉取待处理任务的「AI 质疑」，提供通过 / 驳回（必填原因码）/ 退回补充 三个动作，并展示完整处理记录。
+// 政策抓取、分析与发布均由 AI 自动完成，运营专员不再参与流转处理。
 
 export interface ReviewDecision {
   actor: string;
@@ -118,14 +118,14 @@ export default function ReviewPanel({
   return (
     <section className="panel full">
       <div className="panelhead">
-        <h2>人工审核</h2>
+        <h2>政策处理</h2>
         <small>{reviewTasks.length} 个任务</small>
       </div>
       <div className="sectionbody">
         {detail && detail.challenges.length > 0 && (
           <div className="finding" style={{ borderColor: "var(--border)", marginTop: 0 }}>
             <div className="top">
-              <strong>AI 质疑（红队）</strong>
+              <strong>质疑清单（红队）</strong>
               {detail.scope_conflict && <span className="badge red">双通道冲突</span>}
             </div>
             {detail.challenges.map((c, i) => (
@@ -186,7 +186,7 @@ export default function ReviewPanel({
         {reviewTasks.length ? (
           reviewTasks.map((task) => (
             <div key={task.id} style={{ marginBottom: 18 }}>
-              <strong>{task.level} 级审核 · {TASK_STATUS_LABELS[task.status] ?? task.status}</strong>
+              <strong>{task.level} 级处理 · {TASK_STATUS_LABELS[task.status] ?? task.status}</strong>
               <small style={{ display: "block" }}>{task.assignee} · {dateLabel(task.created_at)}</small>
               {task.decisions.length > 0 ? (
                 <div className="history">
@@ -200,12 +200,12 @@ export default function ReviewPanel({
                   ))}
                 </div>
               ) : (
-                <p className="textblock" style={{ fontSize: 12, color: "var(--muted)" }}>尚未产生审核决定。</p>
+                <p className="textblock" style={{ fontSize: 12, color: "var(--muted)" }}>尚未产生处理记录。</p>
               )}
             </div>
           ))
         ) : (
-          <p className="textblock">尚未进入人工审核。</p>
+          <p className="textblock">暂无处理记录，政策已由 AI 自动完成发布。</p>
         )}
       </div>
     </section>

@@ -1,4 +1,4 @@
-.PHONY: dev test seed crawl migrate backend frontend install health deploy-check deploy migrate-pg migrate-sqlite-to-pg
+.PHONY: dev test seed crawl dedupe migrate backend frontend install health deploy-check deploy migrate-pg migrate-sqlite-to-pg
 
 # 优先使用本地 venv（docker 容器内无 .venv，回退系统 python）
 PYTHON := $(shell [ -x backend/.venv/bin/python ] && echo backend/.venv/bin/python || echo python)
@@ -27,6 +27,10 @@ test:
 
 seed:
 	cd backend && $(PYTHON:backend/%=%) -m app.jobs.seed_job
+
+# 存量文档回填「标题+正文」指纹并标记跨源重复（幂等，不删数据）
+dedupe:
+	cd backend && $(PYTHON:backend/%=%) -m app.jobs.dedup_job
 
 crawl:
 	cd backend && $(PYTHON:backend/%=%) -m app.jobs.crawl_job

@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.core.logging import get_logger
-from app.db.models import Assessment, Case, Document, Policy, Source
+from app.db.models import Assessment, Case, Document, Policy, PolicyPreprocess, Source, User
 from app.db.session import SessionLocal
 
 log = get_logger("jobs.seed")
@@ -222,6 +222,37 @@ def seed_known_policies(db) -> int:  # noqa: ANN001
     return created
 
 
+def seed_rm_users(db) -> int:  # noqa: ANN001
+    """建立 12 位合成客户经理的演示登录账号（rmdemo01~rmdemo12 / 密码 demo1234）。
+
+    只有登录用户名与客户表 relationship_manager 匹配上，才会触发「为你推荐」规则 A。
+    """
+    password_hash = hashlib.sha256("demo1234".encode("utf-8")).hexdigest()
+    created = 0
+    for index in range(1, 13):
+        username = f"rmdemo{index:02d}"
+        if db.scalar(select(User).where(User.username == username)):
+            continue
+        db.add(User(username=username, password_hash=password_hash, role="consumer", onboarded=True))
+        created += 1
+    db.commit()
+    return created
+
+
+def seed_preprocess(db) -> int:  # noqa: ANN001
+    """为存量政策补齐预处理记录（幂等：已存在则跳过）。"""
+    from app.domain.preprocess import upsert_preprocess
+
+    created = 0
+    for policy in db.scalars(select(Policy)).all():
+        if db.scalar(select(PolicyPreprocess).where(PolicyPreprocess.policy_id == policy.id)):
+            continue
+        upsert_preprocess(db, policy)
+        created += 1
+    db.commit()
+    return created
+
+
 def main() -> None:
     from app.db.models import Base
     from app.db.session import engine
@@ -232,7 +263,12 @@ def main() -> None:
         n_case = seed_cases(db)
         n_policy = seed_demo_subsidy_policy(db)
         n_known = seed_known_policies(db)
-    print(f"seed 完成：新增数据源 {n_src}，案例 {n_case}，贴息演示政策 {n_policy}，已知政策 {n_known}")
+        n_rm = seed_rm_users(db)
+        n_pre = seed_preprocess(db)
+    print(
+        f"seed 完成：新增数据源 {n_src}，案例 {n_case}，贴息演示政策 {n_policy}，"
+        f"已知政策 {n_known}，客户经理账号 {n_rm}，预处理记录 {n_pre}"
+    )
 
 
 if __name__ == "__main__":

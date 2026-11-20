@@ -6,8 +6,6 @@ import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
 interface Overview {
   today_new: number;
-  pending_review: number;
-  p0_p1_open: number;
   sources_total: number;
   sources_unhealthy: number;
   last_crawl_at: string | null;
@@ -47,7 +45,6 @@ export default function HealthPage() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([]);
   const [history, setHistory] = useState<JobRun[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [unpublishedCount, setUnpublishedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -60,15 +57,13 @@ export default function HealthPage() {
       return body;
     };
     try {
-      const [overviewData, jobData, historyData, settingsData, unpublishedData] = await Promise.all([
+      const [overviewData, jobData, historyData, settingsData] = await Promise.all([
         get("/analytics/overview"), get("/jobs/status"), get("/jobs?page=1&page_size=30"), get("/settings"),
-        get("/policies?page=1&page_size=1&status_not=published"),
       ]);
       setOverview(overviewData);
       setJobs(jobData.jobs || []);
       setHistory(historyData.items || []);
       setSettings(settingsData);
-      setUnpublishedCount(unpublishedData.total ?? 0);
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "系统运行数据加载失败");
@@ -79,10 +74,9 @@ export default function HealthPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // 政策由 AI 自动抓取并自动发布，不再展示「待审核 / 未发布」等流转指标
   const metrics = [
     { label: "今日新增政策", value: overview?.today_new ?? 0, note: "按香港时区入库时间统计", href: "/policies?view=today_new" },
-    { label: "待审核", value: overview?.pending_review ?? 0, note: `其中 ${overview?.p0_p1_open ?? 0} 条 P0/P1 待处理`, href: "/policies?view=pending_review" },
-    { label: "未发布", value: unpublishedCount, note: "已分析未发布 / 待审核 / 待发布", href: "/policies?view=unpublished" },
     { label: "数据源异常", value: overview?.sources_unhealthy ?? 0, note: "存在连续失败或熔断", href: "/sources?view=unhealthy" },
     { label: "数据源总数", value: overview?.sources_total ?? 0, note: "包含启用和停用来源", href: "/sources" },
   ];
@@ -108,7 +102,7 @@ export default function HealthPage() {
           <div className="panelhead"><h2>运行时状态</h2><Link href="/settings" className="link">设置 →</Link></div>
           <div className="sectionbody"><div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">数据库</span><span className={`badge ${settings?.runtime.db === "ok" ? "green" : "red"}`}>{settings?.runtime.db === "ok" ? "正常" : "异常"}</span></div>
-            <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">AI 提供方</span><strong>{settings?.runtime.llm_provider || "—"}</strong></div>
+            <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">模型提供方</span><strong>{settings?.runtime.llm_provider || "—"}</strong></div>
             <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">存储后端</span><strong>{settings?.runtime.storage_backend || "—"}</strong></div>
             <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">调度器</span><span className="badge green">{settings?.runtime.scheduler || "—"}</span></div>
             <div className="rowflex" style={{ justifyContent: "space-between" }}><span className="sub">版本</span><strong>v{settings?.runtime.version || "—"}</strong></div>

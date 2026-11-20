@@ -7,6 +7,7 @@ __pycache__/
 storage/
 node_modules/
 .next/
+.next-*/
 .npm-cache/
 .env
 .env.local

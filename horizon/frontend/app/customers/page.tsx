@@ -25,6 +25,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [businessLineFilter, setBusinessLineFilter] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     if (!ready) return;
@@ -58,9 +59,23 @@ export default function CustomersPage() {
   }, [customers]);
 
   const filtered = useMemo(() => {
-    if (!businessLineFilter) return customers;
-    return customers.filter((c) => c.business_line === businessLineFilter);
-  }, [customers, businessLineFilter]);
+    const byLine = businessLineFilter
+      ? customers.filter((c) => c.business_line === businessLineFilter)
+      : customers;
+    const text = keyword.trim().toLowerCase();
+    if (!text) return byLine;
+    return byLine.filter((c) =>
+      [c.customer_id, c.name_masked, c.segment, c.region, c.relationship_manager]
+        .some((value) => (value || "").toLowerCase().includes(text))
+    );
+  }, [customers, businessLineFilter, keyword]);
+
+  const summary = useMemo(() => ({
+    count: filtered.length,
+    totalLoan: Math.round(filtered.reduce((sum, c) => sum + (c.loan_balance_cny_yi || 0), 0) * 10) / 10,
+    subsidy: filtered.filter((c) => c.subsidy_eligible).length,
+    managers: new Set(filtered.map((c) => c.relationship_manager).filter(Boolean)).size,
+  }), [filtered]);
 
   return (
     <div className="content">
@@ -73,9 +88,23 @@ export default function CustomersPage() {
       </div>
 
       <div className="notice" style={{ marginBottom: 16 }}>
-        <div style={{ marginBottom: 4 }}><strong>数据说明</strong></div>
-        <div>来源：<code>seed/synthetic_customers.json</code>，合成演示客户数据（非真实客户）。</div>
-        <div>口径：金额单位为「亿元」；「贴息资格」标记用于贴息类政策的客户聚合；政策解读页的「所影响的客户」= 按政策业务线从此库过滤。</div>
+        <div style={{ marginBottom: 4 }}><strong>管理员只读视图</strong></div>
+        <div>来源：<code>seed/synthetic_customers.json</code>，合成演示客户数据（非真实客户），完整展示全部 12 个字段；本页不提供编辑、删除、导入入口。</div>
+        <div>口径：金额单位为「亿元」；「贴息资格」标记用于贴息类政策的客户聚合；「客户经理」与登录用户名匹配后，决定「为你推荐」走规则 A（客户敞口测算）还是规则 B（预处理百分比）。</div>
+      </div>
+
+      <div className="rowflex" style={{ gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        {[
+          { label: "当前筛选客户数", value: `${summary.count} / ${customers.length}` },
+          { label: "贷款余额合计(亿)", value: summary.totalLoan },
+          { label: "贴息资格客户", value: summary.subsidy },
+          { label: "覆盖客户经理", value: summary.managers },
+        ].map((card) => (
+          <div className="panel" key={card.label} style={{ padding: "12px 16px", minWidth: 150 }}>
+            <div style={{ fontSize: 12, color: "#8b929c" }}>{card.label}</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{card.value}</div>
+          </div>
+        ))}
       </div>
 
       {error && <div className="notice" style={{ marginBottom: 16 }}>{error}</div>}
@@ -108,50 +137,54 @@ export default function CustomersPage() {
                   {line}
                 </button>
               ))}
+              <input
+                className="search"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="搜索客户名称 / 编号 / 客户经理 / 客群…"
+                style={{ width: 260 }}
+              />
             </div>
 
             <div className="tablewrap">
               <table>
                 <thead>
                   <tr>
+                    <th>客户编号</th>
                     <th>客户</th>
+                    <th>客户经理</th>
                     <th>业务线</th>
                     <th>客群</th>
                     <th>地区</th>
                     <th>贷款规模(亿)</th>
                     <th>他行贷款(亿)</th>
+                    <th>他行家数</th>
                     <th>贴息资格</th>
                     <th>海外业务</th>
-                    <th>更多</th>
+                    <th>产品</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>暂无客户数据</td></tr>
+                    <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>暂无客户数据</td></tr>
                   ) : filtered.map((c) => (
                     <tr key={c.customer_id}>
+                      <td style={{ whiteSpace: "nowrap", fontSize: 12, color: "#8b929c" }}>{c.customer_id}</td>
                       <td style={{ minWidth: 160 }}>{c.name_masked}</td>
+                      <td><span className="badge">{c.relationship_manager || "—"}</span></td>
                       <td><span className="badge">{c.business_line}</span></td>
                       <td>{c.segment || "—"}</td>
                       <td>{c.region || "—"}</td>
                       <td>{c.loan_balance_cny_yi}</td>
                       <td>{c.other_bank_loans_cny_yi}</td>
+                      <td>{c.other_bank_count ?? "—"}</td>
                       <td>
                         {c.subsidy_eligible
                           ? <span className="badge green">是</span>
                           : <span className="badge">否</span>}
                       </td>
                       <td>{c.overseas_business?.length ? c.overseas_business.join("、") : "—"}</td>
-                      <td>
-                        <details>
-                          <summary style={{ cursor: "pointer" }}>详情</summary>
-                          <div style={{ marginTop: 6, fontSize: 12, minWidth: 180 }}>
-                            <p>产品：{c.products?.length ? c.products.join("、") : "—"}</p>
-                            <p>客户经理：{c.relationship_manager || "—"}</p>
-                            <p>他行家数：{c.other_bank_count ?? "—"}</p>
-                          </div>
-                        </details>
-                      </td>
+                      <td style={{ fontSize: 12 }}>{c.products?.length ? c.products.join("、") : "—"}</td>
                     </tr>
                   ))}
                 </tbody>
