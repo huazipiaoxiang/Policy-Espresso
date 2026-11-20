@@ -356,6 +356,14 @@ export default function PolicyDetailPage() {
                 </div>
                 <div className="divider" />
                 <small>所影响的客户</small>
+                {consumerView.match_basis && (
+                  <p className="textblock" style={{ fontSize: 12, color: "#8b929c", marginTop: 4, marginBottom: 0 }}>
+                    匹配口径：{consumerView.match_basis.rule}
+                    {consumerView.match_basis.business_lines?.length ? `（${consumerView.match_basis.business_lines.join("、")}）` : ""}
+                    {" · 共 "}{consumerView.match_basis.total_matched}{" 户 · 展示 "}{consumerView.match_basis.shown}{" 户 · "}
+                    {consumerView.match_basis.source}
+                  </p>
+                )}
                 <div className="tablewrap" style={{ marginTop: 8 }}>
                   <table>
                     <thead>

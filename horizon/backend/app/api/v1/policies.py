@@ -357,6 +357,13 @@ def _consumer_view(db: Session, policy: Policy) -> dict:
     if lines and not matched:
         matched = []
     sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
+    match_basis = {
+        "rule": ("按政策业务线匹配" if lines else "政策未标注业务线，展示全部合成客户"),
+        "business_lines": sorted(lines),
+        "total_matched": len(matched),
+        "shown": min(len(sorted_matched), 30),
+        "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
+    }
     affected = [
         {
             "customer_id": c["customer_id"],
@@ -384,6 +391,7 @@ def _consumer_view(db: Session, policy: Policy) -> dict:
         "impact_overview": impact_overview,
         "dimensions": dimensions,
         "benefit_loss": f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。",
+        "match_basis": match_basis,
         "affected_customers": affected,
     }
 

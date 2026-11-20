@@ -30,9 +30,11 @@ def list_customers(
             "region": c.get("region"),
             "loan_balance_cny_yi": c.get("loan_balance_cny_yi", 0),
             "other_bank_loans_cny_yi": c.get("other_bank_loans_cny_yi", 0),
+            "other_bank_count": c.get("other_bank_count", 0),
             "overseas_business": c.get("overseas_business", []),
             "products": c.get("products", []),
             "relationship_manager": c.get("relationship_manager", ""),
+            "subsidy_eligible": bool(c.get("subsidy_eligible", False)),
         }
         for c in customers
     ]
