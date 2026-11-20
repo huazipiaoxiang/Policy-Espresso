@@ -112,5 +112,34 @@
     },
     "lang": "zh-Hans",
     "poll_interval_min": 60
+  },
+  {
+    "code": "gdjr_tzgg",
+    "name": "广东省地方金融管理局 · 通知公告",
+    "org": "中共广东省委金融委员会办公室（广东省地方金融管理局）",
+    "jurisdiction": "GD",
+    "tier": 1,
+    "adapter": "listing",
+    "url": "https://www.gdjr.gov.cn/gdjr/zwgk/tzgg/",
+    "config": {
+      "item_url_regex": "/gdjr/zwgk/tzgg/content/post_\\d+\\.html",
+      "pagination_pattern": "index_{n}.html",
+      "max_pages": 3,
+      "verified_at": "2026-11-19"
+    },
+    "lang": "zh-Hans",
+    "poll_interval_min": 60
+  },
+  {
+    "code": "hk_5yplan_2026",
+    "name": "香港五年计划 2026-2030",
+    "org": "香港特别行政区政府",
+    "jurisdiction": "HK",
+    "tier": 1,
+    "adapter": "manual",
+    "url": "https://www.hk5yplan.gov.hk/2026-2030/tc/",
+    "config": {"monitor": true, "note": "单一规划门户页，每日重新 fetch 检测内容变化"},
+    "lang": "zh-Hant",
+    "poll_interval_min": 30
   }
 ]

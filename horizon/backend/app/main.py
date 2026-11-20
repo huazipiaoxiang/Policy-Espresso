@@ -26,11 +26,12 @@ async def lifespan(_: FastAPI):
     # 启动时自动导入种子数据（幂等）：数据源 / 案例 / 演示政策，确保上云后无需手动 seed。
     # 测试环境通过 HORIZON_AUTO_SEED=0 关闭，避免与用例自造的数据（如重复 source code）冲突。
     if os.environ.get("HORIZON_AUTO_SEED", "1") != "0":
-        from app.jobs.seed_job import seed_cases, seed_demo_subsidy_policy, seed_sources
+        from app.jobs.seed_job import seed_cases, seed_demo_subsidy_policy, seed_known_policies, seed_sources
         with SessionLocal() as db:
             seed_sources(db)
             seed_cases(db)
             seed_demo_subsidy_policy(db)
+            seed_known_policies(db)
     recovered = recover_interrupted_runs()
     scheduler = build_scheduler()
     scheduler.start()

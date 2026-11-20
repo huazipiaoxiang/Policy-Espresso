@@ -18,7 +18,7 @@ CLASSIFY_SCHEMA = {
         "policy_type": {
             "type": "string",
             "enum": ["law", "regulation", "guideline", "circular", "consultation",
-                     "press_release", "budget", "speech", "news", "report", "treaty", "other"],
+                     "press_release", "budget", "speech", "news", "report", "treaty", "plan", "other"],
         },
         "jurisdictions": {"type": "array", "items": {"type": "string"}},
         "themes": {"type": "array", "items": {"type": "string"}},

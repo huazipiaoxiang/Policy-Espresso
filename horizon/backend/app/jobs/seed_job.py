@@ -157,6 +157,71 @@ def seed_demo_subsidy_policy(db) -> int:  # noqa: ANN001
     return 1
 
 
+def _parse_dt(value):  # noqa: ANN001
+    """把 seed JSON 里的时间字符串解析为 naive datetime（与 UTCDateTime 列存储一致）。"""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    s = str(value).strip()
+    for candidate in (s, s.replace(" ", "T")):
+        try:
+            return datetime.fromisoformat(candidate).replace(tzinfo=None)
+        except ValueError:
+            continue
+    return None
+
+
+def seed_known_policies(db) -> int:  # noqa: ANN001
+    """幂等导入「已知政策」快照（香港五年规划 + 广东贴息），上云空库启动时确保这两条政策存在。
+
+    这两条是存量已知政策，不依赖每日抓取发现：香港规划门户页只有导言且过不了 gate1，
+    广东贴息已被挤出列表前 3 页。故把它们的原文全文 + 分析结果固化为种子，保证上云可复现。
+    """
+    path = SEED_DIR / "known_policies.json"
+    if not path.exists():
+        return 0
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    created = 0
+    for row in rows:
+        title = (row.get("policy") or {}).get("title", "")
+        if db.scalar(select(Policy).where(Policy.title == title)):
+            continue  # 已存在，跳过（幂等）
+
+        # 1) 确保 source 存在（seed 自包含：广东贴息源不在 sources.json 也会在此建立）
+        src = dict(row.get("source") or {})
+        source = db.scalar(select(Source).where(Source.code == src.get("code")))
+        if source is None:
+            source = Source(**src)
+            db.add(source)
+            db.flush()
+
+        # 2) Document（含原文全文）
+        doc_data = dict(row.get("document") or {})
+        doc_data["source_id"] = source.id
+        doc_data["published_at"] = _parse_dt(doc_data.get("published_at"))
+        doc_data["fetched_at"] = datetime.now(timezone.utc)
+        document = Document(**doc_data)
+        db.add(document)
+        db.flush()
+
+        # 3) Policy
+        pol_data = dict(row.get("policy") or {})
+        for key in ("published_at", "effective_at", "expiry_at"):
+            pol_data[key] = _parse_dt(pol_data.get(key))
+        pol_data["document_id"] = document.id
+        policy = Policy(**pol_data)
+        db.add(policy)
+        db.flush()
+
+        # 4) Assessment（8 维 scores + 影响方向）
+        a_data = dict(row.get("assessment") or {})
+        db.add(Assessment(policy_id=policy.id, **a_data))
+        created += 1
+    db.commit()
+    return created
+
+
 def main() -> None:
     from app.db.models import Base
     from app.db.session import engine
@@ -166,7 +231,8 @@ def main() -> None:
         n_src = seed_sources(db)
         n_case = seed_cases(db)
         n_policy = seed_demo_subsidy_policy(db)
-    print(f"seed 完成：新增数据源 {n_src}，案例 {n_case}，贴息演示政策 {n_policy}")
+        n_known = seed_known_policies(db)
+    print(f"seed 完成：新增数据源 {n_src}，案例 {n_case}，贴息演示政策 {n_policy}，已知政策 {n_known}")
 
 
 if __name__ == "__main__":

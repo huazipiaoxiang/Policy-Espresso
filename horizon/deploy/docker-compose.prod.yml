@@ -40,7 +40,9 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-dashscope}
       STORAGE_BACKEND: ${STORAGE_BACKEND:-oss}
     volumes:
-      - horizon-storage:/data/storage
+      # 持久化数据盘：SQLite 数据库（/data/horizon.db）与本地存储 /data/storage 都在此卷下，
+      # 容器重建/发版不会丢政策数据。若 DATABASE_URL 指向 Postgres RDS，此卷仅承载本地存储，无副作用。
+      - horizon-data:/data
       # seed 数据（数据源清单/案例/演示政策）挂载到 /seed，供启动时自动导入
       - ../seed:/seed:ro
     # 不暴露 8000 到公网；FC 定时触发走内网 + X-Job-Token
@@ -48,4 +50,4 @@ services:
       - "8000"
 
 volumes:
-  horizon-storage:
+  horizon-data:
