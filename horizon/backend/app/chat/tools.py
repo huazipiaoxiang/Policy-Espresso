@@ -332,11 +332,17 @@ def _format_business_impact(assessment: Assessment) -> str:
 
 
 class ChatTools:
-    """A fixed allow-list of read-only retrieval operations."""
+    """A fixed allow-list of retrieval operations, plus admin-only task actions.
 
-    def __init__(self, db: Session, role: object):
+    ``question`` 是本轮用户原话：破坏性任务（如清理政策）要求用户本人明确确认，
+    不能由模型在工具参数里自行声明「用户已同意」。
+    """
+
+    def __init__(self, db: Session, role: object, *, question: str = "", actor: str = ""):
         self.db = db
         self.role = normalize_role(role)
+        self.question = str(question or "")
+        self.actor = actor or f"demo.{self.role}"
 
     def search_policies(self, query: str) -> list[ChatEvidence]:
         stmt = select(Policy).options(joinedload(Policy.document).joinedload(Document.source))

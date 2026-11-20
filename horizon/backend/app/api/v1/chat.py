@@ -1,7 +1,8 @@
 """Grounded AI chat with server-owned database tools and citations.
 
 CHAT_AGENT_ENABLED=true 时走 agent 路径（模型自主检索），否则走既有 grounded 路径。
-两条路径共用同一套只读工具与角色过滤，响应字段向后兼容（新增字段均有默认值）。
+两条路径共用同一套检索工具与角色过滤；管理员在 agent 路径下另有任务型工具
+（清理无关政策 / 生成影响报告），响应字段向后兼容（新增字段均有默认值）。
 """
 from typing import Any, Literal
 
@@ -10,7 +11,8 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from app.ai.provider import get_provider
-from app.chat.service import generate_agent_chat, generate_grounded_chat
+from app.chat.agent import NON_AGENT_PROVIDERS
+from app.chat.service import generate_admin_task, generate_agent_chat, generate_grounded_chat
 from app.chat.tools import ChatTools
 from app.core.config import Settings, get_settings
 from app.core.security import get_demo_role, require_api_key
@@ -18,12 +20,12 @@ from app.db.session import get_db
 
 router = APIRouter(prefix="/chat", tags=["chat"], dependencies=[Depends(require_api_key)])
 
-_CITATION_TYPES = {"policy", "document", "web_source"}
+_CITATION_TYPES = {"policy", "document", "web_source", "task"}
 
 
 class ChatCitation(BaseModel):
     id: str
-    type: Literal["policy", "document", "web_source"]
+    type: Literal["policy", "document", "web_source", "task"]
     title: str
     url: str = ""
     policy_id: str | None = None
@@ -110,6 +112,56 @@ def _citations(raw: list[Any]) -> list[ChatCitation]:
     return items
 
 
+class ChatCapabilities(BaseModel):
+    """助手当前真实能力：是否接了 LLM、是否走 Agent、能否执行管理员任务。"""
+
+    provider: str
+    llm_ready: bool
+    agent_enabled: bool
+    agent_active: bool
+    mode: Literal["agent", "grounded", "rules"]
+    admin_tasks: bool
+    hint: str
+
+
+@router.get("/capabilities", response_model=ChatCapabilities)
+def chat_capabilities(
+    role: str = Depends(get_demo_role),
+    settings: Settings = Depends(get_settings),
+):
+    """让前端如实告知用户当前模式，避免把「规则检索」误当成助手的产品形态。"""
+    provider = get_provider()
+    provider_name = str(getattr(provider, "name", "unknown"))
+    llm_ready = provider_name not in NON_AGENT_PROVIDERS
+    agent_active = bool(settings.chat_agent_enabled and llm_ready)
+
+    if not llm_ready:
+        mode: Literal["agent", "grounded", "rules"] = "rules"
+        hint = (
+            "当前为规则检索模式：回答由库内检索与原文摘录生成，不具备自主推理。"
+            "配置 LLM_PROVIDER（dashscope 或 ollama）并提供密钥或本地模型后，自动升级为 Agent。"
+        )
+    elif not settings.chat_agent_enabled:
+        mode = "grounded"
+        hint = (
+            "已接入生成式模型，但 Agent 路径关闭：单轮检索后作答。"
+            "设置 CHAT_AGENT_ENABLED=true 可启用自主多轮工具调用。"
+        )
+    else:
+        mode = "agent"
+        hint = "Agent 模式：模型自主规划、多轮选择工具检索后作答。"
+
+    return ChatCapabilities(
+        provider=provider_name,
+        llm_ready=llm_ready,
+        agent_enabled=bool(settings.chat_agent_enabled),
+        agent_active=agent_active,
+        mode=mode,
+        admin_tasks=role == "admin",
+        hint=hint,
+    )
+
+
 @router.post("", response_model=ChatResponse)
 def chat(
     req: ChatRequest,
@@ -128,10 +180,26 @@ def chat(
         }
         for message in req.messages
     ]
-    tools = ChatTools(db, role)
+    # question 用于破坏性任务的「用户本人确认」校验：模型不能替用户点头
+    tools = ChatTools(db, role, question=question, actor=f"demo.{role}")
     provider = get_provider()
 
-    if settings.chat_agent_enabled:
+    # 管理员任务（清理无关政策 / 生成影响报告）走确定性路由：破坏性操作不交给模型自由裁量，
+    # 无论 Agent 路径是否开启都可用；未命中时返回 None，继续正常问答。
+    task = generate_admin_task(tools, question)
+    if task is not None:
+        return ChatResponse(
+            reply=task.reply,
+            model=task.model,
+            latency_ms=task.latency_ms,
+            citations=_citations(task.citations),
+            no_answer=task.no_answer,
+            answer_mode="grounded",
+        )
+
+    # 未接入生成式模型（mock）时 Agent 循环无法驱动，自动回退 grounded，避免「开了开关反而更弱」
+    llm_ready = str(getattr(provider, "name", "")) not in NON_AGENT_PROVIDERS
+    if settings.chat_agent_enabled and llm_ready:
         result = generate_agent_chat(
             tools=tools,
             provider=provider,

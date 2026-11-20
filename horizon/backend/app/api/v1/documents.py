@@ -159,9 +159,21 @@ async def upload_document(
         policy = analyze_document(db, doc)
         if policy is None:
             processing_error = "文件已解析，但未生成政策：非金融政策或正文不足"
-        elif jurisdiction:
-            # 手动上传没有数据源辖区，市场由上传人指定，否则政策库与推荐都无法按市场筛选
-            policy.jurisdiction = jurisdiction
+        else:
+            if jurisdiction:
+                # 手动上传没有数据源辖区，市场由上传人指定，否则政策库与推荐都无法按市场筛选
+                policy.jurisdiction = jurisdiction
+            # 无关政策清理 Skill：对汇丰完全没有影响时删除政策与原文
+            from app.agent.cleanup import cleanup_policy_if_irrelevant
+
+            view = _document_view(doc)
+            cleanup = cleanup_policy_if_irrelevant(db, policy)
+            if cleanup.get("deleted"):
+                return {
+                    **view,
+                    "processing_status": "deleted",
+                    "processing_error": cleanup.get("reason") or "AI Agent 判定该政策对汇丰无影响，已删除政策与原文",
+                }
     except Exception as exc:
         db.rollback()
         processing_error = str(exc) if isinstance(exc, UploadParseError) else f"分析失败：{type(exc).__name__}: {exc}"

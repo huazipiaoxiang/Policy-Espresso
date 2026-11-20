@@ -40,6 +40,22 @@ TOOL_INTRO = (
     "涉及具体政策事实时，我只会依据政策库内容回答；库内没有的会如实说明。"
 )
 
+ADMIN_TASK_INTRO = (
+    "\n\n管理员还可以让我直接处理系统内任务：\n"
+    "5. 清理无关政策：先列出通过门禁、对汇丰完全没有影响的政策，你确认后我再删除（不可恢复，写审计）；\n"
+    "6. 生成政策影响报告：给出政策名称或文号，我整理影响结论、受影响客户统计、关注要点与建议动作。\n"
+    "删除类操作必须由你本人明确回复「确认清理」，我不会自己替你点头。"
+)
+
+
+def tool_intro(role: object) -> str:
+    """按角色介绍能力：管理员多出任务型能力。"""
+    from app.chat.tools import normalize_role
+
+    if normalize_role(role) == "admin":
+        return TOOL_INTRO + ADMIN_TASK_INTRO
+    return TOOL_INTRO
+
 # 元问题关键词：命中即直接返回能力介绍，不走库内检索（检索必然为空）。
 _META_QUESTION_WORDS = (
     "这个工具", "该工具", "本工具", "工具可以做什么", "工具能做什么", "工具有什么功能",
@@ -476,6 +492,166 @@ def _freeform_or_no_answer(
     )
 
 
+# ---------- 管理员任务（确定性路由） ----------
+# 破坏性操作不走「看模型心情」：管理员的任务意图由规则识别，执行前仍要过确定性门禁。
+# 这样即使 CHAT_AGENT_ENABLED=false、或未接入生成式模型，助手也能真正把事做完。
+
+# 必须明确指向「清理政策」这个动作；「删除个人数据的政策」这类讲政策内容的问法不触发。
+_CLEANUP_TRIGGER = (
+    "无关政策", "清理政策", "政策清理", "清理候选", "清理这些", "清理掉",
+    "删除政策", "删除这些政策", "删除无关",
+    "确认清理", "确认删除", "开始清理", "开始删除", "执行清理", "执行删除",
+    "同意清理", "同意删除", "批准清理", "批准删除",
+)
+_REPORT_TRIGGER = (
+    "影响报告", "政策报告", "生成报告", "出报告", "出个报告", "出一份报告", "做个报告", "写份报告",
+)
+_REPORT_NOISE = (
+    "帮我", "帮忙", "请", "生成", "输出", "出具", "写", "做", "一份", "一个", "关于", "影响报告",
+    "政策报告", "报告", "政策", "的", "吗", "呢", "？", "?", "。", "，", ",", "！", "!",
+)
+
+
+# 「列出可清理政策」只需读意图，条件放宽一些（只读，不产生副作用）
+_CLEANUP_SCOPE_WORDS = (
+    "无关", "无影响", "没有影响", "没影响", "可清理", "可以清理", "候选",
+    "不相关", "不符合", "这些", "以上",
+)
+
+
+def _is_cleanup_question(folded: str) -> bool:
+    """问「有哪些政策可以清理」：只读列举，不执行删除。"""
+    if "政策" not in folded:
+        return False
+    if not any(word in folded for word in ("清理", "删除", "清掉")):
+        return False
+    return any(word in folded for word in _CLEANUP_SCOPE_WORDS)
+
+
+# 「系统里有没有不影响汇丰的政策」= 问可清理候选；用户关心的是「有没有/有哪几条」，
+# 不是「搜一条政策」。关键词是「影响 + 否定」，与清理动词无关。
+_IMPACT_NEGATIONS = ("不影响", "无影响", "没有影响", "没影响", "无关", "不相关", "不涉及")
+_HSBC_SUBJECTS = ("汇丰", "hsbc", "本行", "我行", "我们", "集团")
+
+
+# 全库口径的提问词：「有没有无关政策」「哪些政策对汇丰没有影响」都算
+_LIBRARY_SCOPE_WORDS = ("有没有", "有哪些", "哪些", "是否", "系统", "库里", "全部", "所有", "现有")
+
+
+def _is_impact_question(folded: str) -> bool:
+    """问「有没有对汇丰没有影响的政策」：同样只读列举候选。"""
+    if "政策" not in folded:
+        return False
+    if not any(word in folded for word in _IMPACT_NEGATIONS):
+        return False
+    return any(
+        word in folded for word in _HSBC_SUBJECTS + _LIBRARY_SCOPE_WORDS
+    )
+
+
+def _names_one_policy(question: str) -> bool:
+    """是否点名了具体某条政策（书名号/这条/该政策）：此时不该做全库批量列举。"""
+    if re.search(r"《[^》]{2,200}》", question):
+        return True
+    folded = "".join(question.split())
+    return any(word in folded for word in ("这条政策", "该政策", "这份政策", "这个政策", "上述政策"))
+
+
+def _report_query(question: str) -> str:
+    """从「为《XX》生成影响报告」里取出政策名；有书名号优先用它。"""
+    match = re.search(r"《([^》]{2,200})》", question)
+    if match:
+        return match.group(1).strip()
+    text = question
+    for phrase in _REPORT_NOISE:
+        text = text.replace(phrase, " ")
+    return " ".join(text.split())[:120]
+
+
+def _task_result(outcome, started: float) -> GroundedChatResult:
+    """把任务结果转成对话回复：结论 + 明细，附一条 task 来源便于前端追溯。"""
+    lines = [outcome.summary]
+    detail = outcome.detail or {}
+    if detail.get("candidates"):
+        lines.append("")
+        lines.extend(f"{index + 1}. {item}" for index, item in enumerate(detail["candidates"]))
+        lines.append("")
+        lines.append("如果确认清理，请回复「确认清理」。")
+    if detail.get("deleted"):
+        lines.append("")
+        lines.extend(f"已删除：{item}" for item in detail["deleted"])
+    if detail.get("kept"):
+        lines.append("")
+        lines.extend(f"保留：{item}" for item in detail["kept"])
+    if detail.get("report"):
+        lines.append("")
+        lines.append(str(detail["report"]))
+    evidence = outcome.to_evidence()
+    return GroundedChatResult(
+        reply="\n".join(lines)[:MAX_REPLY],
+        model="admin-task",
+        latency_ms=int((time.monotonic() - started) * 1000),
+        citations=[evidence.citation],
+    )
+
+
+def generate_admin_task(tools: ChatTools, question: str) -> GroundedChatResult | None:
+    """管理员任务路由：命中则直接执行并返回，未命中返回 None（交给正常问答）。"""
+    if tools.role != "admin":
+        return None
+    from app.chat.tasks import (
+        MAX_CLEANUP_BATCH,
+        build_impact_report,
+        cleanup_candidates,
+        cleanup_policies,
+        has_confirmation,
+    )
+
+    started = time.monotonic()
+    folded = "".join(question.split())
+
+    if any(word in folded for word in _REPORT_TRIGGER):
+        query = _report_query(question)
+        if not query:
+            return GroundedChatResult(
+                reply="请告诉我要生成哪条政策的影响报告（政策名称或文号）。",
+                model="admin-task",
+                latency_ms=0,
+                citations=[],
+            )
+        return _task_result(build_impact_report(tools.db, query), started)
+
+    execute = has_confirmation(question) and any(word in folded for word in _CLEANUP_TRIGGER)
+    listing = _is_cleanup_question(folded) or _is_impact_question(folded)
+    if execute or listing:
+        if _names_one_policy(question):
+            # 点名某条政策：不是全库清单请求，交给正常问答；执行意图则明确拒绝
+            if execute:
+                return GroundedChatResult(
+                    reply=(
+                        "我不按标题直接删除某条政策。可以让我列出「对汇丰完全没有影响」的政策清单，"
+                        "你确认后我再执行删除。"
+                    ),
+                    model="admin-task",
+                    latency_ms=int((time.monotonic() - started) * 1000),
+                    citations=[],
+                )
+            return None
+        if execute:
+            listing = cleanup_candidates(tools.db, limit=MAX_CLEANUP_BATCH)
+            policy_ids = listing.detail.get("policy_ids") or []
+            if not policy_ids:
+                return _task_result(listing, started)
+            return _task_result(
+                cleanup_policies(tools, {"policy_ids": policy_ids, "confirm": True}),
+                started,
+            )
+        # 未确认：只列候选，不动数据
+        return _task_result(cleanup_candidates(tools.db, limit=8), started)
+
+    return None
+
+
 def generate_grounded_chat(
     *,
     tools: ChatTools,
@@ -491,7 +667,7 @@ def generate_grounded_chat(
     # 自身上下文而拒答，最终落到 NO_ANSWER 固定文案）。
     if _is_meta_question(question):
         return GroundedChatResult(
-            reply=TOOL_INTRO,
+            reply=tool_intro(tools.role),
             model="tool-intro",
             latency_ms=int((time.monotonic() - started) * 1000),
             citations=[],

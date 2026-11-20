@@ -458,7 +458,7 @@ def analyze_pending(db: Session, *, limit: int = 10) -> dict:
             Document.status.in_(["new", "failed"]),
         ).limit(limit)
     ).all()
-    stats = {"analyzed": 0, "skipped": 0, "failed": 0, "errors": []}
+    stats = {"analyzed": 0, "skipped": 0, "cleaned": 0, "failed": 0, "errors": []}
     for doc_id in doc_ids:
         # 多 worker 同时触发时，仅一个 worker 能原子认领（new/failed → processing）。
         claimed = db.execute(
@@ -473,6 +473,16 @@ def analyze_pending(db: Session, *, limit: int = 10) -> dict:
         try:
             doc = db.get(Document, doc_id)
             policy = analyze_document(db, doc)
+            if policy is not None:
+                # ---- 无关政策清理 Skill：对汇丰完全没有影响时删除政策与原文 ----
+                from app.agent.cleanup import cleanup_policy_if_irrelevant
+
+                cleanup = cleanup_policy_if_irrelevant(db, policy)
+                if cleanup.get("deleted"):
+                    stats["cleaned"] += 1
+                    log.info("irrelevant_policy_cleaned", policy_id=cleanup.get("policy_id"),
+                             reason=cleanup.get("reason"))
+                    continue
             stats["analyzed" if policy else "skipped"] += 1
         except Exception as e:
             db.rollback()

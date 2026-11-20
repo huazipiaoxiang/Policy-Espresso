@@ -278,11 +278,12 @@ def percentages(
     }
 
 
-def _percentages(
+def percentages_for(
+    policy: Policy | None,
     assessment: Assessment | None,
-    policy: Policy | None = None,
     lines: list[dict] | None = None,
 ) -> dict:
+    """对外统一的百分比口径（预处理 Agent 覆写业务线后也用它重算，不允许模型自造百分比）。"""
     if assessment is None:
         return {
             "loss_pct": 0.0, "profit_pct": 0.0,
@@ -474,7 +475,7 @@ def build_payload(
     corpus = found.get("corpus", "")
 
     lines, business_basis = _business_slice(policy, corpus)
-    pct = _percentages(assessment, policy, lines)
+    pct = percentages_for(policy, assessment, lines)
     keywords, web_keywords = _keywords(policy, corpus)
     payload = {
         "keywords": keywords,
@@ -538,8 +539,14 @@ def upsert_preprocess(
     assessment: Assessment | None = None,
     research: bool = False,
     provider_name: str | None = None,
+    use_agent: bool | None = None,
 ) -> PolicyPreprocess:
-    """生成/更新政策预处理记录（幂等：同政策只保留一条）。"""
+    """生成/更新政策预处理记录（幂等：同政策只保留一条）。
+
+    `use_agent`：默认跟随 PREPROCESS_AGENT_ENABLED。
+    开启时由政策流水线 Agent 在规则结果之上复核/补全（读原文、业务图谱、客户暴露、公开检索），
+    Agent 不可用或调用失败时自动退回规则结果。
+    """
     if assessment is None:
         assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
     record = db.scalars(select(PolicyPreprocess).where(PolicyPreprocess.policy_id == policy.id)).first()
@@ -550,6 +557,12 @@ def upsert_preprocess(
         policy, assessment, research=research,
         provider_name=provider_name or (assessment.model if assessment and assessment.model else "offline-rules"),
     )
+    from app.core.config import get_settings
+
+    if use_agent is not False and get_settings().preprocess_agent_enabled:
+        from app.agent.preprocess_agent import refine_preprocess_payload
+
+        payload = refine_preprocess_payload(db, policy, assessment, payload)
     for key, value in payload.items():
         setattr(record, key, value)
     db.flush()

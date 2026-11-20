@@ -63,11 +63,6 @@ a {
   min-height: 100vh;
 }
 
-/* Ask AI 全局固定侧栏：展开时在右侧占一列，每页可见、可收起 */
-.shell.with-chat {
-  grid-template-columns: 238px minmax(0, 1fr) 380px;
-}
-
 .side {
   background: #fff;
   border-right: 1px solid var(--border);

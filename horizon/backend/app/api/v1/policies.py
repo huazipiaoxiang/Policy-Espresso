@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import cast, exists, func, or_, select
 from sqlalchemy.orm import Session
@@ -19,9 +19,13 @@ from app.domain.consumer_impact import (
     affected_amount_by_business_lines,
     compute_consumer_impact,
     customer_impact_rows,
-    matched_customers,
 )
 from app.domain.policy_admin import delete_policy
+from app.domain.policy_impact import (
+    affected_customer_stats,
+    followup_policy_card,
+    followup_report_summary,
+)
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
 
@@ -628,113 +632,6 @@ def policy_consumer_view(
     return _consumer_view(db, policy, username)
 
 
-def _affected_customer_stats(db: Session, policy: Policy) -> dict:
-    """政策影响到的全部客户统计（客户库全量口径，与使用者客户归属无关）。"""
-    from app.domain.exposure import load_customers
-
-    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
-    scores = assessment.scores if assessment else None
-    direction = assessment.direction if assessment else None
-    business_lines = (assessment.affected.get("business_lines", []) if assessment else []) or []
-    rows = customer_impact_rows(
-        matched_customers(business_lines, load_customers()), scores, direction=direction
-    )
-
-    by_line: dict[str, dict] = {}
-    by_segment: dict[str, dict] = {}
-    loan_total = 0.0
-    other_total = 0.0
-    overseas_count = 0
-    for row in rows:
-        line = row["business_line"] or "未标注"
-        line_bucket = by_line.setdefault(
-            line, {"business_line": line, "customers": 0, "loan_balance_cny_yi": 0.0}
-        )
-        line_bucket["customers"] += 1
-        segment = row.get("segment") or "未标注客群"
-        segment_bucket = by_segment.setdefault(
-            segment, {"segment": segment, "customers": 0, "loan_balance_cny_yi": 0.0}
-        )
-        segment_bucket["customers"] += 1
-        loan = float(row.get("loan_balance_cny_yi") or 0)
-        other = float(row.get("other_bank_loans_cny_yi") or 0)
-        loan_total += loan
-        other_total += other
-        line_bucket["loan_balance_cny_yi"] = round(line_bucket["loan_balance_cny_yi"] + loan, 2)
-        segment_bucket["loan_balance_cny_yi"] = round(segment_bucket["loan_balance_cny_yi"] + loan, 2)
-        if row.get("overseas_business"):
-            overseas_count += 1
-
-    sorted_lines = sorted(by_line.values(), key=lambda item: -item["loan_balance_cny_yi"])
-    sorted_segments = sorted(by_segment.values(), key=lambda item: -item["loan_balance_cny_yi"])
-
-    return {
-        "direction": direction,
-        "business_lines": sorted(business_lines),
-        "match_rule": (
-            f"按政策受影响业务线（{'、'.join(sorted(business_lines))}）匹配客户库全部客户"
-            if business_lines else "政策未标注业务线，按客户库全部客户统计"
-        ),
-        "total_customers": len(rows),
-        "loan_balance_total_cny_yi": round(loan_total, 2),
-        "other_bank_loans_total_cny_yi": round(other_total, 2),
-        "overseas_customers": overseas_count,
-        "by_business_line": sorted_lines,
-        "by_segment": sorted_segments,
-        # 概况表先给前 10 户（按贷款规模），完整名单在 customers 里
-        "top_customers": rows[:10],
-        "customers": rows,
-        "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
-    }
-
-
-def _followup_policy_card(db: Session, policy: Policy) -> dict:
-    """交给跟进 Agent 的政策卡片：只包含政策字段与 AI 分析结论。"""
-    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
-    document = db.get(Document, policy.document_id)
-    return {
-        "id": policy.id,
-        "title": policy.title,
-        "doc_number": policy.doc_number,
-        "issuing_body": policy.issuing_body,
-        "jurisdiction": policy.jurisdiction,
-        "policy_type": policy.policy_type,
-        "priority": policy.priority,
-        "score_total": policy.score_total,
-        "confidence": policy.confidence,
-        "summary_zh": policy.summary_zh,
-        "themes": policy.themes,
-        "published_at": policy.published_at.date().isoformat() if policy.published_at else "",
-        "effective_at": policy.effective_at.date().isoformat() if policy.effective_at else "",
-        "url": document.url if document else "",
-        "direction": assessment.direction if assessment else "",
-        "transmission_chain": assessment.transmission_chain if assessment else [],
-        "recommended_actions": assessment.recommended_actions if assessment else [],
-        "affected": assessment.affected if assessment else {},
-    }
-
-
-def _followup_report_summary(db: Session, policy_id: str) -> dict:
-    """使用者影响报告汇总（份数 / 待跟进 / 涉及客户），供跟进 Agent 组织结论。"""
-    reports = db.scalars(
-        select(ConsumerReport)
-        .where(ConsumerReport.policy_id == policy_id)
-        .order_by(ConsumerReport.created_at.desc())
-    ).all()
-    customer_ids: set[str] = set()
-    for report in reports:
-        for customer in (report.report or {}).get("affected_customers") or []:
-            if isinstance(customer, dict) and customer.get("customer_id"):
-                customer_ids.add(str(customer["customer_id"]))
-    return {
-        "count": len(reports),
-        "pending": sum(1 for report in reports if report.status != "processed"),
-        "processed": sum(1 for report in reports if report.status == "processed"),
-        "customers": len(customer_ids),
-        "latest_at": reports[0].created_at.isoformat() if reports else None,
-    }
-
-
 @router.get("/{policy_id}/affected-customers")
 def policy_affected_customers(
     policy_id: str,
@@ -749,7 +646,7 @@ def policy_affected_customers(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    return {"policy_id": policy_id, **_affected_customer_stats(db, policy)}
+    return {"policy_id": policy_id, **affected_customer_stats(db, policy)}
 
 
 @router.post("/{policy_id}/affected-customers/analysis")
@@ -767,15 +664,38 @@ def policy_affected_customers_analysis(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    stats = _affected_customer_stats(db, policy)
-    reports = _followup_report_summary(db, policy_id)
-    brief = affected_customer_brief(_followup_policy_card(db, policy), stats, reports)
+    stats = affected_customer_stats(db, policy)
+    reports = followup_report_summary(db, policy_id)
+    brief = affected_customer_brief(followup_policy_card(db, policy), stats, reports)
     return {
         "policy_id": policy_id,
         "stats": stats,
         "brief": brief,
         "reports": reports,
     }
+
+
+@router.post("/{policy_id}/agent/cleanup")
+def agent_cleanup_policy(
+    policy_id: str,
+    dry_run: bool = Query(default=False, description="只判定，不执行删除"),
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("processor", "admin")),
+):
+    """Agent Skill「irrelevant_policy_cleanup」：判定政策对汇丰是否完全没有影响。
+
+    - dry_run=true 只返回判定结论（verdict / keep_reasons / signals）；
+    - 执行时命中确定性门禁才删除政策及其原文，并写审计。
+    """
+    from app.agent.cleanup import assess_hsbc_impact, cleanup_policy_if_irrelevant
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    if dry_run:
+        return {"policy_id": policy_id, "dry_run": True, **assess_hsbc_impact(db, policy)}
+    result = cleanup_policy_if_irrelevant(db, policy)
+    return {"policy_id": policy_id, "dry_run": False, **result}
 
 
 @router.post("/{policy_id}/tracking-email")
@@ -790,9 +710,9 @@ def policy_tracking_email(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    stats = _affected_customer_stats(db, policy)
-    reports = _followup_report_summary(db, policy_id)
-    email = tracking_email(_followup_policy_card(db, policy), stats, reports)
+    stats = affected_customer_stats(db, policy)
+    reports = followup_report_summary(db, policy_id)
+    email = tracking_email(followup_policy_card(db, policy), stats, reports)
     return {"policy_id": policy_id, **email}
 
 

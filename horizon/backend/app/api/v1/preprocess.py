@@ -59,6 +59,8 @@ def _view(record: PolicyPreprocess, policy: Policy) -> dict:
         "peer_bank_response": normalize_research_items(record.peer_bank_response),
         "market_applications": normalize_research_items(record.market_applications),
         "extras": record.extras or {},
+        # 预处理 Agent 轨迹（模式/模型/工具/被拦截的出网请求/权限说明）
+        "agent": (record.extras or {}).get("agent"),
         "source": record.source,
         "confidence": record.confidence,
     }
@@ -152,6 +154,7 @@ def get_preprocess(
 def rebuild_preprocess(
     policy_id: str,
     research: bool = Query(default=False, description="是否联网检索汇丰/他行反应与市场应用"),
+    agent: bool | None = Query(default=None, description="是否由 AI Agent 复核（默认跟随 PREPROCESS_AGENT_ENABLED）"),
     db: Session = Depends(get_db),
     _: str = Depends(require_roles("admin")),
 ) -> dict:
@@ -159,7 +162,34 @@ def rebuild_preprocess(
     policy = db.get(Policy, policy_id)
     if policy is None:
         raise not_found("政策", policy_id)
-    record = upsert_preprocess(db, policy, research=research)
+    record = upsert_preprocess(db, policy, research=research, use_agent=agent)
     db.commit()
     db.refresh(record)
     return _view(record, policy)
+
+
+@router.get("/agent/permissions")
+def agent_permissions(
+    _: str = Depends(require_roles("admin", "processor")),
+) -> dict:
+    """政策流水线 Agent 的能力清单与工具集（除数据外泄外全部开放）。"""
+    from app.agent.permissions import describe_permissions
+    from app.agent.skills import describe_skills
+    from app.agent.tools import available_tools
+    from app.core.config import get_settings
+
+    return {
+        **describe_permissions(),
+        "enabled": bool(get_settings().preprocess_agent_enabled),
+        "max_rounds": int(get_settings().preprocess_agent_max_rounds),
+        "skills": describe_skills(),
+        "irrelevant_cleanup_enabled": bool(get_settings().irrelevant_cleanup_enabled),
+        "tools": [
+            {
+                "name": spec.name,
+                "description": spec.description,
+                "permissions": sorted(spec.permissions),
+            }
+            for spec in available_tools()
+        ],
+    }

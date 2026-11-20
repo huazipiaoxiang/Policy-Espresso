@@ -82,5 +82,7 @@ npm run dev                 # 开发模式
 1. **页面是空的**：大概率没跑 `seed`（数据源/案例库为空）。先执行 `make seed`。
 2. **8000 端口被占用**：换端口启动后端，并同步改 `NEXT_PUBLIC_API_BASE` 与 `API_PORT`。
 3. **要真实 AI 分析**：`.env` 设 `LLM_PROVIDER=dashscope` 并填 `DASHSCOPE_API_KEY`；或本地装 Ollama 设 `LLM_PROVIDER=ollama`。
+   `CHAT_AGENT_ENABLED` 已默认开启，接上模型后助手自动从「规则检索」升级为「Agent 自主多轮检索 + 任务执行」，无需再改第二个开关；
+   重启后端后在 `GET /api/v1/chat/capabilities` 可看到 `mode` 从 `rules` 变为 `agent`。
 4. **抓取失败**：属正常，`make crawl` 依赖对香港/广东政府站点的网络访问。
 5. **打包给他人时**：务必排除 `frontend/node_modules`、`frontend/.next`、`backend/.venv`、`backend/storage`、`backend/*.db`（`.gitignore` 已配置，用 git 分发会自动排除）。

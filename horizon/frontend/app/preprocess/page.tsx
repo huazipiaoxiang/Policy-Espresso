@@ -15,6 +15,16 @@ interface BusinessLine {
   name: string;
 }
 
+interface AgentTrace {
+  mode: "agent" | "rules" | string;
+  model: string;
+  rounds: number;
+  tools: string[];
+  blocked: { tool: string; reason: string }[];
+  permissions: { granted: string[]; denied: string[]; note: string };
+  summary?: string;
+}
+
 interface PreprocessItem {
   id: string;
   policy_id: string;
@@ -41,6 +51,7 @@ interface PreprocessItem {
   peer_bank_response: ResponseLink[];
   market_applications: ResponseLink[];
   extras: Record<string, unknown>;
+  agent?: AgentTrace | null;
   source: string;
   confidence: number;
 }
@@ -175,8 +186,12 @@ export default function PreprocessPage() {
 
       <div className="notice" style={{ marginBottom: 16 }}>
         <div style={{ marginBottom: 4 }}><strong>字段口径</strong></div>
-        <div>关键词、影响业务、可能影响的客户类型由业务图谱与合成客户表派生；损失、盈利、信誉、业务机会百分比统一由 <code>compute_consumer_impact</code> 计算（0–100 程度分）。</div>
-        <div>汇丰反应、他行反应、市场实际应用由系统在预处理阶段自动联网检索公开报道，直接在表格中展示。</div>
+        <div>
+          政策原文抓取后，政策生成收尾与预处理由系统接入的 <strong>政策流水线 AI Agent</strong> 复核：读取原文、业务图谱与客户暴露，
+          判定业务线/客户类型并提交预处理结论；百分比统一由 <code>compute_consumer_impact</code> 计算（0–100 程度分），Agent 不得自造数字。
+        </div>
+        <div>Agent 权限除「数据外泄」外全开放：可读库内数据、写政策与预处理、触发任务、发布政策、检索公开信息；内部数据检索词会被出网策略拦截并留痕。</div>
+        <div>汇丰反应、他行反应、市场实际应用由预处理阶段自动联网检索公开报道（仅携带政策公开词）。</div>
       </div>
 
       {overview && (
@@ -260,13 +275,36 @@ export default function PreprocessPage() {
                         <td style={{ minWidth: 220, maxWidth: 300 }}>
                           <div className="policytitle">
                             <Link href={`/policies/${item.policy_id}`}>{item.title}</Link>
-                            <small>{item.issuing_body || "发文机构未注明"} · {item.jurisdiction || "—"}</small>
+                            <small>
+                              {item.issuing_body || "发文机构未注明"} · {item.jurisdiction || "—"} ·{" "}
+                              {item.agent?.mode === "agent" ? "AI Agent 处理" : "规则处理"}
+                            </small>
                           </div>
                           <details style={{ marginTop: 6, fontSize: 12 }}>
                             <summary style={{ cursor: "pointer" }}>详情 / 重建</summary>
                             <div style={{ marginTop: 6, minWidth: 280 }}>
                               <p>影响方向：{DIRECTION_LABELS[item.direction] || item.direction}</p>
                               <p>生成来源：{item.source} · 置信度 {Number(item.confidence || 0).toFixed(2)}</p>
+                              <p>
+                                处理方式：
+                                {item.agent?.mode === "agent"
+                                  ? `AI Agent（模型 ${item.agent.model}，${item.agent.rounds} 轮工具调用）`
+                                  : "规则通道（未接入生成式模型或 Agent 未产出结论）"}
+                              </p>
+                              {item.agent?.summary ? <p>Agent 结论：{item.agent.summary}</p> : null}
+                              {item.agent?.tools?.length ? <p>Agent 使用工具：{item.agent.tools.join("、")}</p> : null}
+                              {item.agent?.blocked?.length ? (
+                                <p style={{ color: "#b08900" }}>
+                                  已拦截出网请求：
+                                  {item.agent.blocked.map((blocked) => `${blocked.tool}（${blocked.reason}）`).join("；")}
+                                </p>
+                              ) : null}
+                              <p>
+                                Agent 权限：除数据外泄外全开放
+                                {item.agent?.permissions?.granted?.length
+                                  ? `（${item.agent.permissions.granted.join(" / ")}）`
+                                  : "（read / write / trigger / publish / public_egress）"}
+                              </p>
                               <p>主题：{item.themes.join("、") || "—"}</p>
                               <p>业务线口径：{String(item.extras?.business_basis || "—")}</p>
                               <p>百分比口径：{String(item.extras?.percentage_basis || "—")}</p>
@@ -295,7 +333,7 @@ export default function PreprocessPage() {
                                     disabled={rebuilding === item.policy_id}
                                     onClick={() => void rebuild(item.policy_id, false)}
                                   >
-                                    {rebuilding === item.policy_id ? "重建中…" : "重建"}
+                                    {rebuilding === item.policy_id ? "Agent 重建中…" : "重建（Agent 复核）"}
                                   </button>
                                   <button
                                     type="button"
@@ -303,7 +341,7 @@ export default function PreprocessPage() {
                                     disabled={rebuilding === item.policy_id}
                                     onClick={() => void rebuild(item.policy_id, true)}
                                   >
-                                    重建并联网检索
+                                    重建 + 联网检索（Agent 复核）
                                   </button>
                                 </div>
                               )}

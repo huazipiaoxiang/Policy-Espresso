@@ -24,7 +24,7 @@ from app.chat.prompts import (
     render_tool_list,
 )
 from app.chat.schemas import ANSWER_MODES, MAX_FOLLOWUPS, ChatPlan, ChatStep
-from app.chat.tool_registry import clamp_limit, clamp_query, describe_tools, run_tool
+from app.chat.tool_registry import clamp_limit, clamp_query, describe_tools, find_tool, run_tool
 from app.chat.tools import ChatEvidence, ChatTools
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -166,10 +166,19 @@ def run_agent(
             continue
 
         tool_name = str(parsed.get("tool") or "").strip()
-        query = clamp_query(parsed.get("query") or query_seed)
+        spec = find_tool(tool_name)
+        is_task = spec is not None and spec.kind == "task"
+        # 任务工具（清理/报告）不依赖检索词，空 query 是合法输入
+        query = clamp_query(parsed.get("query") or ("" if is_task else query_seed))
         limit = clamp_limit(parsed.get("limit"))
-        call_key = (tool_name, _fold(query))
-        if not query or call_key in called:
+        tool_args: dict[str, Any] = {"query": query, "limit": limit}
+        if is_task:
+            tool_args["policy_ids"] = parsed.get("policy_ids")
+            tool_args["confirm"] = parsed.get("confirm")
+        # 去重键带上任务参数：用户确认后重试清理不能被判成「重复调用」
+        id_signature = ",".join(str(item) for item in (tool_args.get("policy_ids") or []))
+        call_key = (tool_name, _fold(query), id_signature, str(tool_args.get("confirm")))
+        if (not query and not is_task) or call_key in called:
             invalid += 1
             steps.append(ChatStep(round=round_no, tool=tool_name or "-", query=query,
                                   hits=0, note="重复调用或空查询，已忽略"))
@@ -180,7 +189,7 @@ def run_agent(
             continue
 
         called.add(call_key)
-        evidence, note = run_tool(tools, role, tool_name, {"query": query, "limit": limit})
+        evidence, note = run_tool(tools, role, tool_name, tool_args)
         added = _add_to_pool(pool, seen, evidence, evidence_max)
         steps.append(ChatStep(round=round_no, tool=tool_name, query=query, hits=added, note=note))
         log.info("chat_agent_step", round=round_no, tool=tool_name, hits=added, pool=len(pool),

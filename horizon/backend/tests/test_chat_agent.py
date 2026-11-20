@@ -349,7 +349,7 @@ def test_answer_failure_falls_back_to_extractive_evidence(db):
 
 
 def test_chat_endpoint_switches_between_paths(client, monkeypatch):
-    """开关关闭时走冻结的 grounded 路径（无 steps），开启时走 agent 路径（有 steps）。"""
+    """开关生效：开启且已接入模型时走 agent 路径（有 steps），关闭时走 grounded（无 steps）。"""
     from app.core.config import Settings, get_settings
     from app.db.models import Document, Policy, Source
     from app.db.session import SessionLocal
@@ -366,6 +366,19 @@ def test_chat_endpoint_switches_between_paths(client, monkeypatch):
                                                   summary_zh="接口政策摘要内容。", status="published")])
         session.commit()
 
+    # mock provider 不是真实模型，这里注入可编排 provider 才能驱动 agent 循环
+    scripted = ScriptedProvider(
+        plan=dict(DEFAULT_PLAN),
+        steps=[
+            {"action": "call_tool", "tool": "search_policies", "query": "接口政策", "limit": 5},
+            {"action": "finish"},
+        ],
+        answer={
+            "reply": "接口政策摘要内容。", "answer_mode": "grounded",
+            "citation_ids": ["policy:p_api"], "followups": [], "clarifying_question": None,
+        },
+    )
+    monkeypatch.setattr("app.api.v1.chat.get_provider", lambda: scripted)
     agent_settings = Settings(chat_agent_enabled=True)
     monkeypatch.setitem(app.dependency_overrides, get_settings, lambda: agent_settings)
     agent_response = client.post("/api/v1/chat", json={"messages": [{"role": "user", "content": "接口政策"}]})
@@ -375,12 +388,32 @@ def test_chat_endpoint_switches_between_paths(client, monkeypatch):
     assert agent_body["answer_mode"] == "grounded"
     assert agent_body["citations"][0]["policy_id"] == "p_api"
 
-    monkeypatch.delitem(app.dependency_overrides, get_settings)
+    monkeypatch.undo()
+    monkeypatch.setitem(
+        app.dependency_overrides, get_settings, lambda: Settings(chat_agent_enabled=False),
+    )
     grounded_response = client.post("/api/v1/chat", json={"messages": [{"role": "user", "content": "接口政策"}]})
     assert grounded_response.status_code == 200
     grounded_body = grounded_response.json()
     assert grounded_body["steps"] == []
     assert grounded_body["citations"][0]["policy_id"] == "p_api"
+    monkeypatch.delitem(app.dependency_overrides, get_settings)
+
+
+def test_mock_provider_falls_back_to_grounded_even_if_agent_enabled(client, monkeypatch):
+    """未接入生成式模型时，Agent 开关打开也不该退化成更弱的确定性检索。"""
+    from app.core.config import Settings, get_settings
+    from app.main import app
+
+    monkeypatch.setitem(
+        app.dependency_overrides, get_settings, lambda: Settings(chat_agent_enabled=True),
+    )
+    response = client.post("/api/v1/chat", json={"messages": [{"role": "user", "content": "你能做什么"}]})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["steps"] == []
+    assert "政策雷达助手" in body["reply"]
+    monkeypatch.delitem(app.dependency_overrides, get_settings)
 
 
 def test_history_is_passed_to_planner(db):

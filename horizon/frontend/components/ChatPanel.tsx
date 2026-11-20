@@ -2,12 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 
+import { getStoredRole } from "@/lib/auth";
+
 const API_BASE = "/api/proxy";  // 客户端走同源 BFF 代理，API Key 由服务端注入，不暴露到浏览器
 const API_KEY = process.env.HORIZON_API_KEY ?? "dev-local-key";
 
 interface Citation {
   id: string;
-  type: "policy" | "document" | "web_source";
+  // task = 管理员任务结果（清理无关政策 / 生成影响报告）
+  type: "policy" | "document" | "web_source" | "task";
   title: string;
   url?: string;
   policy_id?: string | null;
@@ -33,6 +36,22 @@ interface Message {
   followups?: string[];
   clarifyingQuestion?: string;
 }
+
+interface ChatCapabilities {
+  provider: string;
+  llm_ready: boolean;
+  agent_enabled: boolean;
+  agent_active: boolean;
+  mode: "agent" | "grounded" | "rules";
+  admin_tasks: boolean;
+  hint: string;
+}
+
+const MODE_LABEL: Record<string, string> = {
+  agent: "Agent 模式",
+  grounded: "单轮问答",
+  rules: "规则检索",
+};
 
 interface ChatPanelProps {
   onClose: () => void;
@@ -60,9 +79,10 @@ function safeCitationUrl(url?: string): string | null {
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
-  content: "你好！我是 HORIZON 政策雷达助手。我会基于当前政策库回答，并附上可核查的来源。",
+  content: "你好！我是 HORIZON 政策雷达助手。",
 };
 const CHAT_STORAGE_KEY = "horizon-chat-history";
+const CHAT_SIZE_KEY = "horizon-chat-size";
 
 export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -81,7 +101,62 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [caps, setCaps] = useState<ChatCapabilities | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // 浮窗尺寸：拖拽右下角调整后记住，下次打开沿用（与「默认关闭」互不影响）
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    try {
+      const saved = window.localStorage.getItem(CHAT_SIZE_KEY);
+      if (saved) {
+        const size = JSON.parse(saved) as { w?: number; h?: number };
+        if (size.w && size.h) {
+          el.style.width = `${size.w}px`;
+          el.style.height = `${size.h}px`;
+        }
+      }
+    } catch {
+      // 损坏的尺寸记录直接忽略
+    }
+    let timer = 0;
+    const observer = new ResizeObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const w = Math.round(el.offsetWidth);
+        const h = Math.round(el.offsetHeight);
+        if (w > 200 && h > 200) {
+          window.localStorage.setItem(CHAT_SIZE_KEY, JSON.stringify({ w, h }));
+        }
+      }, 300);
+    });
+    observer.observe(el);
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, []);
+
+  // 如实展示当前模式：未接 LLM 时告诉用户这是规则检索，避免把降级态当成产品形态
+  useEffect(() => {
+    let cancelled = false;
+    const headers: Record<string, string> = { "X-API-Key": API_KEY };
+    const demoRole = getStoredRole();
+    if (demoRole) headers["X-Demo-Role"] = demoRole;
+    fetch(`${API_BASE}/chat/capabilities`, { headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setCaps(data as ChatCapabilities);
+      })
+      .catch(() => {
+        // 能力探测失败不影响聊天本身
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 聊天记录完整持久化到 localStorage：含引用/检索过程/追问，关闭侧栏后重新打开也不丢失
   useEffect(() => {
@@ -167,7 +242,11 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
 
   return (
     <div
-      className="sticky top-0 flex h-screen flex-col border-l border-[var(--border)] bg-[var(--surface)]"
+      ref={panelRef}
+      className="fixed bottom-6 right-6 z-40 flex h-[560px] w-[380px] min-h-[320px] min-w-[300px] max-h-[calc(100vh-3rem)] max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
+      style={{ resize: "both" }}
+      role="dialog"
+      aria-label="政策助手"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
@@ -178,18 +257,37 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
             </svg>
           </div>
           <span className="text-[14px] font-medium">政策助手</span>
+          {caps && (
+            <span
+              title={caps.hint}
+              className={`rounded px-1.5 py-0.5 text-[11px] ${
+                caps.mode === "agent"
+                  ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                  : "bg-[var(--surface-2)] text-[var(--text-3)]"
+              }`}
+            >
+              {MODE_LABEL[caps.mode] ?? caps.mode}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={clearChat} aria-label="清空对话" title="清空对话" className="text-[12px] text-[var(--text-3)] hover:text-[var(--text)]">
             清空
           </button>
-          <button type="button" onClick={onClose} aria-label="收起政策助手侧栏" title="收起侧栏" className="text-[var(--text-3)] hover:text-[var(--text)]">
+          <button type="button" onClick={onClose} aria-label="关闭政策助手" title="关闭" className="text-[var(--text-3)] hover:text-[var(--text)]">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
             </svg>
           </button>
         </div>
       </div>
+
+      {/* 模式提示：只有真正跑在 LLM Agent 上时才隐藏 */}
+      {caps && caps.mode !== "agent" && (
+        <div className="border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-2 text-[11px] leading-4 text-[var(--text-3)]">
+          {caps.hint}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
@@ -277,7 +375,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         {loading && (
           <div className="flex justify-start" role="status">
             <div className="rounded-lg bg-[var(--surface-2)] px-3 py-2 text-[13px] text-[var(--text-3)]">
-              正在检索当前政策库并组织回答...
+              正在检索政策库并处理你的请求...
             </div>
           </div>
         )}

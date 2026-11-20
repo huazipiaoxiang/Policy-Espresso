@@ -1,8 +1,9 @@
-"""Chat Agent 工具注册表：把 ChatTools 的只读检索包装成可供 LLM 选择的工具。
+"""Chat Agent 工具注册表：把 ChatTools 的检索与管理员任务包装成可供 LLM 选择的工具。
 
 契约（不可突破）：
-- 工具只接受**文本查询**，绝不接受 SQL 或任意过滤表达式；
-- 工具清单对所有角色一致，读取权限不区分角色；
+- 检索工具只接受**文本查询**，绝不接受 SQL 或任意过滤表达式；工具清单对读取权限一致；
+- 任务工具（kind="task"）**仅 admin 可见**，用于在系统内执行动作（清理政策、生成影响报告）；
+  其中删除类动作必须同时满足 confirm=true 与用户本轮明确确认，且逐条重跑确定性门禁；
 - 参数一律 clamp（query ≤200 字，limit 1..8），未知工具返回错误观察而不是抛异常，
   让模型自行改道而不是把请求打挂。
 """
@@ -27,8 +28,10 @@ LIMIT_MAX = 8
 DEFAULT_LIMIT = 5
 
 ALL_ROLES = frozenset(DEMO_ROLES)
+ADMIN_ONLY = frozenset({"admin"})
 
 ToolHandler = Callable[[ChatTools, str, int], list[ChatEvidence]]
+TaskHandler = Callable[[ChatTools, dict[str, Any]], list[ChatEvidence]]
 
 
 def clamp_query(value: object) -> str:
@@ -47,16 +50,25 @@ def clamp_limit(value: object, default: int = DEFAULT_LIMIT) -> int:
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """单个工具的元数据与执行入口。"""
+    """单个工具的元数据与执行入口。
+
+    kind="search" 为只读检索（query/limit）；kind="task" 为管理员动作，
+    参数原样透传（policy_ids/confirm），由 app.chat.tasks 内部校验。
+    """
 
     name: str
     description: str
     visible_to: frozenset[str]
     handler: ToolHandler = None  # type: ignore[assignment]
+    kind: str = "search"
+    task_handler: TaskHandler = None  # type: ignore[assignment]
 
     def run(self, tools: ChatTools, args: dict[str, Any]) -> list[ChatEvidence]:
-        query = clamp_query(args.get("query"))
-        limit = clamp_limit(args.get("limit"))
+        payload = args or {}
+        if self.kind == "task":
+            return self.task_handler(tools, payload)
+        query = clamp_query(payload.get("query"))
+        limit = clamp_limit(payload.get("limit"))
         return self.handler(tools, query, limit)
 
 
@@ -90,6 +102,28 @@ def _search_internal_data(tools: ChatTools, query: str, limit: int) -> list[Chat
 
 def _search_web(tools: ChatTools, query: str, limit: int) -> list[ChatEvidence]:
     return search_web(query, limit=max(LIMIT_MIN, min(limit, 5)))
+
+
+# ---------- 管理员任务（kind="task"）：在系统内执行动作 ----------
+
+
+def _task_cleanup_candidates(tools: ChatTools, args: dict[str, Any]) -> list[ChatEvidence]:
+    from app.chat.tasks import cleanup_candidates
+
+    limit = clamp_limit(args.get("limit"), default=8)
+    return [cleanup_candidates(tools.db, limit=limit).to_evidence()]
+
+
+def _task_cleanup_policies(tools: ChatTools, args: dict[str, Any]) -> list[ChatEvidence]:
+    from app.chat.tasks import cleanup_policies
+
+    return [cleanup_policies(tools, args).to_evidence()]
+
+
+def _task_impact_report(tools: ChatTools, args: dict[str, Any]) -> list[ChatEvidence]:
+    from app.chat.tasks import build_impact_report
+
+    return [build_impact_report(tools.db, clamp_query(args.get("query"))).to_evidence()]
 
 
 TOOLS: tuple[ToolSpec, ...] = (
@@ -141,7 +175,36 @@ TOOLS: tuple[ToolSpec, ...] = (
         visible_to=ALL_ROLES,
         handler=_search_web,
     ),
+    ToolSpec(
+        name="list_cleanup_candidates",
+        description="【管理员任务·只读】扫描政策库，列出对汇丰完全没有影响、可清理的政策（含 policy_id 与标题）。用户问「有没有不影响汇丰的政策」「有哪些政策可以清理」，或要求清理但还没给清单时先调用它。",
+        visible_to=ADMIN_ONLY,
+        kind="task",
+        task_handler=_task_cleanup_candidates,
+    ),
+    ToolSpec(
+        name="cleanup_policies",
+        description="【管理员任务·不可恢复】删除指定的无关政策及其原文并写审计。必须先由 list_cleanup_candidates 拿到 policy_ids，并在用户明确回复「确认清理」后，带 confirm=true 调用；只传用户确认过的 id。",
+        visible_to=ADMIN_ONLY,
+        kind="task",
+        task_handler=_task_cleanup_policies,
+    ),
+    ToolSpec(
+        name="build_impact_report",
+        description="【管理员任务】按政策名称/文号/policy_id 生成该政策的影响报告（影响结论、受影响客户统计、关注要点、建议动作、使用者反馈）。query 填政策名或文号。",
+        visible_to=ADMIN_ONLY,
+        kind="task",
+        task_handler=_task_impact_report,
+    ),
 )
+
+
+def find_tool(name: str) -> ToolSpec | None:
+    """按名字取工具定义（不校验角色）；未知工具返回 None。"""
+    for spec in TOOLS:
+        if spec.name == name:
+            return spec
+    return None
 
 
 def available_tools(role: object, *, db: Session | None = None) -> list[ToolSpec]:

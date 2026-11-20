@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     # 预处理时自动联网检索「汇丰/他行反应、市场落地案例」。
     # 出网内容仅限政策标题与主题（本身已公开），不含客户数据、内部评分等非公开信息。
     preprocess_web_research: bool = True
+
+    # ===== 政策流水线 Agent（原文 → 政策 → 预处理） =====
+    # 开启后，预处理阶段由系统接入的 AI Agent 复核/补全（读原文、业务图谱、客户暴露、公开检索），
+    # 权限除「数据外泄」外全部开放；未接入生成式模型时自动退回确定性规则。
+    preprocess_agent_enabled: bool = True
+    preprocess_agent_max_rounds: int = 4
+    # 无关政策清理 Skill：判定对汇丰完全没有影响时，删除政策及原文（仅保留审计）。
+    # 始终受确定性门禁约束：有相关性/合规/差异条款、覆盖外资行、有受影响业务线、已发布或有使用者反馈 → 一律保留。
+    irrelevant_cleanup_enabled: bool = True
+    # 综合分高于该阈值时视为「可能有影响」，不做自动删除
+    irrelevant_policy_score_max: float = 5.0
     # 可选：专业检索 API（Tavily / Serper / 博查等）。留空则用 Bing → DuckDuckGo 免费检索。
     search_api_url: str = ""
     search_api_key: str = ""
@@ -65,8 +76,10 @@ class Settings(BaseSettings):
     notify_feishu_webhook: str = ""
 
     # ===== Chat Agent（LLM 自主检索循环） =====
-    # 关闭时 /chat 走原 grounded 路径，行为与改造前完全一致（灰度回退开关）。
-    chat_agent_enabled: bool = False
+    # 开启后：模型自主规划 → 多轮选工具检索 → 基于证据作答（含管理员任务工具）。
+    # 未接入生成式模型（LLM_PROVIDER=mock）时自动回退 grounded 路径，行为与改造前一致；
+    # 因此默认开启，接上真实 provider 即生效，无需再改一处开关。
+    chat_agent_enabled: bool = True
     chat_max_tool_rounds: int = 3          # Executor 最多轮次（每轮 1 次 LLM + 若干工具调用）
     chat_evidence_max: int = 8             # 累积证据池上限（沿用原 MAX_EVIDENCE）
     chat_max_invalid_calls: int = 2        # 连续无效调用（空结果/不可解析）达到此数即早停
@@ -94,6 +107,9 @@ class Settings(BaseSettings):
             # Chat：Planner 只做指代消解与查询改写，走最便宜的 flash；答复用 plus。
             "chat_plan": self.llm_model_flash,
             "chat_answer": self.llm_model_plus,
+            # 流水线 Agent：预处理要读原文并做取舍，走 plus。
+            "preprocess_agent": self.llm_model_plus,
+            "irrelevant_cleanup": self.llm_model_plus,
         }.get(task, self.llm_model_plus)
         return tier
 

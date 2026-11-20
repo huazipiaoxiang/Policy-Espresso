@@ -247,7 +247,8 @@ def seed_preprocess(db) -> int:  # noqa: ANN001
     for policy in db.scalars(select(Policy)).all():
         if db.scalar(select(PolicyPreprocess).where(PolicyPreprocess.policy_id == policy.id)):
             continue
-        upsert_preprocess(db, policy)
+        # 种子数据只做基础补齐：不走 Agent，避免初始化时对每条政策发起模型调用
+        upsert_preprocess(db, policy, use_agent=False)
         created += 1
     db.commit()
     return created
