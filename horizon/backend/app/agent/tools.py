@@ -299,6 +299,25 @@ def normalize_plan(plan: dict[str, Any]) -> dict[str, Any]:
                 break
         return out
 
+    def _research_items(value: object, limit: int = 3) -> list[dict[str, str]]:
+        """三栏情报条目：只保留 {summary, url}，按 url 去重，url 必须以 http(s) 开头。"""
+        out: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for item in value if isinstance(value, list) else []:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            summary = _clip(item.get("summary"), 200)
+            if not url.startswith(("http://", "https://")) or url in seen:
+                continue
+            if not summary:
+                continue
+            seen.add(url)
+            out.append({"summary": summary, "url": url})
+            if len(out) >= limit:
+                break
+        return out
+
     codes = _text_list(plan.get("business_line_codes"), 6, 24)
     return {
         "keywords": _text_list(plan.get("keywords"), KEYWORD_LIMIT, 24),
@@ -306,6 +325,9 @@ def normalize_plan(plan: dict[str, Any]) -> dict[str, Any]:
         "customer_segments": _text_list(plan.get("customer_segments"), SEGMENT_LIMIT, 32),
         "summary": _clip(plan.get("summary"), 400),
         "notes": _text_list(plan.get("notes"), 6, 120),
+        "hsbc_reaction": _research_items(plan.get("hsbc_reaction")),
+        "similar_policies": _research_items(plan.get("similar_policies")),
+        "market_applications": _research_items(plan.get("market_applications")),
     }
 
 

@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # 开启后，预处理阶段由系统接入的 AI Agent 复核/补全（读原文、业务图谱、客户暴露、公开检索），
     # 权限除「数据外泄」外全部开放；未接入生成式模型时自动退回确定性规则。
     preprocess_agent_enabled: bool = True
-    preprocess_agent_max_rounds: int = 4
+    preprocess_agent_max_rounds: int = 6
     # 无关政策清理 Skill：判定对汇丰完全没有影响时，删除政策及原文（仅保留审计）。
     # 始终受确定性门禁约束：有相关性/合规/差异条款、覆盖外资行、有受影响业务线、已发布或有使用者反馈 → 一律保留。
     irrelevant_cleanup_enabled: bool = True

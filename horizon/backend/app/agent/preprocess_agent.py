@@ -4,6 +4,7 @@
 - 关键词：Agent 结果优先，规则结果补位（保证召回不下降）；
 - 业务线：Agent 选的代码必须在业务图谱内，百分比随后由平台口径重算；
 - 客户类型：只能从业务图谱/客户表已有客群中选择，避免模型发明客群；
+- 三栏公开情报（汇丰反应/类似政策/市场应用）：Agent 联网检索结果覆盖规则结果；
 - 无论成功与否都写入 extras.agent 轨迹（模式、模型、工具、被拦截的出网请求、权限说明）。
 """
 from __future__ import annotations
@@ -125,6 +126,16 @@ def refine_preprocess_payload(
         narrowed = [segment for segment in agent_segments if segment in known] if known else agent_segments
         if narrowed:
             merged["customer_segments"] = narrowed[:8]
+
+        # 三栏公开情报：Agent 检索结果覆盖确定性规则结果（Agent 未检索到则保留规则结果）
+        for plan_key, payload_key in (
+            ("hsbc_reaction", "hsbc_response"),
+            ("similar_policies", "peer_bank_response"),
+            ("market_applications", "market_applications"),
+        ):
+            items = plan.get(plan_key)
+            if items:
+                merged[payload_key] = items
 
         merged["source"] = f"agent:{trace.get('model') or 'llm'}"
 
