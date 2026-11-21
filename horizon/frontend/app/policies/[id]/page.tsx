@@ -348,7 +348,7 @@ export default function PolicyDetailPage() {
                   <div className="field"><small>影响方向</small><strong>{DIRECTION_LABELS[assessment.direction] || assessment.direction}</strong></div>
                   {policy.differential?.note ? (
                     <div className="field">
-                      <small>外资银行差异条款</small>
+                      <small>{policy.differential.foreign_bank_differential ? "外资银行差异条款" : "外资银行影响"}</small>
                       <strong style={{ color: "var(--amber, #b08900)" }}>{policy.differential.note}</strong>
                       {policy.differential.source === "fallback" ? (
                         <span style={{ marginLeft: 8, fontSize: 11, color: "#8b929c" }}>（AI 暂不可用，以下为提示性说明）</span>

@@ -434,13 +434,20 @@ _DIFF_ENTITY_LABELS = {"hsbc_hk": "香港汇丰", "hsbc_cn": "汇丰（中国）
 
 
 def _differential_note(policy: Policy, db: Session) -> dict:
-    """外资银行差异条款提示：由 AI 依据「是否影响外资行 / 是否对汇丰适用 / 关注程度」动态生成。
+    """外资银行相关影响提示：由 AI 依据「是否影响外资行 / 是否对汇丰适用 / 关注程度」动态生成。
 
-    规则通道未命中差异条款时直接返回空提示（不调用 AI）；AI 调用成功后以 AI 结论为准
-    （AI 判断无差异/无需关注时 note 留空，前端不展示该块）；仅当 AI 调用真正失败时，
-    才退回中性兜底文案并标记 source=fallback，避免把「AI 判断无差异」误写成「需重点关注」。
+    触发条件（满足其一即调用 AI）：
+    - 规则命中差异条款（foreign_bank_differential=True，外资被排除/区别对待）；
+    - 适用范围明确含外资（applicable_scope=foreign_included）；
+    - 目标实体高相关（target_entity_status=high，汇丰作为外资银行直接适用）。
+
+    AI 调用成功后以 AI 结论为准（AI 判断无差异且不适用时 note 留空，前端不展示该块）；
+    仅当 AI 调用真正失败时，才退回中性兜底文案并标记 source=fallback。
     """
-    if not policy.foreign_bank_differential:
+    differential = bool(policy.foreign_bank_differential)
+    includes_foreign = (policy.applicable_scope or "") == "foreign_included"
+    hsbc_high = (policy.target_entity_status or "") == "high"
+    if not (differential or includes_foreign or hsbc_high):
         return {
             "foreign_bank_differential": False,
             "applies_to_hsbc": None,
