@@ -184,9 +184,20 @@ export default function ForYouPage() {
   // AI 聚合：按当前周期把匹配政策交给后端 LLM 生成速览
   const periodList = digestTab === "week" ? weekly : monthly;
   const periodKey = digestTab === "week" ? weekAgo : monthlyStart;
-  // 推荐列表：本周新入库政策（后端已按预处理综合分降序），前端只做筛选与按日期重排
+  // 推荐列表：后端「本周新入库」+ 订阅主题/市场命中的已发布政策。
+  // 后端 for-you 只看 policy_preprocess.created_at 最近 7 天，用户明确订阅的主题
+  // 不应因为入库时间较早而漏掉，因此这里把订阅匹配结果合并进来并按同一口径排序。
   const allSorted = useMemo(() => {
-    let filtered = reco?.items ?? [];
+    const backendItems = reco?.items ?? [];
+    const backendIds = new Set(backendItems.map((policy) => policy.id));
+    const subscriptionItems = matched.filter((policy) => {
+      if (backendIds.has(policy.id)) return false;
+      const dims = policy.impact_dimensions;
+      return Boolean(
+        dims && (dims.business_loss || dims.business_opportunity || dims.reputation_risk)
+      );
+    });
+    let filtered: Policy[] = [...backendItems, ...subscriptionItems];
     if (directionFilter) {
       filtered = filtered.filter((policy) => (policy.direction || "neutral") === directionFilter);
     }
@@ -202,8 +213,13 @@ export default function ForYouPage() {
         (b.dispatched_at || b.published_at || "").localeCompare(a.dispatched_at || a.published_at || "")
       );
     }
-    return filtered; // 综合分排序由后端给出（预处理表格口径）
-  }, [reco, directionFilter, sortBy, searchText]);
+    // 与后端一致：业务损失 + 业务机会 + 声誉风险 由高到低
+    const impactScore = (policy: Policy) => {
+      const dims = policy.impact_dimensions;
+      return (dims?.business_loss || 0) + (dims?.business_opportunity || 0) + (dims?.reputation_risk || 0);
+    };
+    return [...filtered].sort((a, b) => impactScore(b) - impactScore(a));
+  }, [reco, matched, directionFilter, sortBy, searchText]);
 
   // 分页：每页 10 条
   const PAGE_SIZE = 10;
