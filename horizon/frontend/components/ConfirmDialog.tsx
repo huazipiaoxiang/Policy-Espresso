@@ -8,13 +8,14 @@ type Props = {
   acknowledgeLabel: string;
   confirmLabel: string;
   busy?: boolean;
+  error?: string;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
 // 危险操作的双重确认：勾选确认项后「确认」按钮才可用，避免单次点击直接删除。
 export default function ConfirmDialog({
-  title, description, acknowledgeLabel, confirmLabel, busy, onCancel, onConfirm,
+  title, description, acknowledgeLabel, confirmLabel, busy, error, onCancel, onConfirm,
 }: Props) {
   const [acknowledged, setAcknowledged] = useState(false);
 
@@ -37,6 +38,7 @@ export default function ConfirmDialog({
                  onChange={(event) => setAcknowledged(event.target.checked)} />
           <span>{acknowledgeLabel}</span>
         </label>
+        {error && <div className="notice" style={{ margin: "8px 0 0" }}>{error}</div>}
         <div className="confirm-actions">
           <button className="btn" type="button" onClick={onCancel} disabled={busy}>取消</button>
           <button className="btn danger" type="button" onClick={onConfirm}

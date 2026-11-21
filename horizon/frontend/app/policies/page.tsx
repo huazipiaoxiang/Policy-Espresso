@@ -63,6 +63,7 @@ function PoliciesContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [busyId, setBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const pageSize = 20;
   const hkToday = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }), []);
 
@@ -142,13 +143,16 @@ function PoliciesContent() {
     if (!policy) return;
     setBusyId(policy.id);
     setNotice("");
+    setDeleteError("");
     try {
       await request(`/policies/${policy.id}`, { method: "DELETE" });
       setDeleteTarget(null);
       setNotice(`政策「${policy.title}」已删除，原始文档已保留`);
       setRefreshKey((key) => key + 1);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "删除失败");
+      const message = reason instanceof Error ? reason.message : "删除失败";
+      setError(message);
+      setDeleteError(message);
     } finally {
       setBusyId("");
     }
@@ -256,7 +260,8 @@ function PoliciesContent() {
           title="删除政策"
           confirmLabel="确认删除"
           busy={busyId === deleteTarget.id}
-          onCancel={() => setDeleteTarget(null)}
+          error={deleteError}
+          onCancel={() => { setDeleteTarget(null); setDeleteError(""); }}
           onConfirm={removePolicy}
           acknowledgeLabel={`我已确认删除「${deleteTarget.title}」及其分析、预警记录`}
           description={<>
