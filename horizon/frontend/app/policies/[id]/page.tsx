@@ -63,6 +63,7 @@ interface PolicyDetail {
     attention_level: "none" | "watch" | "focus";
     note: string;
     reason: string;
+    source?: "ai" | "fallback";
   };
   assessments: Assessment[];
   evidence: { id: string; quote: string; field_name: string; span_start: number; span_end: number }[];
@@ -349,6 +350,9 @@ export default function PolicyDetailPage() {
                     <div className="field">
                       <small>外资银行差异条款</small>
                       <strong style={{ color: "var(--amber, #b08900)" }}>{policy.differential.note}</strong>
+                      {policy.differential.source === "fallback" ? (
+                        <span style={{ marginLeft: 8, fontSize: 11, color: "#8b929c" }}>（AI 暂不可用，显示规则兜底）</span>
+                      ) : null}
                       {policy.differential.reason ? (
                         <p className="textblock" style={{ margin: "4px 0 0", fontSize: 12 }}>{policy.differential.reason}</p>
                       ) : null}

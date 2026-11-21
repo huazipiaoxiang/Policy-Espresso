@@ -459,12 +459,20 @@ def _differential_note(policy: Policy, db: Session) -> dict:
     except Exception:
         parsed = {}
     note = (parsed.get("note") or "").strip()
+    ai_used = bool(note)
+    if not note:
+        # 规则兜底：简短措辞，与「AI 动态文案」区分；AI 正常时此分支不命中
+        if policy.target_entity_status in ("high", "medium"):
+            note = "该政策涉及外资银行差异化安排，建议重点关注其对汇丰适用与待遇的影响。"
+        else:
+            note = "该政策涉及外资银行差异化条款，建议关注。"
     return {
         "foreign_bank_differential": True,
         "applies_to_hsbc": parsed.get("applies_to_hsbc"),
         "attention_level": parsed.get("attention_level") or "focus",
-        "note": note or "本政策涉及外资银行差异条款，对汇丰的适用存在区别对待，影响需重点关注。",
+        "note": note,
         "reason": parsed.get("reason") or "",
+        "source": "ai" if ai_used else "fallback",
     }
 
 
