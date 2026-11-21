@@ -128,23 +128,28 @@ def _fuzzy_amount(value: object) -> str:
 def mask_customer_rows(rows: list[dict]) -> list[dict]:
     """对受影响客户列表做去敏，供政策运营专员查看：
 
-    - 贷款/他行贷款金额改为区间描述；
-    - 移除内部标识 customer_id 与三维评分数字；
-    - 保留已脱敏的 name_masked 与业务线/客群等非敏感信息。
+    - 单户贷款/他行贷款金额改为区间描述（客户暴露规模的聚合合计仍保留精确值）；
+    - 移除三维评分数字；
+    - 保留已脱敏的 name_masked、customer_id（内部编号，前端用作列表 key）与业务线/客群/海外业务等非敏感信息。
     """
     masked: list[dict] = []
     for row in rows or []:
         item = dict(row)
-        item.pop("customer_id", None)
-        item["loan_balance_cny_yi"] = _fuzzy_amount(item.get("loan_balance_cny_yi"))
-        item["other_bank_loans_cny_yi"] = _fuzzy_amount(item.get("other_bank_loans_cny_yi"))
+        loan = _fuzzy_amount(item.get("loan_balance_cny_yi"))
+        other = _fuzzy_amount(item.get("other_bank_loans_cny_yi"))
+        overseas = item.get("overseas_business") or []
+        item["loan_balance_cny_yi"] = loan
+        item["other_bank_loans_cny_yi"] = other
         impact = item.get("impact")
         if isinstance(impact, dict):
             impact = dict(impact)
             impact.pop("business_loss", None)
             impact.pop("business_opportunity", None)
             impact.pop("reputation_risk", None)
-            impact["impact_content"] = "贷款与他行贷款金额已脱敏"
+            impact["impact_content"] = (
+                f"贷款规模 {loan}、他行贷款 {other}"
+                + (f"，涉及{'、'.join(overseas)}等海外业务" if overseas else "")
+            )
             item["impact"] = impact
         masked.append(item)
     return masked
