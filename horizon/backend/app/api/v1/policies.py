@@ -464,6 +464,7 @@ def _differential_note(policy: Policy, db: Session) -> dict:
         {
             "title": policy.title,
             "issuing_body": policy.issuing_body,
+            "jurisdiction": policy.jurisdiction,
             "summary_zh": policy.summary_zh or "",
             "applicable_scope": _APPLICABLE_SCOPE_LABELS.get(policy.applicable_scope, "适用范围不明确"),
             "target_entity_status": _ENTITY_STATUS_LABELS.get(policy.target_entity_status, "未提及"),
@@ -735,6 +736,80 @@ def _consumer_advice(policy: Policy, assessment, matched: list) -> dict:
     }
 
 
+def _rule_followup_action(customer: dict) -> str:
+    """规则兜底：按业务线 + 海外业务给出简短跟进措施（AI 不可用或漏答时）。"""
+    overseas = customer.get("overseas_business") or []
+    line = customer.get("business_line") or ""
+    if overseas:
+        return f"结合其{'、'.join(overseas)}等跨境业务，主动对接政策窗口，评估跨境结算与贸易融资机会"
+    if line == "CIB":
+        return "评估政策对其授信与贸易融资安排的影响，主动沟通定价与额度"
+    if line == "WPB":
+        return "评估政策对其理财与跨境财富管理需求的影响，准备适配产品方案"
+    if line == "GTB":
+        return "评估政策对其跨境资金与结算通道的影响，确认额度与合规安排"
+    if line == "Insurance":
+        return "评估政策对其保险与再保险安排的影响，检查产品结构适配性"
+    return "结合其业务与政策方向，主动对接评估影响与机会"
+
+
+def _customer_followup_actions(policy: Policy, assessment, customers: list[dict]) -> dict[str, str]:
+    """为每位受影响客户生成「跟进措施」（AI 逐客户生成），失败时退回规则文案。
+
+    输入只给客户业务线/客群/海外业务等聚合信息，不含精确金额与客户编号；
+    输出按 customer_id 映射，供前端在「具体影响」右侧新增一列展示。
+    """
+    from app.ai.chains.base import load_prompt
+    from app.ai.provider import get_provider
+    from app.ai.schemas import CUSTOMER_FOLLOWUP_SCHEMA
+
+    policy_card = json.dumps(
+        {
+            "title": policy.title,
+            "summary_zh": policy.summary_zh or "",
+            "themes": policy.themes or [],
+            "direction": assessment.direction if assessment else "neutral",
+        },
+        ensure_ascii=False,
+    )
+    customer_list = json.dumps(
+        [
+            {
+                "customer_id": c.get("customer_id"),
+                "name": c.get("name_masked"),
+                "business_line": c.get("business_line"),
+                "segment": c.get("segment"),
+                "overseas_business": c.get("overseas_business") or [],
+            }
+            for c in customers
+        ],
+        ensure_ascii=False,
+    )
+    _, system, user_tpl = load_prompt("p13_customer_followup")
+    user = user_tpl.replace("{policy_card}", policy_card).replace("{customers}", customer_list)
+    parsed: dict = {}
+    try:
+        result = get_provider().complete(
+            system=system, user=user, schema=CUSTOMER_FOLLOWUP_SCHEMA, task="customer_followup", max_tokens=1200,
+        )
+        parsed = result.parsed or {}
+    except Exception as exc:
+        log.warning("customer_followup_llm_failed policy_id=%s: %s: %s", policy.id, type(exc).__name__, exc)
+        parsed = {}
+
+    actions: dict[str, str] = {}
+    for item in parsed.get("actions") or []:
+        if isinstance(item, dict) and item.get("customer_id") and item.get("followup_action"):
+            actions[str(item["customer_id"])] = str(item["followup_action"]).strip()
+
+    # AI 漏掉的客户用规则文案兜底，保证每个客户都有一列可看
+    for c in customers:
+        cid = str(c.get("customer_id") or "")
+        if cid and cid not in actions:
+            actions[cid] = _rule_followup_action(c)
+    return actions
+
+
 def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> dict:
     """政策使用者视角的政策解读：外资银行句、重点话题三栏解读、原文简化版、影响概述、受影响客户。
 
@@ -766,6 +841,11 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
     matched = [c for c in managed if not lines or c.get("business_line") in lines]
     sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
     affected = customer_impact_rows(sorted_matched[:30], scores, direction=direction)
+    # 逐客户「跟进措施」：AI 结合客户业务线/客群/海外业务生成，失败退回规则文案
+    if sorted_matched:
+        followup_actions = _customer_followup_actions(policy, assessment, sorted_matched[:30])
+        for row in affected:
+            row["followup_action"] = followup_actions.get(str(row["customer_id"]), "")
 
     if matched:
         advice = _consumer_advice(policy, assessment, matched)

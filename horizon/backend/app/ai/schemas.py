@@ -307,6 +307,25 @@ FOLLOWUP_ADVICE_SCHEMA = {
 }
 
 
+CUSTOMER_FOLLOWUP_SCHEMA = {
+    "type": "object",
+    "required": ["actions"],
+    "properties": {
+        "actions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["customer_id", "followup_action"],
+                "properties": {
+                    "customer_id": {"type": "string"},
+                    "followup_action": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+
 FEEDBACK_REPORT_SCHEMA = {
     "type": "object",
     "required": ["title", "feedback_summary", "feedback_category", "related_policy",
