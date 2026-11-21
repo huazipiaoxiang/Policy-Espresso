@@ -35,7 +35,7 @@ from app.domain import scoring, state_machine
 from app.domain.business_map import slice_for_themes
 from app.domain.consumer_impact import affected_amount_by_business_lines, compute_consumer_impact
 from app.domain.case_match import match_cases
-from app.domain.exposure import aggregate_exposure
+from app.domain.exposure import aggregate_exposure, customer_exposure_overview
 from app.domain.scope_rules import detect_scope, entity_relevance_from_scope
 
 log = get_logger("jobs.analyze")
@@ -286,7 +286,7 @@ def analyze_document(db: Session, doc: Document) -> Policy | None:
         impact = ImpactChain(provider).run(
             content_text=doc.content_text, policy_card=policy_card, scope_judgement=scope_judgement,
             similar_cases=similar_cases, business_map_slice=slice_for_themes(policy.themes),
-            exposure_context={"synthetic_exposure": exposure},
+            exposure_context={"synthetic_exposure": exposure, "customer_overview": customer_exposure_overview()},
         )
         _log_llm(db, impact, provider_name, policy_id=policy.id)
         db.commit()

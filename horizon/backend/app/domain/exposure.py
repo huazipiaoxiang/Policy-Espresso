@@ -44,3 +44,39 @@ def aggregate_exposure(themes: list[str], segment_hints: list[str]) -> dict | No
         "basis": f"合成数据集口径：{len(matched)} 户符合贴息条件客群的贷款余额合计 {total} 亿元，区间取 0.6–1.2 倍",
         "confidence": 0.5,
     }
+
+
+def customer_exposure_overview() -> dict:
+    """合成客户数据的聚合概览（按业务线），供 AI 量化「客户暴露规模」。
+
+    只返回聚合口径（户数 + 金额合计），不返回任何单户信息；
+    覆盖全部业务线，弥补 aggregate_exposure 只支持「贷款与贴息」主题的局限。
+    """
+    customers = load_customers()
+    by_line: dict[str, dict] = {}
+    for c in customers:
+        line = str(c.get("business_line") or "未标注")
+        bucket = by_line.setdefault(
+            line, {"customers": 0, "loan_balance_cny_yi": 0.0, "other_bank_loans_cny_yi": 0.0}
+        )
+        bucket["customers"] += 1
+        bucket["loan_balance_cny_yi"] = round(
+            bucket["loan_balance_cny_yi"] + float(c.get("loan_balance_cny_yi") or 0), 2
+        )
+        bucket["other_bank_loans_cny_yi"] = round(
+            bucket["other_bank_loans_cny_yi"] + float(c.get("other_bank_loans_cny_yi") or 0), 2
+        )
+    return {
+        "total_customers": len(customers),
+        "total_loan_balance_cny_yi": round(sum(b["loan_balance_cny_yi"] for b in by_line.values()), 2),
+        "total_other_bank_loans_cny_yi": round(sum(b["other_bank_loans_cny_yi"] for b in by_line.values()), 2),
+        "by_business_line": [
+            {
+                "business_line": line,
+                "customers": b["customers"],
+                "loan_balance_cny_yi": b["loan_balance_cny_yi"],
+                "other_bank_loans_cny_yi": b["other_bank_loans_cny_yi"],
+            }
+            for line, b in sorted(by_line.items(), key=lambda kv: -kv[1]["loan_balance_cny_yi"])
+        ],
+    }
