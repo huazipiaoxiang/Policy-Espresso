@@ -106,6 +106,50 @@ def customer_impact_rows(
     ]
 
 
+def _fuzzy_amount(value: object) -> str:
+    """金额模糊化（亿元 → 区间描述），供政策运营专员查看时去敏。"""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        return "—"
+    if v <= 0:
+        return "—"
+    if v < 1:
+        return "不足 1 亿元"
+    if v < 5:
+        return "约 1–5 亿元"
+    if v < 10:
+        return "约 5–10 亿元"
+    if v < 50:
+        return "约 10–50 亿元"
+    return "50 亿元以上"
+
+
+def mask_customer_rows(rows: list[dict]) -> list[dict]:
+    """对受影响客户列表做去敏，供政策运营专员查看：
+
+    - 贷款/他行贷款金额改为区间描述；
+    - 移除内部标识 customer_id 与三维评分数字；
+    - 保留已脱敏的 name_masked 与业务线/客群等非敏感信息。
+    """
+    masked: list[dict] = []
+    for row in rows or []:
+        item = dict(row)
+        item.pop("customer_id", None)
+        item["loan_balance_cny_yi"] = _fuzzy_amount(item.get("loan_balance_cny_yi"))
+        item["other_bank_loans_cny_yi"] = _fuzzy_amount(item.get("other_bank_loans_cny_yi"))
+        impact = item.get("impact")
+        if isinstance(impact, dict):
+            impact = dict(impact)
+            impact.pop("business_loss", None)
+            impact.pop("business_opportunity", None)
+            impact.pop("reputation_risk", None)
+            impact["impact_content"] = "贷款与他行贷款金额已脱敏"
+            item["impact"] = impact
+        masked.append(item)
+    return masked
+
+
 def has_no_direct_impact(scores: dict | None) -> bool:
     """规则/模型是否明确判定「本行不在适用范围内且无红线、无差异化条款」。
 
@@ -199,9 +243,9 @@ def compute_customer_impact(
         reputation_risk = max(reputation_risk, 60)
 
     if direction == "positive":
-        outcome = f"潜在业务机会约 {business_opportunity} 分（满分 100）"
+        outcome = "政策利好，可能带来业务机会，建议主动对接把握窗口"
     elif direction == "negative":
-        outcome = f"潜在业务损失约 {business_loss} 分（满分 100）"
+        outcome = "政策利空，可能影响融资成本或业务空间，需关注应对"
     else:
         outcome = "影响中性，需结合具体业务评估"
 
@@ -210,6 +254,8 @@ def compute_customer_impact(
         + (f"，涉及{'、'.join(overseas)}等海外业务" if overseas else "")
     )
 
+    # business_loss / business_opportunity / reputation_risk 仍保留供内部排序使用，
+    # 前端不再向使用者/运营专员展示这些评分数字，具体影响以 impact_content + outcome 自然语言呈现。
     return {
         "impact_content": impact_content,
         "business_loss": business_loss,

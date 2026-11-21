@@ -420,7 +420,6 @@ export default function FollowUpPage() {
                                           <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
                                           <div style={{ marginTop: 6, fontSize: 12 }}>
                                             <p>{customer.impact?.impact_content || "—"}</p>
-                                            <p>业务损失 <b>{customer.impact?.business_loss ?? 0}</b> · 业务机会 <b>{customer.impact?.business_opportunity ?? 0}</b> · 声誉风险 <b>{customer.impact?.reputation_risk ?? 0}</b></p>
                                             <p>{customer.impact?.outcome || ""}</p>
                                           </div>
                                         </details>

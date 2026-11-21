@@ -844,7 +844,13 @@ def policy_affected_customers(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    return {"policy_id": policy_id, **affected_customer_stats(db, policy)}
+    from app.domain.consumer_impact import mask_customer_rows
+
+    stats = affected_customer_stats(db, policy)
+    # 运营专员不接触单户精确金额与评分数字，返回前统一去敏
+    stats["top_customers"] = mask_customer_rows(stats.get("top_customers") or [])
+    stats["customers"] = mask_customer_rows(stats.get("customers") or [])
+    return {"policy_id": policy_id, **stats}
 
 
 @router.post("/{policy_id}/affected-customers/analysis")
@@ -862,9 +868,14 @@ def policy_affected_customers_analysis(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
+    from app.domain.consumer_impact import mask_customer_rows
+
     stats = affected_customer_stats(db, policy)
     reports = followup_report_summary(db, policy_id)
     brief = affected_customer_brief(followup_policy_card(db, policy), stats, reports)
+    # 运营专员不接触单户精确金额与评分数字，返回前统一去敏
+    stats["top_customers"] = mask_customer_rows(stats.get("top_customers") or [])
+    stats["customers"] = mask_customer_rows(stats.get("customers") or [])
     return {
         "policy_id": policy_id,
         "stats": stats,

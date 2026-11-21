@@ -9,7 +9,7 @@ from app.core.security import require_api_key, require_roles
 from app.db.models import Assessment, ConsumerReport, Evidence, Policy, ReviewDecision, ReviewTask, ScopeJudgement
 from app.db.session import get_db
 from app.domain import review as review_domain
-from app.domain.consumer_impact import customer_impact_rows, matched_customers
+from app.domain.consumer_impact import customer_impact_rows, mask_customer_rows, matched_customers
 
 router = APIRouter(tags=["review"], dependencies=[Depends(require_api_key)])
 
@@ -97,6 +97,8 @@ def list_consumer_reports(
             # 政策未标注业务线时，退回使用者报告中已识别的客户，避免把全部客户都算作受影响
             rows = (r.report or {}).get("affected_customers", []) or []
             scope_note = "政策未标注业务线，展示使用者报告中的客户"
+        # 运营专员不接触单户精确金额与评分数字，返回前统一去敏
+        rows = mask_customer_rows(rows)
         items.append({
             "id": r.id,
             "policy_id": r.policy_id,
