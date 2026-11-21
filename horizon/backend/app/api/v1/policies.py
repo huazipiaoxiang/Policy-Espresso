@@ -1034,7 +1034,11 @@ def remove_policy(
     if not policy:
         raise not_found("政策", policy_id)
     document_id = policy.document_id
-    delete_policy(db, policy, actor=actor)
+    try:
+        delete_policy(db, policy, actor=actor)
+    except Exception as e:  # noqa: BLE001 — 删除失败时回滚并返回可定位的具体原因
+        db.rollback()
+        raise ApiError("DELETE_FAILED", f"删除政策失败：{type(e).__name__}: {e}", 500) from e
     return {"status": "ok", "policy_id": policy_id, "document_id": document_id, "document_retained": True}
 
 
