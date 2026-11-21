@@ -413,6 +413,61 @@ def for_you(
     }
 
 
+def _differential_note(policy: Policy, db: Session) -> dict:
+    """外资银行差异条款提示：由 AI 依据「是否影响外资行 / 是否对汇丰适用 / 关注程度」动态生成。
+
+    无差异条款时直接返回空提示（不调用 AI）；有差异条款时按程度给出不同措辞，
+    AI 不可用时降级到默认文案。
+    """
+    if not policy.foreign_bank_differential:
+        return {
+            "foreign_bank_differential": False,
+            "applies_to_hsbc": None,
+            "attention_level": "none",
+            "note": "",
+            "reason": "",
+        }
+    from app.ai.chains.base import load_prompt
+    from app.ai.provider import get_provider
+    from app.ai.schemas import DIFFERENTIAL_SCHEMA
+
+    policy_card = json.dumps(
+        {
+            "title": policy.title,
+            "issuing_body": policy.issuing_body,
+            "summary_zh": policy.summary_zh or "",
+            "applicable_scope": policy.applicable_scope,
+            "target_entity_status": policy.target_entity_status,
+        },
+        ensure_ascii=False,
+    )
+    scope = json.dumps(
+        [
+            {"entity_id": j.entity_id, "result": j.result, "llm_reason": j.llm_reason, "conflict": j.conflict}
+            for j in db.scalars(select(ScopeJudgement).where(ScopeJudgement.policy_id == policy.id)).all()
+        ],
+        ensure_ascii=False,
+    )
+    _, system, user_tpl = load_prompt("p9_differential")
+    user = user_tpl.replace("{policy_card}", policy_card).replace("{scope_judgement}", scope)
+    parsed: dict = {}
+    try:
+        result = get_provider().complete(
+            system=system, user=user, schema=DIFFERENTIAL_SCHEMA, task="differential", max_tokens=700,
+        )
+        parsed = result.parsed or {}
+    except Exception:
+        parsed = {}
+    note = (parsed.get("note") or "").strip()
+    return {
+        "foreign_bank_differential": True,
+        "applies_to_hsbc": parsed.get("applies_to_hsbc"),
+        "attention_level": parsed.get("attention_level") or "focus",
+        "note": note or "本政策涉及外资银行差异条款，对汇丰的适用存在区别对待，影响需重点关注。",
+        "reason": parsed.get("reason") or "",
+    }
+
+
 @router.get("/{policy_id}")
 def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
     policy = db.get(Policy, policy_id)
@@ -425,6 +480,7 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     ).all()
     return {
         **_policy_view(db, policy),
+        "differential": _differential_note(policy, db),
         "review_tasks": [
             {
                 "id": task.id,

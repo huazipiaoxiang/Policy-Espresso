@@ -281,6 +281,20 @@ STUDIO_SCHEMA = {
     },
 }
 
+DIFFERENTIAL_SCHEMA = {
+    "type": "object",
+    "required": ["foreign_bank_differential", "applies_to_hsbc", "attention_level", "note", "reason"],
+    "properties": {
+        "foreign_bank_differential": {"type": "boolean"},
+        "applies_to_hsbc": {"type": ["boolean", "null"]},
+        "attention_level": {"type": "string", "enum": ["none", "watch", "focus"]},
+        "note": {"type": "string"},
+        "reason": {"type": "string"},
+        "evidence": {"type": "array", "items": _EVIDENCE_ITEM},
+    },
+}
+
+
 FEEDBACK_REPORT_SCHEMA = {
     "type": "object",
     "required": ["title", "feedback_summary", "feedback_category", "related_policy",

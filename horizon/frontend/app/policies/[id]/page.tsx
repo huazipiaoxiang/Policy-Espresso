@@ -57,6 +57,13 @@ interface PolicyDetail {
   summary_zh: string;
   impacted_domains: string[];
   url: string;
+  differential?: {
+    foreign_bank_differential: boolean;
+    applies_to_hsbc: boolean | null;
+    attention_level: "none" | "watch" | "focus";
+    note: string;
+    reason: string;
+  };
   assessments: Assessment[];
   evidence: { id: string; quote: string; field_name: string; span_start: number; span_end: number }[];
   scope_judgements: { entity_id: string; result: string; llm_reason: string; conflict: boolean }[];
@@ -338,6 +345,15 @@ export default function PolicyDetailPage() {
               {assessment ? <>
                 <div className="fieldgrid">
                   <div className="field"><small>影响方向</small><strong>{DIRECTION_LABELS[assessment.direction] || assessment.direction}</strong></div>
+                  {policy.differential?.note ? (
+                    <div className="field">
+                      <small>外资银行差异条款</small>
+                      <strong style={{ color: "var(--amber, #b08900)" }}>{policy.differential.note}</strong>
+                      {policy.differential.reason ? (
+                        <p className="textblock" style={{ margin: "4px 0 0", fontSize: 12 }}>{policy.differential.reason}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="divider" />
                 <small className="section-label">传导路径</small>
