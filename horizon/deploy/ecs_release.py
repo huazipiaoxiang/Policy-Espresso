@@ -73,6 +73,21 @@ def environment(paths):
     return {**os.environ, **values, "PYTHONDONTWRITEBYTECODE": "1"}
 
 
+def ensure_llm_provider(paths):
+    """生产默认真实模型：horizon.env 未配置 LLM_PROVIDER 时写入 dashscope。
+
+    避免生产环境回落到 mock 导致 AI 能力静默失效（如差异条款提示走规则兜底）。
+    模型 API Key 属敏感信息，不在此处写入，仍由运维在 horizon.env 配置一次。
+    """
+    if not paths.env.exists():
+        return
+    text = paths.env.read_text()
+    if re.search(r"(?m)^\s*LLM_PROVIDER\s*=", text):
+        return
+    with paths.env.open("a") as fh:
+        fh.write("\n# 生产默认真实模型（部署自动写入）\nLLM_PROVIDER=dashscope\n")
+
+
 def set_owner(path):
     user = pwd.getpwnam("horizon")
     # Keep parent directories root-owned until their children are finished.
@@ -139,6 +154,7 @@ def deploy(sha, archive, digest, paths=None, runner=run):
     for required in ["backend/pyproject.toml", "frontend/server.js", "seed/sources.json"]:
         if not (release / required).is_file():
             raise ValueError("Incomplete release artifact")
+    ensure_llm_provider(paths)
     env = environment(paths)
     prepare_release(release, runner)
     previous = paths.current.resolve(strict=True)
