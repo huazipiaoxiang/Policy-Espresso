@@ -416,11 +416,29 @@ def for_you(
     }
 
 
+_APPLICABLE_SCOPE_LABELS = {
+    "all": "面向所有主体",
+    "domestic_only": "仅限境内主体",
+    "foreign_included": "含外资主体",
+    "qualified_only": "仅限符合特定资质的主体",
+    "unclear": "适用范围不明确",
+}
+_ENTITY_STATUS_LABELS = {
+    "high": "高相关",
+    "medium": "中相关",
+    "low": "低相关",
+    "not_mentioned": "未提及",
+    "na": "不适用",
+}
+_DIFF_ENTITY_LABELS = {"hsbc_hk": "香港汇丰", "hsbc_cn": "汇丰（中国）"}
+
+
 def _differential_note(policy: Policy, db: Session) -> dict:
     """外资银行差异条款提示：由 AI 依据「是否影响外资行 / 是否对汇丰适用 / 关注程度」动态生成。
 
-    无差异条款时直接返回空提示（不调用 AI）；有差异条款时按程度给出不同措辞，
-    AI 不可用时降级到默认文案。
+    规则通道未命中差异条款时直接返回空提示（不调用 AI）；AI 调用成功后以 AI 结论为准
+    （AI 判断无差异/无需关注时 note 留空，前端不展示该块）；仅当 AI 调用真正失败时，
+    才退回中性兜底文案并标记 source=fallback，避免把「AI 判断无差异」误写成「需重点关注」。
     """
     if not policy.foreign_bank_differential:
         return {
@@ -434,50 +452,80 @@ def _differential_note(policy: Policy, db: Session) -> dict:
     from app.ai.provider import get_provider
     from app.ai.schemas import DIFFERENTIAL_SCHEMA
 
+    # 输入只给自然语言，不给内部枚举值/空标签，避免 AI 把 domestic_only、<scope_judgement> 等字眼写进结论。
     policy_card = json.dumps(
         {
             "title": policy.title,
             "issuing_body": policy.issuing_body,
             "summary_zh": policy.summary_zh or "",
-            "applicable_scope": policy.applicable_scope,
-            "target_entity_status": policy.target_entity_status,
+            "applicable_scope": _APPLICABLE_SCOPE_LABELS.get(policy.applicable_scope, "适用范围不明确"),
+            "target_entity_status": _ENTITY_STATUS_LABELS.get(policy.target_entity_status, "未提及"),
         },
         ensure_ascii=False,
     )
-    scope = json.dumps(
-        [
-            {"entity_id": j.entity_id, "result": j.result, "llm_reason": j.llm_reason, "conflict": j.conflict}
-            for j in db.scalars(select(ScopeJudgement).where(ScopeJudgement.policy_id == policy.id)).all()
-        ],
-        ensure_ascii=False,
-    )
+    scope_rows = db.scalars(select(ScopeJudgement).where(ScopeJudgement.policy_id == policy.id)).all()
+    if scope_rows:
+        scope = json.dumps(
+            [
+                {
+                    "entity": _DIFF_ENTITY_LABELS.get(j.entity_id, j.entity_id),
+                    "result": _ENTITY_STATUS_LABELS.get(j.result, j.result),
+                    "reason": j.llm_reason or "",
+                }
+                for j in scope_rows
+            ],
+            ensure_ascii=False,
+        )
+    else:
+        scope = "无（规则通道暂未给出目标实体适用性判定）"
     _, system, user_tpl = load_prompt("p9_differential")
     user = user_tpl.replace("{policy_card}", policy_card).replace("{scope_judgement}", scope)
-    parsed: dict = {}
     try:
         result = get_provider().complete(
             system=system, user=user, schema=DIFFERENTIAL_SCHEMA, task="differential", max_tokens=700,
         )
         parsed = result.parsed or {}
+        ai_ok = True
     except Exception as exc:
-        # 保留静默降级行为（不打断详情页），但把失败原因写进日志，便于上云后排障
         log.warning("differential_llm_failed policy_id=%s: %s: %s", policy.id, type(exc).__name__, exc)
         parsed = {}
+        ai_ok = False
+
     note = (parsed.get("note") or "").strip()
-    ai_used = bool(note)
-    if not note:
-        # 规则兜底：简短措辞，与「AI 动态文案」区分；AI 正常时此分支不命中
-        if policy.target_entity_status in ("high", "medium"):
-            note = "该政策涉及外资银行差异化安排，建议重点关注其对汇丰适用与待遇的影响。"
-        else:
-            note = "该政策涉及外资银行差异化条款，建议关注。"
+    reason = (parsed.get("reason") or "").strip()
+    applies_to_hsbc = parsed.get("applies_to_hsbc")
+    attention_level = parsed.get("attention_level") or ""
+    ai_differential = parsed.get("foreign_bank_differential")
+
+    if not ai_ok:
+        # AI 真正不可用才兜底：措辞中性，不替用户下「重点关注」结论
+        return {
+            "foreign_bank_differential": True,
+            "applies_to_hsbc": None,
+            "attention_level": "watch",
+            "note": "该政策可能涉及外资银行差异条款，建议人工复核其对汇丰的适用与影响。",
+            "reason": "",
+            "source": "fallback",
+        }
+
+    if ai_differential is False:
+        # AI 判断实际无差异条款：尊重结论，note 留空，前端不展示该块
+        return {
+            "foreign_bank_differential": False,
+            "applies_to_hsbc": applies_to_hsbc,
+            "attention_level": attention_level or "none",
+            "note": note,
+            "reason": reason,
+            "source": "ai",
+        }
+
     return {
         "foreign_bank_differential": True,
-        "applies_to_hsbc": parsed.get("applies_to_hsbc"),
-        "attention_level": parsed.get("attention_level") or "focus",
+        "applies_to_hsbc": applies_to_hsbc,
+        "attention_level": attention_level or "watch",
         "note": note,
-        "reason": parsed.get("reason") or "",
-        "source": "ai" if ai_used else "fallback",
+        "reason": reason,
+        "source": "ai",
     }
 
 

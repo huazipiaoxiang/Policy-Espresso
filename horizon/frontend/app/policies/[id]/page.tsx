@@ -351,7 +351,7 @@ export default function PolicyDetailPage() {
                       <small>外资银行差异条款</small>
                       <strong style={{ color: "var(--amber, #b08900)" }}>{policy.differential.note}</strong>
                       {policy.differential.source === "fallback" ? (
-                        <span style={{ marginLeft: 8, fontSize: 11, color: "#8b929c" }}>（AI 暂不可用，显示规则兜底）</span>
+                        <span style={{ marginLeft: 8, fontSize: 11, color: "#8b929c" }}>（AI 暂不可用，以下为提示性说明）</span>
                       ) : null}
                       {policy.differential.reason ? (
                         <p className="textblock" style={{ margin: "4px 0 0", fontSize: 12 }}>{policy.differential.reason}</p>

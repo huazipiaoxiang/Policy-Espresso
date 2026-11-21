@@ -34,9 +34,11 @@ version: differential@v1
 要求：
 - note 必须由 attention_level 决定措辞强度，禁止写死同一句话；
 - 无差异条款时 foreign_bank_differential=false、attention_level="none"、note="";
-- note 只面向业务决策者，一句话点明「对汇丰是否区别对待 + 需要关注到什么程度」，
-  禁止出现适用范围字段值或技术判定字眼，例如不得输出
-  「政策适用范围明确为 domestic_only」「未涉及外资银行」「未纳入外资银行」「无中外资差异化条款」「applicable_scope」等；
+- note 只面向业务决策者，一句话点明「对汇丰是否区别对待 + 需要关注到什么程度」；
+- reason 用自然语言向业务人员解释「为什么这样判断」，同样禁止出现内部字段名、枚举值或技术标签，
+  例如不得输出「domestic_only」「applicable_scope」「scope_judgement」「字段」「空数组」「未涉及外资银行」
+  「未纳入外资银行」「无中外资差异化条款」等表述；reason 应写成
+  「该政策面向境内主体，未单列外资银行的差异化安排」这样的人话；
 - 引用 quote 必须逐字来自政策原文。
 
 <policy_card>
