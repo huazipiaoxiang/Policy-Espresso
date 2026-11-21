@@ -373,8 +373,10 @@ export default function PolicyDetailPage() {
           </section>
       </div>
 
-      {/* 运营专员：客户库全量的受影响客户概况（使用者没有客户也能看到） */}
-      {role === "processor" && <AffectedCustomersOverview policyId={policy.id} />}
+      {/* 运营专员与管理员：客户库全量的受影响客户概况；客户名单仅管理员可见 */}
+      {(role === "processor" || role === "admin") && (
+        <AffectedCustomersOverview policyId={policy.id} role={role} />
+      )}
 
       {role === "consumer" && consumerView && (
         <section className="panel full">

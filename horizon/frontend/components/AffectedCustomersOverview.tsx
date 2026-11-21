@@ -60,7 +60,7 @@ interface AgentBrief {
   generated_at: string;
 }
 
-export default function AffectedCustomersOverview({ policyId }: { policyId: string }) {
+export default function AffectedCustomersOverview({ policyId, role }: { policyId: string; role: string }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [brief, setBrief] = useState<AgentBrief | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,17 +153,6 @@ export default function AffectedCustomersOverview({ policyId }: { policyId: stri
 
         {stats && (
           <>
-            <p className="textblock" style={{ marginTop: brief ? 12 : 0 }}>
-              口径：{stats.match_rule}。即使发来影响报告的政策使用者名下没有客户，也会按客户库全量统计受影响客户。
-            </p>
-
-            <div className="fieldgrid">
-              <div className="field"><small>受影响客户合计</small><strong>{stats.total_customers} 户</strong></div>
-              <div className="field"><small>本行贷款合计</small><strong>{stats.loan_balance_total_cny_yi} 亿元</strong></div>
-              <div className="field"><small>他行贷款合计</small><strong>{stats.other_bank_loans_total_cny_yi} 亿元</strong></div>
-              <div className="field"><small>含海外业务客户</small><strong>{stats.overseas_customers} 户</strong></div>
-            </div>
-
             <div className="divider" />
             <small className="section-label">业务线分布（按贷款规模）</small>
             {stats.by_business_line.length === 0 ? (
@@ -192,47 +181,51 @@ export default function AffectedCustomersOverview({ policyId }: { policyId: stri
               </>
             )}
 
-            <div className="divider" />
-            <div className="rowflex" style={{ justifyContent: "space-between", alignItems: "center" }}>
-              <small className="section-label" style={{ margin: 0 }}>
-                {showAll ? `全部 ${stats.total_customers} 户客户` : `贷款规模前 ${stats.top_customers.length} 户客户`}
-              </small>
-              {stats.customers.length > stats.top_customers.length && (
-                <button className="link" type="button" onClick={() => setShowAll((value) => !value)}>
-                  {showAll ? "收起名单" : `展开全部 ${stats.total_customers} 户`}
-                </button>
-              )}
-            </div>
+            {role !== "processor" && (
+              <>
+                <div className="divider" />
+                <div className="rowflex" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                  <small className="section-label" style={{ margin: 0 }}>
+                    {showAll ? `全部 ${stats.total_customers} 户客户` : `贷款规模前 ${stats.top_customers.length} 户客户`}
+                  </small>
+                  {stats.customers.length > stats.top_customers.length && (
+                    <button className="link" type="button" onClick={() => setShowAll((value) => !value)}>
+                      {showAll ? "收起名单" : `展开全部 ${stats.total_customers} 户`}
+                    </button>
+                  )}
+                </div>
 
-            {rows.length === 0 ? (
-              <p className="textblock">该政策暂未匹配到受影响客户。</p>
-            ) : (
-              <div className="tablewrap" style={{ marginTop: 8 }}>
-                <table>
-                  <thead><tr><th>客户</th><th>业务线</th><th>客群</th><th>贷款规模(亿)</th><th>他行贷款(亿)</th><th>海外业务</th><th>具体影响</th></tr></thead>
-                  <tbody>
-                    {rows.map((customer) => (
-                      <tr key={customer.customer_id}>
-                        <td>{customer.name_masked}</td>
-                        <td>{customer.business_line}</td>
-                        <td>{customer.segment || "—"}</td>
-                        <td>{customer.loan_balance_cny_yi}</td>
-                        <td>{customer.other_bank_loans_cny_yi}</td>
-                        <td>{customer.overseas_business?.length ? customer.overseas_business.join("、") : "—"}</td>
-                        <td style={{ minWidth: 240 }}>
-                          <details>
-                            <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
-                            <div style={{ marginTop: 6, fontSize: 12 }}>
-                              <p>{customer.impact?.impact_content || "—"}</p>
-                              <p>{customer.impact?.outcome || ""}</p>
-                            </div>
-                          </details>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                {rows.length === 0 ? (
+                  <p className="textblock">该政策暂未匹配到受影响客户。</p>
+                ) : (
+                  <div className="tablewrap" style={{ marginTop: 8 }}>
+                    <table>
+                      <thead><tr><th>客户</th><th>业务线</th><th>客群</th><th>贷款规模(亿)</th><th>他行贷款(亿)</th><th>海外业务</th><th>具体影响</th></tr></thead>
+                      <tbody>
+                        {rows.map((customer) => (
+                          <tr key={customer.customer_id}>
+                            <td>{customer.name_masked}</td>
+                            <td>{customer.business_line}</td>
+                            <td>{customer.segment || "—"}</td>
+                            <td>{customer.loan_balance_cny_yi}</td>
+                            <td>{customer.other_bank_loans_cny_yi}</td>
+                            <td>{customer.overseas_business?.length ? customer.overseas_business.join("、") : "—"}</td>
+                            <td style={{ minWidth: 240 }}>
+                              <details>
+                                <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
+                                <div style={{ marginTop: 6, fontSize: 12 }}>
+                                  <p>{customer.impact?.impact_content || "—"}</p>
+                                  <p>{customer.impact?.outcome || ""}</p>
+                                </div>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
             <p className="footnote" style={{ marginTop: 10 }}>数据来源：{stats.source}</p>
           </>
