@@ -85,7 +85,7 @@ def test_manual_source_run_guarded_while_running_or_circuit_open(client):
 
 def test_daily_schedule_health_and_monday_heartbeat(client):
     jobs = {job.id: job for job in scheduler.build_scheduler().get_jobs()}
-    assert set(jobs) == {"crawl_all", "analyze_pending", "health_check", "heartbeat"}
+    assert set(jobs) == {"crawl_all", "analyze_pending", "health_check", "heartbeat", "retention"}
     assert all(job.max_instances == 1 and job.coalesce for job in jobs.values())
     assert str(jobs["crawl_all"].trigger.timezone) == "Asia/Hong_Kong"
     assert "hour='9'" in str(jobs["crawl_all"].trigger)
