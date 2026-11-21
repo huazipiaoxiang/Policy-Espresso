@@ -603,6 +603,70 @@ def _topic_columns(db: Session, topic: str) -> dict:
     return {"hsbc": hsbc, "industry": web_links, "market": web_links}
 
 
+def _consumer_advice(policy: Policy, assessment, matched: list) -> dict:
+    """AI 分析政策对当前用户的影响 + 客户经理跟进建议（自然语言，不含评分数字）。
+
+    AI 不可用时降级为规则文案；降级文案同样不出现「业务损失 X 分」等数字。
+    """
+    from app.ai.chains.base import load_prompt
+    from app.ai.provider import get_provider
+    from app.ai.schemas import FOLLOWUP_ADVICE_SCHEMA
+
+    policy_card = json.dumps(
+        {
+            "title": policy.title,
+            "summary_zh": policy.summary_zh or "",
+            "themes": policy.themes or [],
+            "applicable_scope": policy.applicable_scope,
+            "direction": assessment.direction if assessment else "neutral",
+        },
+        ensure_ascii=False,
+    )
+    user_profile = json.dumps(
+        {
+            "customer_count": len(matched),
+            "business_lines": sorted({c.get("business_line") for c in matched if c.get("business_line")}),
+            "segments": sorted({c.get("segment") for c in matched if c.get("segment")}),
+            "total_loan_cny_yi": round(sum(float(c.get("loan_balance_cny_yi", 0) or 0) for c in matched), 2),
+        },
+        ensure_ascii=False,
+    )
+    business_map = json.dumps(
+        {"business_lines": sorted({c.get("business_line") for c in matched if c.get("business_line")})},
+        ensure_ascii=False,
+    )
+    _, system, user_tpl = load_prompt("p10_followup_advice")
+    user = (
+        user_tpl.replace("{policy_card}", policy_card)
+        .replace("{user_profile}", user_profile)
+        .replace("{business_map}", business_map)
+    )
+    parsed: dict = {}
+    try:
+        result = get_provider().complete(
+            system=system, user=user, schema=FOLLOWUP_ADVICE_SCHEMA, task="followup_advice", max_tokens=900,
+        )
+        parsed = result.parsed or {}
+    except Exception:
+        parsed = {}
+    direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(
+        assessment.direction if assessment else "neutral", "中性",
+    )
+    fallback_impact = (
+        f"该政策整体呈{direction_label}方向，涉及您所管理客户合计 {len(matched)} 户。"
+        "建议结合各客户业务线与政策主题，评估其融资成本、合规要求与业务机会的具体变化。"
+    )
+    fallback_advice = (
+        "建议客户经理逐户核对受影响客户的贷款定价与业务结构，主动沟通政策变化，"
+        "并优先关注有跨境结算、贸易融资或跨境理财需求的客户，把握政策窗口。"
+    )
+    return {
+        "impact_on_user": (parsed.get("impact_on_user") or "").strip() or fallback_impact,
+        "followup_advice": (parsed.get("followup_advice") or "").strip() or fallback_advice,
+        "cross_border_angle": parsed.get("cross_border_angle"),
+    }
+
+
 def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> dict:
     """政策使用者视角的政策解读：外资银行句、重点话题三栏解读、原文简化版、影响概述、受影响客户。
 
@@ -636,11 +700,9 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
     affected = customer_impact_rows(sorted_matched[:30], scores, direction=direction)
 
     if matched:
-        impact_overview = (
-            f"该政策整体呈{direction_label}方向，涉及客户经理所管理客户合计 {len(matched)} 户；"
-            f"业务损失 {dimensions['business_loss']} 分、业务机会 {dimensions['business_opportunity']} 分、"
-            f"声誉风险 {dimensions['reputation_risk']} 分。"
-        )
+        advice = _consumer_advice(policy, assessment, matched)
+        impact_overview = advice["impact_on_user"]
+        followup_advice = advice["followup_advice"]
         match_basis = {
             "rule": ("按名下客户 × 政策业务线匹配" if lines else "名下客户（政策未标注业务线）"),
             "business_lines": sorted(lines),
@@ -648,10 +710,11 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
             "shown": min(len(sorted_matched), 30),
             "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
         }
-        benefit_loss = f"综合影响分 {dimensions['impact_total']} 分，详见各受影响客户的具体影响。"
+        benefit_loss = ""
     else:
         # 没有客户：不给影响概述与客户名单留空壳，前端据此整块隐藏
         impact_overview = ""
+        followup_advice = ""
         match_basis = {
             "rule": "未匹配到客户经理或名下暂无客户",
             "business_lines": sorted(lines),
@@ -659,7 +722,7 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
             "shown": 0,
             "source": "seed/synthetic_customers.json（合成演示数据，非真实客户）",
         }
-        benefit_loss = f"综合影响分 {dimensions['impact_total']} 分。"
+        benefit_loss = ""
 
     # 外部公开反应：只输出「简述 + 原文链接」，避免把标题/来源等冗余字段带到使用者页面
     from app.domain.preprocess import normalize_research_items
@@ -677,6 +740,7 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
         "simplified_summary": policy.summary_zh or "尚未生成摘要",
         "research": research,
         "impact_overview": impact_overview,
+        "followup_advice": followup_advice,
         "dimensions": dimensions,
         "benefit_loss": benefit_loss,
         "match_basis": match_basis,

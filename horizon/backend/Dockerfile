@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir -e .
 COPY app ./app
 COPY alembic.ini ./
 COPY app/db/migrations ./app/db/migrations
+COPY entrypoint.sh ./entrypoint.sh
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "/app/entrypoint.sh"]

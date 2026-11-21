@@ -46,11 +46,13 @@ _BRIEF_SYSTEM = """你是汇丰银行政策研究团队的「政策跟进智能�
 任务：根据给定的政策信息与受影响客户统计数据，输出客户影响概况。
 硬性要求：
 1. 只能使用给定数据中出现的数字与事实，不得编造客户、金额、日期、文号；
-2. 语言简洁、面向业务决策，避免空话；
-3. headline 一句话结论（不超过 60 字）；
-4. summary 2–4 句说明影响范围与集中度；
-5. focus_points 3–5 条需要重点关注的客户/客群/业务线；
-6. suggested_actions 3–5 条可执行的跟进动作，指明业务线或角色。
+2. 面向政策运营专员展示前须对客户信息去敏：客户仅用脱敏名（如「客户A」），
+   贷款/敞口金额一律以区间或数量级呈现（如「约 5–10 亿元」），不得输出精确金额；
+3. 语言简洁、面向业务决策，避免空话；
+4. headline 一句话结论（不超过 60 字）；
+5. summary 2–4 句说明影响范围与集中度；
+6. focus_points 3–5 条需要重点关注的客户/客群/业务线；
+7. suggested_actions 3–5 条可执行的跟进动作，指明业务线或角色。
 只输出 JSON 对象。"""
 
 _EMAIL_SYSTEM = """你是汇丰银行政策研究团队的「政策跟进智能体」。
@@ -122,11 +124,30 @@ def _direction_label(policy: dict) -> str:
     return _DIRECTION_LABELS.get(direction, "中性")
 
 
+def _fuzzy_cny_yi(value: Any) -> str:
+    """金额模糊化：以区间/数量级呈现，避免向运营专员暴露精确敞口数字。"""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        return "—"
+    if v <= 0:
+        return "—"
+    if v < 1:
+        return "不足 1 亿元"
+    if v < 5:
+        return "约 1–5 亿元"
+    if v < 10:
+        return "约 5–10 亿元"
+    if v < 50:
+        return "约 10–50 亿元"
+    return "50 亿元以上"
+
+
 def _line_text(stats: dict, limit: int = 4) -> str:
     items = stats.get("by_business_line") or []
     return "、".join(
         f"{item.get('business_line') or '未标注'} {item.get('customers', 0)} 户"
-        f"（贷款 {item.get('loan_balance_cny_yi', 0)} 亿元）"
+        f"（贷款 {_fuzzy_cny_yi(item.get('loan_balance_cny_yi'))}）"
         for item in items[:limit]
     ) or "未标注业务线"
 
@@ -143,7 +164,7 @@ def _top_text(stats: dict, limit: int = 3) -> str:
     items = stats.get("top_customers") or []
     return "；".join(
         f"{item.get('name_masked') or '客户'}（{item.get('business_line') or '—'}，"
-        f"贷款 {item.get('loan_balance_cny_yi', 0)} 亿元）"
+        f"贷款 {_fuzzy_cny_yi(item.get('loan_balance_cny_yi'))}）"
         for item in items[:limit]
     )
 
@@ -277,8 +298,8 @@ def _customer_section_lines(stats: dict, *, top_limit: int = 5) -> list[str]:
             lines.append(
                 f"  {index + 1}. {item.get('name_masked') or '客户'}"
                 f"（{item.get('segment') or '—'}，{item.get('business_line') or '—'}，"
-                f"贷款 {item.get('loan_balance_cny_yi', 0)} 亿元，他行贷款 "
-                f"{item.get('other_bank_loans_cny_yi', 0)} 亿元）"
+                f"贷款 {_fuzzy_cny_yi(item.get('loan_balance_cny_yi'))}，他行贷款 "
+                f"{_fuzzy_cny_yi(item.get('other_bank_loans_cny_yi'))}）"
             )
     lines.append(
         f"统计口径：{stats.get('match_rule') or '按政策业务线匹配'}；"

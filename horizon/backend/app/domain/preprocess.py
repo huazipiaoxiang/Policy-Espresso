@@ -407,9 +407,9 @@ def normalize_research_items(items: list | None) -> list[dict]:
 
 
 def _research(policy: Policy) -> dict:
-    """联网检索汇丰/他行反应与市场应用；失败或无网络一律降级为空数组 + 说明。
+    """联网检索「汇丰反应 / 类似政策 / 市场应用」；失败或无网络一律降级为空数组 + 说明。
 
-    出网边界：query 只包含政策主题/标题与公开关键词（汇丰、银行、案例），
+    出网边界：query 只包含政策主题/标题与公开关键词（汇丰、政策、案例），
     不发送客户数据、内部评分、内部批注。
     """
     empty = {"hsbc_response": [], "peer_bank_response": [], "market_applications": []}
@@ -420,12 +420,12 @@ def _research(policy: Policy) -> dict:
         main_term = _main_term(terms) or (policy.title or "")[:16]
         queries = {
             "hsbc_response": f"汇丰 {main_term} 政策 回应 新闻",
-            "peer_bank_response": f"{main_term} 政策 银行 应对 新闻",
+            "peer_bank_response": f"{main_term} 类似政策 同类政策 监管",
             "market_applications": f"{main_term} 政策 落地 案例 新闻",
         }
         must_words = {
             "hsbc_response": ("汇丰", "HSBC"),
-            "peer_bank_response": ("银行",),
+            "peer_bank_response": ("政策", "监管", "规定"),
             "market_applications": (),
         }
         result = {}

@@ -376,10 +376,6 @@ export default function PolicyDetailPage() {
         <section className="panel full">
           <div className="panelhead"><h2>政策解读</h2><small>面向所管理客户的影响</small></div>
           <div className="sectionbody">
-            {/* 页首第一句：本政策有无纳入外资银行 + 对汇丰影响简述 */}
-            <p className="textblock" style={{ fontWeight: 600 }}>{consumerView.foreign_bank_note}</p>
-            <div className="divider" />
-
             {/* 政策原文简化版 */}
             <div className="field">
               <small>政策原文简化版</small>
@@ -428,7 +424,7 @@ export default function PolicyDetailPage() {
                   </div>
                   <div className="panel" style={{ padding: 12 }}>
                     <ResearchLinkList
-                      title="其他银行的反应"
+                      title="类似政策"
                       items={activeTopic ? topicColumns[activeTopic]?.industry : consumerView.research?.peer_bank_response}
                       emptyText="网上暂无公开解读"
                     />
@@ -457,6 +453,12 @@ export default function PolicyDetailPage() {
                   <small>对所管理用户的影响概述</small>
                   <p className="textblock">{consumerView.impact_overview}</p>
                 </div>
+                {consumerView.followup_advice ? (
+                  <div className="field">
+                    <small>跟进建议</small>
+                    <p className="textblock">{consumerView.followup_advice}</p>
+                  </div>
+                ) : null}
                 <div className="divider" />
                 <small>所影响的客户</small>
                 {consumerView.match_basis && (
@@ -492,7 +494,6 @@ export default function PolicyDetailPage() {
                               <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
                               <div style={{ marginTop: 6, fontSize: 12 }}>
                                 <p>{c.impact.impact_content}</p>
-                                <p>业务损失 <b>{c.impact.business_loss}</b> · 业务机会 <b>{c.impact.business_opportunity}</b> · 声誉风险 <b>{c.impact.reputation_risk}</b></p>
                                 <p>{c.impact.outcome}</p>
                               </div>
                             </details>

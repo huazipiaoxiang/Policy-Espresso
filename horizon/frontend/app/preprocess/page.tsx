@@ -214,7 +214,7 @@ export default function PreprocessPage() {
           判定业务线/客户类型并提交预处理结论；百分比统一由 <code>compute_consumer_impact</code> 计算（0–100 程度分），Agent 不得自造数字。
         </div>
         <div>Agent 权限除「数据外泄」外全开放：可读库内数据、写政策与预处理、触发任务、发布政策、检索公开信息；内部数据检索词会被出网策略拦截并留痕。</div>
-        <div>汇丰反应、他行反应、市场实际应用由预处理阶段自动联网检索公开报道（仅携带政策公开词）。</div>
+        <div>汇丰反应、类似政策、市场实际应用由预处理阶段自动联网检索公开报道（仅携带政策公开词）。</div>
       </div>
 
       {overview && (
@@ -342,7 +342,7 @@ export default function PreprocessPage() {
                                   : ""}
                               </p>
                               <LinkList title="汇丰对此政策/话题的反应" items={item.hsbc_response} />
-                              <LinkList title="其他银行的反应" items={item.peer_bank_response} />
+                              <LinkList title="类似政策" items={item.peer_bank_response} />
                               <LinkList
                                 title="市面上实际应用"
                                 items={item.market_applications}
@@ -418,7 +418,7 @@ export default function PreprocessPage() {
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               {([
                                 ["汇丰", item.hsbc_response],
-                                ["他行", item.peer_bank_response],
+                                ["类似政策", item.peer_bank_response],
                                 ["市场", item.market_applications],
                               ] as [string, ResponseLink[]][]).map(([label, links]) => (
                                 links[0] ? (

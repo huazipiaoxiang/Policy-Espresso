@@ -295,6 +295,18 @@ DIFFERENTIAL_SCHEMA = {
 }
 
 
+FOLLOWUP_ADVICE_SCHEMA = {
+    "type": "object",
+    "required": ["impact_on_user", "followup_advice"],
+    "properties": {
+        "impact_on_user": {"type": "string"},
+        "followup_advice": {"type": "string"},
+        "cross_border_angle": {"type": ["string", "null"]},
+        "evidence": {"type": "array", "items": _EVIDENCE_ITEM},
+    },
+}
+
+
 FEEDBACK_REPORT_SCHEMA = {
     "type": "object",
     "required": ["title", "feedback_summary", "feedback_category", "related_policy",
