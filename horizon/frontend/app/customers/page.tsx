@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import SortableTh from "@/components/SortableTh";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
 interface Customer {
@@ -26,6 +27,17 @@ export default function CustomersPage() {
   const [error, setError] = useState("");
   const [businessLineFilter, setBusinessLineFilter] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function onSort(field: string) {
+    if (sortField === field) {
+      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -69,6 +81,17 @@ export default function CustomersPage() {
         .some((value) => (value || "").toLowerCase().includes(text))
     );
   }, [customers, businessLineFilter, keyword]);
+
+  const sortedCustomers = useMemo(() => {
+    if (!sortField) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortField, sortDir]);
 
   const summary = useMemo(() => ({
     count: filtered.length,
@@ -150,24 +173,24 @@ export default function CustomersPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>客户编号</th>
-                    <th>客户</th>
-                    <th>客户经理</th>
-                    <th>业务线</th>
-                    <th>客群</th>
-                    <th>地区</th>
-                    <th>贷款规模(亿)</th>
-                    <th>他行贷款(亿)</th>
-                    <th>他行家数</th>
+                    <SortableTh label="客户编号" field="customer_id" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="客户" field="name_masked" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="客户经理" field="relationship_manager" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="业务线" field="business_line" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="客群" field="segment" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="地区" field="region" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="贷款规模(亿)" field="loan_balance_cny_yi" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="他行贷款(亿)" field="other_bank_loans_cny_yi" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                    <SortableTh label="他行家数" field="other_bank_count" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                     <th>贴息资格</th>
                     <th>海外业务</th>
                     <th>产品</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {sortedCustomers.length === 0 ? (
                     <tr><td colSpan={12} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>暂无客户数据</td></tr>
-                  ) : filtered.map((c) => (
+                  ) : sortedCustomers.map((c) => (
                     <tr key={c.customer_id}>
                       <td style={{ whiteSpace: "nowrap", fontSize: 12, color: "#8b929c" }}>{c.customer_id}</td>
                       <td style={{ minWidth: 160 }}>{c.name_masked}</td>

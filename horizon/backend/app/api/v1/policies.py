@@ -61,6 +61,7 @@ def _policy_filters(
     published_on: str | None,
     role: str,
     review_level: int | None,
+    irrelevant: bool | None = None,
 ):
     if q:
         search_pattern = f"%{q}%"
@@ -119,6 +120,9 @@ def _policy_filters(
                 )
             )
         )
+    if irrelevant is not None:
+        # 跟进中心：AI 判定「疑似完全无影响」待复核的政策
+        stmt = stmt.where(Policy.irrelevant_flagged.is_(irrelevant))
     return stmt
 
 
@@ -148,6 +152,8 @@ def _policy_view(db: Session, policy: Policy) -> dict:
         "impacted_domains": business_lines,
         "dispatched_at": (dispatched_at.isoformat() if dispatched_at else None),
         "direction": direction,
+        "followup": bool(policy.followup),
+        "irrelevant_flagged": bool(policy.irrelevant_flagged),
         "impact_dimensions": compute_consumer_impact(
             scores, direction=direction,
             affected_amount_cny_yi=amount, affected_customer_count=count,
@@ -213,6 +219,7 @@ def list_policies(
     fetched: str | None = None,
     published_on: str | None = None,
     review_level: int | None = None,
+    irrelevant: bool | None = None,
     db: Session = Depends(get_db),
     role: str = Depends(get_demo_role),
 ):
@@ -220,6 +227,7 @@ def list_policies(
         "q": q, "status": status, "status_not": status_not, "priority": priority,
         "jurisdiction": jurisdiction, "theme": theme, "scope": scope, "fetched": fetched,
         "published_on": published_on, "role": role, "review_level": review_level,
+        "irrelevant": irrelevant,
     }
     stmt = _policy_filters(select(Policy), **filters).order_by(Policy.published_at.desc().nullslast())
     items = db.execute(stmt.offset((page - 1) * page_size).limit(page_size)).scalars().all()
@@ -974,6 +982,45 @@ def generate_feedback_report(
     except Exception as exc:
         raise ApiError("REPORT_FAILED", f"报告生成失败：{exc}", 500)
     return {"feedback_id": feedback.id, "report": result.parsed, "model": result.model}
+
+
+class FollowupDecisionBody(BaseModel):
+    action: str  # keep | delete
+
+
+@router.post("/{policy_id}/followup-decide")
+def followup_decide(
+    policy_id: str,
+    body: FollowupDecisionBody,
+    db: Session = Depends(get_db),
+    actor: str = Depends(require_api_key),
+    _: str = Depends(require_roles("admin", "processor")),
+):
+    """跟进专员对「AI 判定疑似完全无影响」的政策做保留/删除决定。
+
+    - keep：置 followup=True（永久保留，豁免 5 年清理），清除疑似标记；
+    - delete：删除政策及原文（走现有清理逻辑 + 审计）。
+    """
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    if body.action == "keep":
+        policy.followup = True
+        policy.irrelevant_flagged = False
+        db.commit()
+        return {"status": "ok", "action": "keep", "policy_id": policy_id, "followup": True}
+    if body.action == "delete":
+        from app.agent.cleanup import delete_policy_and_document
+
+        document_id = policy.document_id
+        delete_policy_and_document(
+            db, policy,
+            reason="跟进专员判定对汇丰完全无影响，删除政策与原文",
+            actor=actor,
+        )
+        db.commit()
+        return {"status": "ok", "action": "delete", "policy_id": policy_id, "document_id": document_id}
+    raise ApiError("INVALID_INPUT", "action 必须为 keep 或 delete", 422)
 
 
 @router.delete("/{policy_id}")

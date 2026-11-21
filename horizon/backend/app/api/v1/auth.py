@@ -32,6 +32,12 @@ class LoginBody(BaseModel):
     password: str
 
 
+class ChangePasswordBody(BaseModel):
+    username: str
+    old_password: str
+    new_password: str
+
+
 @router.post("/register", status_code=201)
 def register(body: RegisterBody, db: Session = Depends(get_db)):
     username = body.username.strip()
@@ -56,6 +62,20 @@ def login(body: LoginBody, db: Session = Depends(get_db)):
     if not user or user.password_hash != _hash(body.password):
         raise ApiError("BAD_CREDENTIALS", "用户名或密码错误", 401)
     return {"id": user.id, "username": user.username, "role": user.role, "onboarded": user.onboarded}
+
+
+@router.post("/change-password")
+def change_password(body: ChangePasswordBody, db: Session = Depends(get_db)):
+    """用户自助改密：验旧密码，设置新密码。MVP 以用户名定位（登录态由前端 sessionStorage 维护）。"""
+    username = body.username.strip()
+    if len(body.new_password) < 6:
+        raise ApiError("INVALID_INPUT", "新密码至少 6 位", 422)
+    user = db.scalar(select(User).where(User.username == username))
+    if not user or user.password_hash != _hash(body.old_password):
+        raise ApiError("BAD_CREDENTIALS", "旧密码错误", 401)
+    user.password_hash = _hash(body.new_password)
+    db.commit()
+    return {"username": user.username, "role": user.role}
 
 
 @router.post("/onboard")

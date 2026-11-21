@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { DEMO_ROLES, ROLE_CONFIG, DemoRole } from "@/lib/auth";
+import {
+  DEMO_ROLES, ROLE_CONFIG, DemoRole,
+  USERNAME_STORAGE_KEY, ONBOARDING_KEY, PENDING_REDIRECT_KEY,
+  writeSession, removeSession,
+} from "@/lib/auth";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -32,16 +36,16 @@ export default function LoginPage() {
       if (!resp.ok) throw new Error(body?.error?.message || "操作失败");
       // 登录/注册成功：以返回（或所选）角色进入系统
       const finalRole = (body.role || role) as DemoRole;
-      window.localStorage.setItem("horizon-username", body.username || username.trim());
+      writeSession(USERNAME_STORAGE_KEY, body.username || username.trim());
       // 政策使用者首次登录：先引导选择关注主题；跳转目标交给 AppShell 统一执行，避免与 /login 重定向竞态
       const isFirstConsumer = finalRole === "consumer" && body.onboarded === false;
       if (isFirstConsumer) {
-        window.localStorage.setItem("horizon-onboarding", "1");
+        writeSession(ONBOARDING_KEY, "1");
       } else {
-        window.localStorage.removeItem("horizon-onboarding");
+        removeSession(ONBOARDING_KEY);
       }
       const target = isFirstConsumer ? "/subscriptions" : ROLE_CONFIG[finalRole].home;
-      window.localStorage.setItem("horizon-pending-redirect", target);
+      writeSession(PENDING_REDIRECT_KEY, target);
       login(finalRole);
       // 登录成功后整页跳转（不用客户端 router.replace）：开发服务器重启后旧标签页的
       // JS chunk 可能失效，客户端路由会静默失败，页面停在登录页/占位页。

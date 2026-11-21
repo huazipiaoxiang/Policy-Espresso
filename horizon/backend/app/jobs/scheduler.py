@@ -18,11 +18,13 @@ from app.ingest.pipeline import is_circuit_open
 from app.jobs.analyze_job import analyze_pending
 from app.jobs.crawl_job import current_window, enqueue_crawl, run_crawl
 from app.jobs.health_job import run_health_check
+from app.jobs.retention_job import run_retention
 
 log = get_logger("jobs.scheduler")
 _crawl_lock = Lock()
 _analyze_lock = Lock()
 _heartbeat_lock = Lock()
+_retention_lock = Lock()
 
 
 def _empty_stats() -> dict:
@@ -186,6 +188,10 @@ def build_scheduler() -> BackgroundScheduler:
         replace_existing=True, coalesce=True, max_instances=1, misfire_grace_time=3600,
     )
     scheduler.add_job(
+        _retention, CronTrigger(hour=3, minute=0, timezone=timezone), id="retention",
+        replace_existing=True, coalesce=True, max_instances=1, misfire_grace_time=3600,
+    )
+    scheduler.add_job(
         _heartbeat,
         CronTrigger.from_crontab(settings.scheduler_heartbeat_cron, timezone=timezone),
         id="heartbeat", replace_existing=True, coalesce=True, max_instances=1, misfire_grace_time=3600,
@@ -228,3 +234,30 @@ def _heartbeat() -> None:
                 db.commit()
     finally:
         _heartbeat_lock.release()
+
+
+def _retention() -> None:
+    """每日执行 5 年数据保留清理；结果写入 JobRun 供任务面板查询。"""
+    if not _retention_lock.acquire(blocking=False):
+        return
+    try:
+        with SessionLocal() as db:
+            job = JobRun(job_type="retention", run_window=current_window(), status="running")
+            db.add(job)
+            db.commit()
+            try:
+                stats = run_retention(db)
+                job.status = "ok"
+                job.stats = stats
+                log.info("retention_done", **stats)
+            except Exception as e:
+                db.rollback()
+                job = db.get(JobRun, job.id)
+                job.status = "failed"
+                job.error = f"{type(e).__name__}: {e}"
+                log.error("retention_failed", error=str(e))
+            finally:
+                job.finished_at = datetime.now(timezone.utc)
+                db.commit()
+    finally:
+        _retention_lock.release()

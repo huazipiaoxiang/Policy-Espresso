@@ -21,7 +21,7 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     // 首次引导状态优先从 localStorage 读取（避免 useSearchParams 在 SSR/hydration 时为空导致引导失效）
-    const flag = window.localStorage.getItem("horizon-onboarding") === "1" || searchParams.get("onboarding") === "1";
+    const flag = window.sessionStorage.getItem("horizon-onboarding") === "1" || searchParams.get("onboarding") === "1";
     setOnboarding(flag);
     setPreferences(loadSubscriptions());
     setReady(true);
@@ -44,7 +44,7 @@ export default function SubscriptionsPage() {
     saveSubscriptions(preferences);
     if (onboarding) {
       // 首次引导：标记已完成，进入「为你推荐」
-      const username = window.localStorage.getItem("horizon-username") || "";
+      const username = window.sessionStorage.getItem("horizon-username") || "";
       try {
         const resp = await fetch("/api/proxy/auth/onboard", {
           method: "POST",
@@ -52,7 +52,7 @@ export default function SubscriptionsPage() {
           body: JSON.stringify({ username, password: "" }),
         });
         if (!resp.ok) throw new Error("onboard failed");
-        window.localStorage.removeItem("horizon-onboarding");
+        window.sessionStorage.removeItem("horizon-onboarding");
       } catch {
         // 标记失败不阻塞进入首页
       }

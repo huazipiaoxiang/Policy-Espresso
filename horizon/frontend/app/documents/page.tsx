@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import SortableTh from "@/components/SortableTh";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { JURISDICTION_LABELS, langLabel } from "@/lib/labels";
 
@@ -46,7 +47,18 @@ export default function DocumentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState("");
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const pageSize = 20;
+
+  function onSort(field: string) {
+    if (sortField === field) {
+      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -121,6 +133,17 @@ export default function DocumentsPage() {
   const filteredDocs = search.trim()
     ? documents.filter((d) => d.title.toLowerCase().includes(search.trim().toLowerCase()))
     : documents;
+
+  const sortedDocs = useMemo(() => {
+    if (!sortField) return filteredDocs;
+    return [...filteredDocs].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredDocs, sortField, sortDir]);
 
   async function removeDocument() {
     const doc = deleteTarget;
@@ -231,11 +254,11 @@ export default function DocumentsPage() {
           <table>
             <thead>
               <tr>
-                <th>文档标题</th>
+                <SortableTh label="文档标题" field="title" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                 <th>市场 / 来源</th>
-                <th>日期</th>
-                <th>语言</th>
-                <th>文档状态</th>
+                <SortableTh label="日期" field="published_at" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label="语言" field="lang" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label="文档状态" field="status" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                 <th>附件</th>
                 <th></th>
               </tr>
@@ -253,14 +276,14 @@ export default function DocumentsPage() {
                     加载失败：{error}
                   </td>
                 </tr>
-              ) : filteredDocs.length === 0 ? (
+              ) : sortedDocs.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: "center", padding: "40px 16px", color: "#949aa3" }}>
                     无匹配记录
                   </td>
                 </tr>
               ) : (
-                filteredDocs.map((doc) => (
+                sortedDocs.map((doc) => (
                   <tr key={doc.id} className="clickable">
                     <td style={{ minWidth: "260px" }}>
                       <div className="policytitle">

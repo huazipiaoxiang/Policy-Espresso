@@ -167,6 +167,8 @@ class Policy(Base):
     priority: Mapped[str] = mapped_column(String(4), default="P3")
     score_total: Mapped[float] = mapped_column(Float, default=0.0)
     prompt_version: Mapped[str] = mapped_column(String(64), default="")
+    followup: Mapped[bool] = mapped_column(Boolean, default=False)  # 跟进专员标记跟进：永久保留，豁免 5 年清理
+    irrelevant_flagged: Mapped[bool] = mapped_column(Boolean, default=False)  # AI 判定疑似完全无影响，待跟进专员复核
 
     document: Mapped[Document] = relationship(back_populates="policy")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="policy")

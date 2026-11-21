@@ -55,6 +55,16 @@ interface Publication {
   dispatched_at: string | null;
 }
 
+interface FlaggedPolicy {
+  id: string;
+  title: string;
+  issuing_body: string;
+  jurisdiction: string;
+  priority: string;
+  published_at: string | null;
+  irrelevant_flagged?: boolean;
+}
+
 type ReportFilter = "all" | "pending" | "processed";
 type PublishRange = "today" | "month" | "total";
 
@@ -93,6 +103,7 @@ function dateKey(value: string | null) {
 export default function FollowUpPage() {
   const [reports, setReports] = useState<ConsumerReport[]>([]);
   const [published, setPublished] = useState<Publication[]>([]);
+  const [flagged, setFlagged] = useState<FlaggedPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -138,15 +149,20 @@ export default function FollowUpPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [reportsResp, publishedItems] = await Promise.all([
+      const [reportsResp, publishedItems, flaggedResp] = await Promise.all([
         fetch(`${API_BASE}/consumer-reports`, { headers: demoApiHeaders() }),
         fetchPublished(),
+        fetch(`${API_BASE}/policies?irrelevant=true&page=1&page_size=100`, { headers: demoApiHeaders() }),
       ]);
       if (reportsResp.ok) {
         const body = await reportsResp.json();
         setReports(body.items || []);
       }
       setPublished(publishedItems);
+      if (flaggedResp.ok) {
+        const body = await flaggedResp.json();
+        setFlagged(body.items || []);
+      }
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "政策跟进数据加载失败");
@@ -171,6 +187,28 @@ export default function FollowUpPage() {
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "标记失败");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function decideFlagged(policy: FlaggedPolicy, action: "keep" | "delete") {
+    setBusyId(policy.id);
+    setNotice("");
+    try {
+      const response = await fetch(`${API_BASE}/policies/${policy.id}/followup-decide`, {
+        method: "POST",
+        headers: { ...demoApiHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body?.error?.message || "操作失败");
+      setNotice(action === "keep"
+        ? `「${policy.title}」已标记为永久保留`
+        : `「${policy.title}」已删除`);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "操作失败");
     } finally {
       setBusyId("");
     }
@@ -399,6 +437,39 @@ export default function FollowUpPage() {
                   </Fragment>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* AI 判定疑似完全无影响，待跟进专员复核 */}
+      <section className="panel full" style={{ marginTop: 18 }}>
+        <div className="panelhead">
+          <h2>被标记跟进的政策</h2>
+          <small>{flagged.length} 条 · AI 判定对汇丰完全无影响，请决定保留或删除</small>
+        </div>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>政策</th><th>来源</th><th>优先级</th><th>发布日期</th><th>操作</th></tr></thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={5} style={{ padding: 40, textAlign: "center" }}>加载中…</td></tr>
+              ) : flagged.length === 0 ? (
+                <tr><td colSpan={5} style={{ padding: 40, textAlign: "center", color: "#949aa3" }}>暂无待复核的无关政策。</td></tr>
+              ) : flagged.map((policy) => (
+                <tr key={policy.id}>
+                  <td style={{ minWidth: 260 }}><div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.id}</small></div></td>
+                  <td>{policy.issuing_body || "—"}</td>
+                  <td><span className={`badge ${["P0", "P1"].includes(policy.priority) ? "red" : "amber"}`}>{policy.priority}</span></td>
+                  <td style={{ whiteSpace: "nowrap" }}>{dateLabel(policy.published_at)}</td>
+                  <td>
+                    <div className="rowflex">
+                      <button className="btn primary" disabled={busyId === policy.id} onClick={() => decideFlagged(policy, "keep")}>保留</button>
+                      <button className="btn danger" disabled={busyId === policy.id} onClick={() => decideFlagged(policy, "delete")}>删除</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

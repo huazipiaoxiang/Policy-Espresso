@@ -27,8 +27,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       // 登录/注册后：优先按 login 页写入的目标跳转（如首次引导），否则回落到角色首页。
       // 旧会话可能残留别的角色/旧版本的目标路径，必须校验可访问性，否则会跳到
       // 本角色无权访问的页面并卡在占位页。
-      const pending = window.localStorage.getItem("horizon-pending-redirect");
-      window.localStorage.removeItem("horizon-pending-redirect");
+      const pending = window.sessionStorage.getItem("horizon-pending-redirect");
+      window.sessionStorage.removeItem("horizon-pending-redirect");
       const target = pending && canAccess(role, pending) ? pending : ROLE_CONFIG[role].home;
       router.replace(target);
       return;
@@ -48,7 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!needsRedirect) return;
     const target = role ? ROLE_CONFIG[role].home : "/login";
     const timer = window.setTimeout(() => {
-      window.localStorage.removeItem("horizon-pending-redirect");
+      window.sessionStorage.removeItem("horizon-pending-redirect");
       if (window.location.pathname === target) window.location.reload();
       else window.location.replace(target);
     }, 2500);
@@ -74,7 +74,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             className="btn"
             onClick={() => {
-              window.localStorage.removeItem("horizon-pending-redirect");
+              window.sessionStorage.removeItem("horizon-pending-redirect");
               window.location.replace(target);
             }}
           >

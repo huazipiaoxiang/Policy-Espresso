@@ -18,7 +18,7 @@ def scheduler_status(db: Session = Depends(get_db)):
     """返回各调度任务的最近一次结果/错误与下一次触发时间。"""
     scheduler = build_scheduler()
     jobs = []
-    job_types = {"crawl_all": "crawl", "analyze_pending": "analyze", "health_check": "health", "heartbeat": "heartbeat"}
+    job_types = {"crawl_all": "crawl", "analyze_pending": "analyze", "health_check": "health", "heartbeat": "heartbeat", "retention": "retention"}
     for scheduled in scheduler.get_jobs():
         latest = db.scalars(
             select(JobRun).where(JobRun.job_type == job_types[scheduled.id])

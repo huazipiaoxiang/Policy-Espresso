@@ -2,6 +2,31 @@ export type DemoRole = "admin" | "consumer" | "processor";
 
 export const ROLE_STORAGE_KEY = "horizon-demo-role";
 export const USERNAME_STORAGE_KEY = "horizon-username";
+export const ONBOARDING_KEY = "horizon-onboarding";
+export const PENDING_REDIRECT_KEY = "horizon-pending-redirect";
+
+// 会话类数据统一放 sessionStorage：每个标签页独立，避免同浏览器多标签页登录时串号。
+// 主题等设备级偏好仍用 localStorage（见 Topbar）。
+function sessionStore(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function readSession(key: string): string | null {
+  return sessionStore()?.getItem(key) ?? null;
+}
+
+export function writeSession(key: string, value: string): void {
+  sessionStore()?.setItem(key, value);
+}
+
+export function removeSession(key: string): void {
+  sessionStore()?.removeItem(key);
+}
 
 export interface NavItem {
   id: string;
@@ -30,7 +55,6 @@ export const ROLE_CONFIG: Record<DemoRole, {
       { id: "preprocess", icon: "◫", label: "政策预处理", href: "/preprocess" },
       { id: "documents", icon: "▧", label: "原文库", href: "/documents" },
       { id: "customers", icon: "▤", label: "客户信息", href: "/customers" },
-      { id: "mapping", icon: "▦", label: "业务图谱", href: "/business-map" },
       { id: "sources", icon: "▥", label: "数据源", href: "/sources" },
       { id: "rules", icon: "⌘", label: "Agent 与规则", href: "/rules" },
       { id: "audit", icon: "≡", label: "审计日志", href: "/audit" },
@@ -46,7 +70,6 @@ export const ROLE_CONFIG: Record<DemoRole, {
     avatar: "运",
     nav: [
       { id: "followup", icon: "▣", label: "政策跟进中心", href: "/follow-up" },
-      { id: "mapping", icon: "▦", label: "业务图谱", href: "/business-map" },
       { id: "library", icon: "▤", label: "政策库", href: "/policies" },
       { id: "preprocess", icon: "◫", label: "政策预处理", href: "/preprocess" },
       { id: "documents", icon: "▧", label: "原文库", href: "/documents" },
@@ -73,14 +96,12 @@ export function isDemoRole(value: string | null): value is DemoRole {
 }
 
 export function getStoredRole(): DemoRole | null {
-  if (typeof window === "undefined") return null;
-  const value = window.localStorage.getItem(ROLE_STORAGE_KEY);
+  const value = readSession(ROLE_STORAGE_KEY);
   return isDemoRole(value) ? value : null;
 }
 
 export function getStoredUsername(): string | null {
-  if (typeof window === "undefined") return null;
-  const value = window.localStorage.getItem(USERNAME_STORAGE_KEY);
+  const value = readSession(USERNAME_STORAGE_KEY);
   return value && value.trim() ? value.trim() : null;
 }
 

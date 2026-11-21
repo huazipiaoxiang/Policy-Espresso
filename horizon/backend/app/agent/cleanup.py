@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -127,9 +127,9 @@ def delete_policy_and_document(
 
     delete_policy_records(db, policy)
     if document:
-        db.query(DocumentVersion).filter(DocumentVersion.document_id == document.id).delete(synchronize_session=False)
-        db.query(DocumentChunk).filter(DocumentChunk.document_id == document.id).delete(synchronize_session=False)
-        db.delete(document)
+        db.execute(sa_delete(DocumentVersion).where(DocumentVersion.document_id == document.id))
+        db.execute(sa_delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
+        db.execute(sa_delete(Document).where(Document.id == document.id))
 
     db.add(AuditLog(
         actor=actor, action="delete_policy", object_type="policy", object_id=policy_id,

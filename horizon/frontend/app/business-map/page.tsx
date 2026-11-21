@@ -182,7 +182,7 @@ export default function BusinessMapPage() {
   const openPolicies = (lineCode: string, theme?: string) => setSelection({ lineCode, theme });
 
   return (
-    <main className="business-map-page">
+    <div className="business-map-page">
       <div className="pagehead">
         <div>
           <div className="eyebrow">BUSINESS MAPPING</div>
@@ -356,6 +356,6 @@ export default function BusinessMapPage() {
           </section>
         </div>
       )}
-    </main>
+    </div>
   );
 }

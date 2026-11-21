@@ -190,7 +190,7 @@ export default function ChatPanel({ onClose }: ChatPanelProps) {
         "Content-Type": "application/json",
         "X-API-Key": API_KEY,
       };
-      const demoRole = window.localStorage.getItem("horizon-demo-role");
+      const demoRole = window.sessionStorage.getItem("horizon-demo-role");
       if (demoRole) headers["X-Demo-Role"] = demoRole;
 
       const res = await fetch(`${API_BASE}/chat`, {

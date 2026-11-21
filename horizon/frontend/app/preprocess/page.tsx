@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import SortableTh from "@/components/SortableTh";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
 interface ResponseLink {
@@ -115,7 +116,29 @@ function LinkList({
 export default function PreprocessPage() {
   const { ready, role } = useAuth();
   const [items, setItems] = useState<PreprocessItem[]>([]);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [overview, setOverview] = useState<Overview | null>(null);
+
+  function onSort(field: string) {
+    if (sortField === field) {
+      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
+
+  const sortedItems = useMemo(() => {
+    if (!sortField) return items;
+    return [...items].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [items, sortField, sortDir]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -253,21 +276,21 @@ export default function PreprocessPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>政策</th>
+                    <SortableTh label="政策" field="title" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                     <th>关键词</th>
                     <th>影响业务</th>
                     <th>可能影响的客户类型</th>
                     <th>损失% / 盈利%</th>
                     <th>信誉% / 机会%</th>
-                    <th>综合分</th>
+                    <SortableTh label="综合分" field="impact_total" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                     <th>外部反应</th>
-                    <th>预处理时间</th>
+                    <SortableTh label="预处理时间" field="preprocessed_at" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                   </tr>
                 </thead>
                 <tbody>
-                  {items.length === 0 ? (
+                  {sortedItems.length === 0 ? (
                     <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>暂无预处理记录</td></tr>
-                  ) : items.map((item) => {
+                  ) : sortedItems.map((item) => {
                     const researchCount =
                       item.hsbc_response.length + item.peer_bank_response.length + item.market_applications.length;
                     return (

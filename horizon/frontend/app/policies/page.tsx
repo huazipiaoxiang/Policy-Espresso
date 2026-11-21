@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import SortableTh from "@/components/SortableTh";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 import { JURISDICTION_LABELS, POLICY_STATUS_LABELS, PRIORITY_LABELS, impactScoreLabel } from "@/lib/labels";
+import BusinessMapPage from "../business-map/page";
 
 interface Policy {
   id: string;
@@ -52,6 +54,7 @@ function PoliciesContent() {
     [isConsumer],
   );
   const [activeTab, setActiveTab] = useState<TabKey>(isConsumer ? "published" : (visibleTabs.some((tab) => tab.key === initialView) ? initialView! : "all"));
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState("");
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,8 @@ function PoliciesContent() {
   const [busyId, setBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Policy | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const pageSize = 20;
   const hkToday = useMemo(() => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Hong_Kong" }), []);
 
@@ -131,6 +136,27 @@ function PoliciesContent() {
       .catch(() => undefined);
   }, [refreshKey, request, hkToday, role, visibleTabs]);
 
+  function onSort(field: string) {
+    if (sortField === field) {
+      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
+
+  const sortedPolicies = useMemo(() => {
+    if (!sortField) return policies;
+    const sorted = [...policies].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [policies, sortField, sortDir]);
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const visiblePages = useMemo(() => {
     const pages: number[] = [];
@@ -173,6 +199,22 @@ function PoliciesContent() {
 
   const metrics = visibleTabs.filter((tab) => tab.key !== "today_published").map((tab) => ({ ...tab, value: counts[tab.key] }));
 
+  if (viewMode === "map" && !isConsumer) {
+    return (
+      <div className="content">
+        <div className="pagehead">
+          <div>
+            <div className="eyebrow">POLICY REPOSITORY</div>
+            <h1>政策数据库</h1>
+            <p className="sub">业务线 × 政策主题 关联矩阵</p>
+          </div>
+          <button className="btn" onClick={() => setViewMode("list")}>返回政策列表</button>
+        </div>
+        <BusinessMapPage />
+      </div>
+    );
+  }
+
   return (
     <div className="content">
       <div className="pagehead">
@@ -182,6 +224,7 @@ function PoliciesContent() {
           <p className="sub">{isConsumer ? "已发布政策的完整目录，可搜索查看" : "政策由 AI 自动抓取、分析并发布，原始文档与分析结论保持关联"}</p>
         </div>
         <div className="rowflex">
+          {!isConsumer && <button className="btn" onClick={() => setViewMode("map")}>业务图谱</button>}
           {role === "admin" && <Link href="/documents?upload=1" className="btn primary">上传政策</Link>}
           {role === "processor" && <Link href="/follow-up" className="btn primary">前往政策跟进中心 →</Link>}
         </div>
@@ -216,11 +259,21 @@ function PoliciesContent() {
         </div>
         <div className="tablewrap">
           <table>
-            <thead><tr><th>政策名称</th><th>来源</th><th>优先级</th><th>影响 Domain</th>{isConsumer && <th>政策状态</th>}<th>发布日期</th><th>操作</th></tr></thead>
+            <thead>
+              <tr>
+                <SortableTh label="政策名称" field="title" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label="来源" field="issuing_body" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label="优先级" field="priority" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <th>影响 Domain</th>
+                {isConsumer && <th>政策状态</th>}
+                <SortableTh label="发布日期" field="published_at" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <th>操作</th>
+              </tr>
+            </thead>
             <tbody>
-              {loading ? <tr><td colSpan={isConsumer ? 7 : 6} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : policies.length === 0 ? (
+              {loading ? <tr><td colSpan={isConsumer ? 7 : 6} style={{ textAlign: "center", padding: 40 }}>加载中…</td></tr> : sortedPolicies.length === 0 ? (
                 <tr><td colSpan={isConsumer ? 7 : 6} style={{ textAlign: "center", padding: 40, color: "#949aa3" }}>无匹配记录</td></tr>
-              ) : policies.map((policy) => (
+              ) : sortedPolicies.map((policy) => (
                 <tr key={policy.id}>
                   <td style={{ minWidth: 260 }}>
                     <div className="policytitle"><Link href={`/policies/${policy.id}`}>{policy.title}</Link><small>{policy.doc_number || policy.id} · {policy.priority} · 影响评分 {impactScoreLabel(policy.score_total, 0, false)}</small></div>

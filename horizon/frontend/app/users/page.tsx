@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import SortableTh from "@/components/SortableTh";
 import { useAuth } from "@/components/AuthProvider";
 import { API_BASE, demoApiHeaders } from "@/lib/auth";
 
@@ -91,6 +92,29 @@ export default function UsersPage() {
   useEffect(() => {
     setPage(1);
   }, [query, roleFilter]);
+
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function onSort(field: string) {
+    if (sortField === field) {
+      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  }
+
+  const sortedUsers = useMemo(() => {
+    if (!sortField) return users;
+    return [...users].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortField] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortField] ?? "";
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [users, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -277,23 +301,26 @@ export default function UsersPage() {
       </section>
 
       {resetTarget && (
-        <section className="panel" style={{ marginTop: 12 }}>
-          <div className="sectionbody">
-            <div className="rowflex" style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <span>为 <b>{resetTarget.username}</b> 设置新密码</span>
+        <div className="confirm-backdrop" role="presentation" onClick={busy ? undefined : () => { setResetTarget(null); setResetPassword(""); }}>
+          <div className="confirm-modal" role="dialog" aria-modal="true" aria-label="重置密码" onClick={(event) => event.stopPropagation()}>
+            <h2>重置密码</h2>
+            <div className="confirm-body">
+              <p>为 <b>{resetTarget.username}</b> 设置新密码（至少 6 位），保存后立即生效。</p>
               <input
                 className="search"
                 type="password"
                 value={resetPassword}
                 onChange={(event) => setResetPassword(event.target.value)}
-                placeholder="至少 6 位"
-                style={{ width: 200 }}
+                placeholder="请输入新密码"
+                style={{ width: "100%", marginTop: 8 }}
               />
-              <button className="btn primary" onClick={() => void submitReset()} disabled={busy}>保存</button>
-              <button className="btn" onClick={() => { setResetTarget(null); setResetPassword(""); }}>取消</button>
+            </div>
+            <div className="confirm-actions">
+              <button className="btn" type="button" disabled={busy} onClick={() => { setResetTarget(null); setResetPassword(""); }}>取消</button>
+              <button className="btn danger" type="button" disabled={busy} onClick={() => void submitReset()}>{busy ? "处理中…" : "保存"}</button>
             </div>
           </div>
-        </section>
+        </div>
       )}
 
       <section className="panel" style={{ marginTop: 18 }}>
@@ -319,19 +346,19 @@ export default function UsersPage() {
           <table>
             <thead>
               <tr>
-                <th>用户名</th>
-                <th>角色</th>
+                <SortableTh label="用户名" field="username" sortField={sortField} sortDir={sortDir} onSort={onSort} />
+                <SortableTh label="角色" field="role" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                 <th>引导状态</th>
-                <th>创建时间</th>
+                <SortableTh label="创建时间" field="created_at" sortField={sortField} sortDir={sortDir} onSort={onSort} />
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr><td colSpan={5} style={{ textAlign: "center", padding: 36 }}>加载中…</td></tr>
-              ) : users.length === 0 ? (
+              ) : sortedUsers.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: "center", padding: 36, color: "#949aa3" }}>没有匹配的账号</td></tr>
-              ) : users.map((user) => (
+              ) : sortedUsers.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <b>{user.username}</b>

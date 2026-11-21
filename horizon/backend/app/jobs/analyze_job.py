@@ -474,14 +474,16 @@ def analyze_pending(db: Session, *, limit: int = 10) -> dict:
             doc = db.get(Document, doc_id)
             policy = analyze_document(db, doc)
             if policy is not None:
-                # ---- 无关政策清理 Skill：对汇丰完全没有影响时删除政策与原文 ----
-                from app.agent.cleanup import cleanup_policy_if_irrelevant
+                # ---- 无关政策判定：对汇丰完全无影响时标记「疑似无关」，交由跟进专员复核 ----
+                # 不再自动删除；保留政策与原文，等待跟进专员在跟进中心决定保留/删除。
+                from app.agent.cleanup import assess_hsbc_impact
 
-                cleanup = cleanup_policy_if_irrelevant(db, policy)
-                if cleanup.get("deleted"):
+                verdict = assess_hsbc_impact(db, policy)
+                if verdict["verdict"] == "none":
+                    policy.irrelevant_flagged = True
+                    db.commit()
                     stats["cleaned"] += 1
-                    log.info("irrelevant_policy_cleaned", policy_id=cleanup.get("policy_id"),
-                             reason=cleanup.get("reason"))
+                    log.info("irrelevant_policy_flagged", policy_id=policy.id)
                     continue
             stats["analyzed" if policy else "skipped"] += 1
         except Exception as e:

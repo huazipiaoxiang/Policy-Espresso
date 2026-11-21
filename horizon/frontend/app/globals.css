@@ -259,6 +259,65 @@ a {
   font-weight: 700;
 }
 
+.profile-pop {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  width: 280px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(25, 30, 40, 0.14);
+  z-index: 40;
+  overflow: hidden;
+}
+
+.profile-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-pop-head b {
+  display: block;
+  font-size: 14px;
+}
+
+.profile-pop-head small {
+  color: #8b929c;
+  font-size: 12px;
+}
+
+.profile-pop-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+}
+
+.th-sort-arrow {
+  font-size: 10px;
+  color: #9aa1aa;
+}
+
+.th-sort-arrow.active {
+  color: var(--accent, #2563eb);
+}
+
 .role {
   border: 1px solid var(--border);
   border-radius: 6px;
