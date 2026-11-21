@@ -26,6 +26,10 @@ fi
 install -d /etc/systemd/system/horizon-api.service.d /etc/systemd/system/horizon-web.service.d
 cat > /etc/systemd/system/horizon-api.service.d/release.conf <<'EOF'
 [Service]
+# 显式加载生产环境文件：LLM_PROVIDER / DASHSCOPE_API_KEY / DATABASE_URL / API_KEY 等都在此注入。
+# 之前的 drop-in 只覆盖 ExecStart，未声明 EnvironmentFile，导致 /etc/horizon/horizon.env 里的
+# 百炼 Key 等配置根本没进入 uvicorn 进程，AI 静默回退到规则兜底。
+EnvironmentFile=/etc/horizon/horizon.env
 ExecStartPre=
 ExecStart=
 ExecStart=/opt/policy-espresso/current/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 127.0.0.1

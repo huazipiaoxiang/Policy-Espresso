@@ -11,6 +11,7 @@ from sqlalchemy.types import Text
 
 from app.api.v1.schemas import Page, PolicyOut
 from app.core.errors import ApiError, not_found, not_approved
+from app.core.logging import get_logger
 from app.core.security import get_demo_role, require_api_key, require_roles
 from app.db.models import Alert, Assessment, ConsumerReport, Dispatch, Document, Evidence, Feedback, LLMCallLog, Policy, ReviewTask, ScopeJudgement
 from app.db.session import get_db
@@ -26,6 +27,8 @@ from app.domain.policy_impact import (
     followup_policy_card,
     followup_report_summary,
 )
+
+log = get_logger("policies")
 
 router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_api_key)])
 
@@ -456,7 +459,9 @@ def _differential_note(policy: Policy, db: Session) -> dict:
             system=system, user=user, schema=DIFFERENTIAL_SCHEMA, task="differential", max_tokens=700,
         )
         parsed = result.parsed or {}
-    except Exception:
+    except Exception as exc:
+        # 保留静默降级行为（不打断详情页），但把失败原因写进日志，便于上云后排障
+        log.warning("differential_llm_failed policy_id=%s: %s: %s", policy.id, type(exc).__name__, exc)
         parsed = {}
     note = (parsed.get("note") or "").strip()
     ai_used = bool(note)
