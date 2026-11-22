@@ -129,6 +129,30 @@ def _policy_filters(
     return stmt
 
 
+def _exposure_range_or_default(affected: dict | None) -> dict | None:
+    """客户暴露规模兜底：已有 exposure_range 直接返回；否则按受影响业务线聚合合成客户金额。
+
+    覆盖两类缺口：AI 影响分析返回 null 的 exposure_range，以及种子政策固化的 null。
+    口径与影响分析一致：区间取贷款余额合计的 0.6–1.2 倍。
+    """
+    affected = affected or {}
+    exposure = affected.get("exposure_range")
+    if isinstance(exposure, dict) and exposure.get("low") is not None and exposure.get("high") is not None:
+        return exposure
+    business_lines = [str(line) for line in affected.get("business_lines") or [] if line]
+    amount, count = affected_amount_by_business_lines(business_lines)
+    if amount <= 0:
+        return None
+    return {
+        "low": round(amount * 0.6, 1),
+        "high": round(amount * 1.2, 1),
+        "currency": "CNY",
+        "unit": "亿",
+        "basis": f"合成数据集口径：受影响业务线匹配 {count} 户，贷款余额合计 {amount} 亿元，区间取 0.6–1.2 倍",
+        "confidence": 0.5,
+    }
+
+
 def _policy_view(db: Session, policy: Policy) -> dict:
     assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
     dispatched_at = db.scalar(
@@ -579,7 +603,7 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
                 "score_total": a.score_total,
                 "priority": a.priority,
                 "transmission_chain": a.transmission_chain,
-                "affected": a.affected,
+                "affected": {**(a.affected or {}), "exposure_range": _exposure_range_or_default(a.affected)},
                 "recommended_actions": a.recommended_actions,
                 "case_links": a.case_links,
                 "confidence": a.confidence,
