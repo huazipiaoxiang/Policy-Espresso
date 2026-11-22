@@ -865,14 +865,19 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
     matched = [c for c in managed if not lines or c.get("business_line") in lines]
     sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
     affected = customer_impact_rows(sorted_matched[:30], scores, direction=direction)
-    # 逐客户「跟进措施」：AI 结合客户业务线/客群/海外业务生成，失败退回规则文案
-    if sorted_matched:
-        followup_actions = _customer_followup_actions(policy, assessment, sorted_matched[:30])
-        for row in affected:
-            row["followup_action"] = followup_actions.get(str(row["customer_id"]), "")
 
     if matched:
-        advice = _consumer_advice(policy, assessment, matched)
+        # 两个 AI 分析互不依赖，并行执行，减少政策解读页加载耗时
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            advice_future = executor.submit(_consumer_advice, policy, assessment, matched)
+            followup_future = executor.submit(_customer_followup_actions, policy, assessment, sorted_matched[:30])
+            advice = advice_future.result()
+            followup_actions = followup_future.result()
+        # 逐客户「跟进措施」：AI 结合客户业务线/客群/海外业务生成，失败退回规则文案
+        for row in affected:
+            row["followup_action"] = followup_actions.get(str(row["customer_id"]), "")
         impact_overview = advice["impact_on_user"]
         followup_advice = advice["followup_advice"]
         match_basis = {

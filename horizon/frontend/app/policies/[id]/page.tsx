@@ -148,24 +148,28 @@ export default function PolicyDetailPage() {
     }
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/policies/${params.id}`, { headers: demoApiHeaders() });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error?.message || "政策加载失败");
+      // 政策详情与使用者解读并行请求，避免串行等待两个含 AI 调用的接口
+      const query = username ? `?username=${encodeURIComponent(username)}` : "";
+      const policyReq = fetch(`${API_BASE}/policies/${params.id}`, { headers: demoApiHeaders() });
+      const cvReq = role === "consumer"
+        ? fetch(`${API_BASE}/policies/${params.id}/consumer-view${query}`, { headers: demoApiHeaders() })
+        : Promise.resolve(null);
+
+      const [policyResp, cvResp] = await Promise.all([policyReq, cvReq]);
+
+      const data = await policyResp.json();
+      if (!policyResp.ok) throw new Error(data?.error?.message || "政策加载失败");
       setPolicy(data);
       setError("");
-      if (role === "consumer") {
-        // 带上用户名：后端据此判断该使用者名下是否有客户，无客户则不返回客户名单与影响概述
-        const query = username ? `?username=${encodeURIComponent(username)}` : "";
-        const cvResp = await fetch(`${API_BASE}/policies/${params.id}/consumer-view${query}`, { headers: demoApiHeaders() });
-        if (cvResp.ok) {
-          const view = await cvResp.json();
-          setConsumerView(view);
-          // 首次进入该政策：默认选中第一个重点话题，并加载其下方三栏解读
-          const firstTopic = (view.topics || [])[0]?.topic;
-          if (isNewPolicy && firstTopic) {
-            setActiveTopic(firstTopic);
-            void loadTopicColumns(firstTopic, params.id);
-          }
+
+      if (cvResp && cvResp.ok) {
+        const view = await cvResp.json();
+        setConsumerView(view);
+        // 首次进入该政策：默认选中第一个重点话题，并加载其下方三栏解读
+        const firstTopic = (view.topics || [])[0]?.topic;
+        if (isNewPolicy && firstTopic) {
+          setActiveTopic(firstTopic);
+          void loadTopicColumns(firstTopic, params.id);
         }
       }
     } catch (reason) {
