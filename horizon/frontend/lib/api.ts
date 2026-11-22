@@ -211,9 +211,6 @@ export interface SystemLogDay {
   summary: { total: number; ok: number; failed: number; running: number };
 }
 
-export const getSystemLogs = (days = 14) =>
-  get<{ days: SystemLogDay[]; total_days: number }>(`/admin/system-logs?days=${days}`);
-
 export const getAlerts = () => get<{ items: AlertItem[] }>("/alerts");
 
 export interface SourceItem {

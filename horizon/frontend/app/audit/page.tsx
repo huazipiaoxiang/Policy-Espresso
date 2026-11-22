@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getAudit, getSystemLogs, type AuditItem, type SystemLogDay } from "@/lib/api";
+import { API_BASE, demoApiHeaders } from "@/lib/auth";
+import type { AuditItem, SystemLogDay } from "@/lib/api";
 import { AUDIT_ACTION_LABELS as ACTION_LABELS } from "@/lib/labels";
 
 // 系统日志页：默认展示系统运行日志（/admin/system-logs，按天分组，含运行错误），
@@ -81,6 +82,15 @@ function fmtStats(stats: Record<string, unknown> | null | undefined): string {
   return parts.length ? parts.join(" · ") : "—";
 }
 
+// 客户端统一走同源 BFF 代理（/api/proxy），X-API-Key 由服务端注入；
+// 这里只透传 X-Demo-Role，不把 Key 打进浏览器包。
+async function fetchJson<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { headers: demoApiHeaders(), cache: "no-store" });
+  const body = (await res.json().catch(() => null)) as (T & { error?: { message?: string } }) | null;
+  if (!res.ok) throw new Error(body?.error?.message || `请求失败（HTTP ${res.status}）`);
+  return body as T;
+}
+
 export default function AuditPage() {
   const searchParams = useSearchParams();
   const objectType = searchParams.get("object_type") || (searchParams.get("docId") ? "document" : null);
@@ -135,11 +145,7 @@ function SystemLogsView() {
     setLoading(true);
     setError("");
     try {
-      const body = await getSystemLogs(range);
-      if (!body) {
-        setError("系统日志暂不可用，请稍后重试。");
-        return;
-      }
+      const body = await fetchJson<{ days: SystemLogDay[]; total_days: number }>(`/admin/system-logs?days=${range}`);
       setDays(body.days || []);
       setTotalDays(body.total_days || 0);
     } catch (reason) {
@@ -276,13 +282,7 @@ function AuditLogsView({ objectType, objectId }: { objectType: string | null; ob
         objectType ? `&object_type=${encodeURIComponent(objectType)}` : "",
         objectId ? `&object_id=${encodeURIComponent(objectId)}` : "",
       ].join("");
-      const body = await getAudit(query);
-      if (!body) {
-        setItems([]);
-        setTotal(0);
-        setError("操作审计暂不可用，请稍后重试。");
-        return;
-      }
+      const body = await fetchJson<{ items: AuditItem[]; total: number }>(`/admin/audit?page_size=100${query}`);
       setItems(body.items || []);
       setTotal(body.total || 0);
       setCurrentPage(1);
