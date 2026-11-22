@@ -117,8 +117,18 @@ def test_consumer_view_shows_only_managed_customers_for_rm(client):
     assert resp.status_code == 200
     body = resp.json()
     assert len(body["affected_customers"]) > 0
-    assert "所管理客户" in body["impact_overview"]
+    # AI 分析已拆到独立接口，主接口不再阻塞返回影响概述
+    assert body["impact_overview"] == ""
     assert body["match_basis"]["total_matched"] == len(body["affected_customers"])
+
+    ai_resp = client.get(
+        f"/api/v1/policies/{policy_id}/consumer-ai?username=rmdemo01",
+        headers={"X-Demo-Role": "consumer"},
+    )
+    assert ai_resp.status_code == 200
+    ai_body = ai_resp.json()
+    assert "所管理客户" in ai_body["impact_overview"]
+    assert ai_body["followup_advice"]
 
 
 def test_topic_columns_return_summary_and_url_only(client, monkeypatch):

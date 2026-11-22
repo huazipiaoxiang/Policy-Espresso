@@ -571,9 +571,22 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
     review_tasks = [] if role == "consumer" else db.scalars(
         select(ReviewTask).where(ReviewTask.policy_id == policy.id).order_by(ReviewTask.created_at)
     ).all()
+    # 差异条款 AI 拆出：主接口返回 pending 占位，由 /differential 接口异步生成，避免阻塞政策详情加载
+    _diff = bool(policy.foreign_bank_differential)
+    _foreign = (policy.applicable_scope or "") == "foreign_included"
+    _high = (policy.target_entity_status or "") == "high"
+    _triggered = bool(_diff or _foreign or _high)
+    diff_view = {
+        "foreign_bank_differential": _triggered,
+        "applies_to_hsbc": None,
+        "attention_level": "none" if not _triggered else "",
+        "note": "",
+        "reason": "",
+        "source": "pending" if _triggered else "ai",
+    }
     return {
         **_policy_view(db, policy),
-        "differential": _differential_note(policy, db),
+        "differential": diff_view,
         "review_tasks": [
             {
                 "id": task.id,
@@ -647,6 +660,55 @@ def get_policy(policy_id: str, db: Session = Depends(get_db), role: str = Depend
             else None
         ),
         "url": (db.get(Document, policy.document_id).url if db.get(Document, policy.document_id) else ""),
+    }
+
+
+@router.get("/{policy_id}/differential")
+def policy_differential(policy_id: str, db: Session = Depends(get_db), role: str = Depends(get_demo_role)):
+    """差异条款 AI 分析（独立接口，供政策详情页异步加载）。"""
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    return _differential_note(policy, db)
+
+
+@router.get("/{policy_id}/consumer-ai")
+def policy_consumer_ai(
+    policy_id: str,
+    username: str | None = None,
+    db: Session = Depends(get_db),
+    _: str = Depends(require_roles("consumer")),
+):
+    """政策使用者 AI 分析（独立接口，供政策解读页异步加载）。
+
+    返回影响概述、跟进建议与逐客户跟进措施，避免阻塞主解读内容加载。
+    """
+    from app.domain.rm_matching import customers_of
+
+    policy = db.get(Policy, policy_id)
+    if not policy:
+        raise not_found("政策", policy_id)
+    assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+    business_lines = (assessment.affected.get("business_lines", []) if assessment else []) or []
+    managed = customers_of(username)
+    lines = {line for line in business_lines if line}
+    matched = [c for c in managed if not lines or c.get("business_line") in lines]
+    sorted_matched = sorted(matched, key=lambda c: -float(c.get("loan_balance_cny_yi", 0) or 0))
+
+    if not matched:
+        return {"impact_overview": "", "followup_advice": "", "followup_actions": {}}
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        advice_future = executor.submit(_consumer_advice, policy, assessment, matched)
+        followup_future = executor.submit(_customer_followup_actions, policy, assessment, sorted_matched[:30])
+        advice = advice_future.result()
+        followup_actions = followup_future.result()
+    return {
+        "impact_overview": advice["impact_on_user"],
+        "followup_advice": advice["followup_advice"],
+        "followup_actions": followup_actions,
     }
 
 
@@ -867,19 +929,10 @@ def _consumer_view(db: Session, policy: Policy, username: str | None = None) -> 
     affected = customer_impact_rows(sorted_matched[:30], scores, direction=direction)
 
     if matched:
-        # 两个 AI 分析互不依赖，并行执行，减少政策解读页加载耗时
-        from concurrent.futures import ThreadPoolExecutor
-
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            advice_future = executor.submit(_consumer_advice, policy, assessment, matched)
-            followup_future = executor.submit(_customer_followup_actions, policy, assessment, sorted_matched[:30])
-            advice = advice_future.result()
-            followup_actions = followup_future.result()
-        # 逐客户「跟进措施」：AI 结合客户业务线/客群/海外业务生成，失败退回规则文案
-        for row in affected:
-            row["followup_action"] = followup_actions.get(str(row["customer_id"]), "")
-        impact_overview = advice["impact_on_user"]
-        followup_advice = advice["followup_advice"]
+        # AI 分析拆出：主接口不调 AI，影响概述/跟进建议/逐客户跟进措施由 /consumer-ai 接口异步生成，
+        # 先返回确定性内容，前端再异步填充 AI 结论。
+        impact_overview = ""
+        followup_advice = ""
         match_basis = {
             "rule": ("按名下客户 × 政策业务线匹配" if lines else "名下客户（政策未标注业务线）"),
             "business_lines": sorted(lines),

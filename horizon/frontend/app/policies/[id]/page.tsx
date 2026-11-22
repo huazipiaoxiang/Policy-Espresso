@@ -138,6 +138,44 @@ export default function PolicyDetailPage() {
   // 记录已初始化话题的政策 id：首次进入某政策时默认选中第一个重点话题
   const loadedPolicyRef = useRef<string | null>(null);
 
+  // 差异条款 AI：政策详情基础信息渲染后异步填充
+  const loadDifferential = useCallback(async (policyId: string) => {
+    try {
+      const resp = await fetch(`${API_BASE}/policies/${policyId}/differential`, { headers: demoApiHeaders() });
+      if (!resp.ok) return;
+      const diff = await resp.json();
+      setPolicy((prev) => (prev ? { ...prev, differential: diff } : prev));
+    } catch {
+      // AI 加载失败不阻塞，保留 pending 占位
+    }
+  }, []);
+
+  // 使用者 AI 分析：政策解读基础内容渲染后异步填充影响概述/跟进建议/逐客户措施
+  const loadConsumerAi = useCallback(async (policyId: string, usernameValue: string | null) => {
+    try {
+      const query = usernameValue ? `?username=${encodeURIComponent(usernameValue)}` : "";
+      const resp = await fetch(`${API_BASE}/policies/${policyId}/consumer-ai${query}`, { headers: demoApiHeaders() });
+      if (!resp.ok) return;
+      const ai = await resp.json();
+      setConsumerView((prev: any) => {
+        if (!prev) return prev;
+        const actions = ai.followup_actions || {};
+        const customers = (prev.affected_customers || []).map((c: any) => ({
+          ...c,
+          followup_action: actions[c.customer_id] || c.followup_action || "",
+        }));
+        return {
+          ...prev,
+          impact_overview: ai.impact_overview || prev.impact_overview,
+          followup_advice: ai.followup_advice || prev.followup_advice,
+          affected_customers: customers,
+        };
+      });
+    } catch {
+      // AI 加载失败不阻塞
+    }
+  }, []);
+
   const load = useCallback(async () => {
     const isNewPolicy = loadedPolicyRef.current !== params.id;
     if (isNewPolicy) {
@@ -161,6 +199,8 @@ export default function PolicyDetailPage() {
       if (!policyResp.ok) throw new Error(data?.error?.message || "政策加载失败");
       setPolicy(data);
       setError("");
+      // 基础信息已就绪，异步填充差异条款 AI（不阻塞渲染）
+      void loadDifferential(params.id);
 
       if (cvResp && cvResp.ok) {
         const view = await cvResp.json();
@@ -171,6 +211,8 @@ export default function PolicyDetailPage() {
           setActiveTopic(firstTopic);
           void loadTopicColumns(firstTopic, params.id);
         }
+        // 基础解读已就绪，异步填充影响概述/跟进建议/逐客户措施
+        void loadConsumerAi(params.id, username);
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "政策加载失败");
