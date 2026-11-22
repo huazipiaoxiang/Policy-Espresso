@@ -2,11 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getAudit, type AuditItem } from "@/lib/api";
+import { getAudit, getSystemLogs, type AuditItem, type SystemLogDay } from "@/lib/api";
 import { AUDIT_ACTION_LABELS as ACTION_LABELS } from "@/lib/labels";
 
-// 审计日志页：展示真实 audit_log 记录（只读接口 /admin/audit）。
-// 支持 ?object_type=&object_id= 定位某个政策/原文的完整审计历史。
+// 系统日志页：默认展示系统运行日志（/admin/system-logs，按天分组，含运行错误），
+// 另保留「操作审计」（/admin/audit，人工生命周期事件）作为次级视图。
+// 支持 ?object_type=&object_id= 定位某个政策/原文的完整操作审计历史（此时默认切到操作审计）。
 
 const ACTION_BADGE: Record<string, string> = {
   review_approve: "green",
@@ -26,8 +27,25 @@ const OBJECT_LABELS: Record<string, string> = {
   review_task: "处理任务",
 };
 
+const JOB_STATUS_BADGE: Record<string, string> = {
+  ok: "green",
+  failed: "red",
+  running: "amber",
+};
+
+const JOB_STATUS_LABELS: Record<string, string> = {
+  ok: "成功",
+  failed: "失败",
+  running: "运行中",
+};
+
 function fmtTime(at: string): string {
   return at ? at.slice(0, 19).replace("T", " ") : "—";
+}
+
+function fmtClock(at: string | null): string {
+  if (!at) return "—";
+  return at.slice(11, 19);
 }
 
 function fmtJson(value: Record<string, unknown> | null | undefined): string {
@@ -51,11 +69,195 @@ function fmtChange(before: Record<string, unknown> | null, after: Record<string,
   return parts.length ? parts.join(" · ") : "—";
 }
 
+// 运行统计的简写：挑出最值得看的几个口径，其余折叠。
+const STAT_KEYS = ["created", "updated", "failed", "analyzed", "skipped", "duplicates_marked", "discovered", "ignored", "sources"];
+function fmtStats(stats: Record<string, unknown> | null | undefined): string {
+  if (!stats || Object.keys(stats).length === 0) return "—";
+  const parts: string[] = [];
+  for (const key of STAT_KEYS) {
+    const value = stats[key];
+    if (typeof value === "number") parts.push(`${key} ${value}`);
+  }
+  return parts.length ? parts.join(" · ") : "—";
+}
+
 export default function AuditPage() {
   const searchParams = useSearchParams();
   const objectType = searchParams.get("object_type") || (searchParams.get("docId") ? "document" : null);
   const objectId = searchParams.get("object_id") || searchParams.get("docId");
 
+  // 带对象定位参数（从政策/原文详情跳转）时默认看操作审计；否则默认看系统日志。
+  const [tab, setTab] = useState<"system" | "audit">(objectType || objectId ? "audit" : "system");
+
+  return (
+    <main>
+      <div className="pagehead">
+        <div>
+          <div className="eyebrow">SYSTEM LOGS</div>
+          <h1>系统日志</h1>
+          <p className="sub">系统每日抓取政策与运行记录 · 每天一份 · 含运行出错详情</p>
+        </div>
+      </div>
+
+      <div className="tabs" role="tablist" aria-label="日志类型" style={{ marginBottom: 18 }}>
+        <button
+          className={`tab ${tab === "system" ? "active" : ""}`}
+          onClick={() => setTab("system")}
+        >
+          系统日志
+        </button>
+        <button
+          className={`tab ${tab === "audit" ? "active" : ""}`}
+          onClick={() => setTab("audit")}
+        >
+          操作审计
+        </button>
+      </div>
+
+      {tab === "system" ? (
+        <SystemLogsView />
+      ) : (
+        <AuditLogsView objectType={objectType} objectId={objectId} />
+      )}
+    </main>
+  );
+}
+
+function SystemLogsView() {
+  const [days, setDays] = useState<SystemLogDay[]>([]);
+  const [totalDays, setTotalDays] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [range, setRange] = useState(14);
+  const [onlyFailed, setOnlyFailed] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const body = await getSystemLogs(range);
+      if (!body) {
+        setError("系统日志暂不可用，请稍后重试。");
+        return;
+      }
+      setDays(body.days || []);
+      setTotalDays(body.total_days || 0);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "系统日志加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const visibleDays = useMemo(() => {
+    if (!onlyFailed) return days;
+    return days
+      .map((day) => ({ ...day, runs: day.runs.filter((run) => run.status === "failed") }))
+      .filter((day) => day.runs.length > 0);
+  }, [days, onlyFailed]);
+
+  const totalRuns = useMemo(() => days.reduce((acc, day) => acc + day.summary.total, 0), [days]);
+  const failedRuns = useMemo(() => days.reduce((acc, day) => acc + day.summary.failed, 0), [days]);
+
+  return (
+    <>
+      <div className="consumer-search">
+        <select className="filter" value={range} onChange={(e) => setRange(Number(e.target.value))}>
+          <option value={7}>最近 7 天</option>
+          <option value={14}>最近 14 天</option>
+          <option value={30}>最近 30 天</option>
+        </select>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#4b525c" }}>
+          <input
+            type="checkbox"
+            checked={onlyFailed}
+            onChange={(e) => setOnlyFailed(e.target.checked)}
+          />
+          仅看运行出错
+        </label>
+        <span style={{ fontSize: 12, color: "#8b929c", marginLeft: "auto" }}>
+          共 {totalDays} 天 · {totalRuns} 次运行{failedRuns > 0 ? ` · ${failedRuns} 次失败` : ""}
+        </span>
+        <button className="btn" onClick={() => void load()} disabled={loading}>刷新</button>
+      </div>
+
+      {loading ? (
+        <section className="panel" style={{ padding: "40px 16px", textAlign: "center", color: "#949aa3" }}>加载中…</section>
+      ) : error ? (
+        <section className="panel" style={{ padding: "40px 16px", textAlign: "center", color: "#b3261e" }}>{error}</section>
+      ) : visibleDays.length === 0 ? (
+        <section className="panel" style={{ padding: "40px 16px", textAlign: "center", color: "#949aa3" }}>
+          {onlyFailed ? "所选范围内没有运行出错的记录" : "暂无系统运行日志"}
+        </section>
+      ) : (
+        visibleDays.map((day) => (
+          <section key={day.date} className="panel" style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, padding: "10px 16px", borderBottom: "1px solid var(--border)" }}>
+              <div>
+                <b style={{ fontSize: 14 }}>{day.date}</b>
+                <span style={{ fontSize: 12, color: "#8b929c", marginLeft: 8 }}>
+                  当日 {day.summary.total} 次运行
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <span className="badge green">成功 {day.summary.ok}</span>
+                {day.summary.failed > 0 && <span className="badge red">失败 {day.summary.failed}</span>}
+                {day.summary.running > 0 && <span className="badge amber">运行中 {day.summary.running}</span>}
+              </div>
+            </div>
+            <div className="tablewrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>任务</th>
+                    <th>来源</th>
+                    <th>状态</th>
+                    <th>开始时间</th>
+                    <th>运行结果</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {day.runs.map((run) => (
+                    <tr key={run.id}>
+                      <td style={{ fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>{run.label}</td>
+                      <td style={{ fontSize: "12px", fontFamily: "monospace", color: "#6b7280" }}>
+                        {run.source_code || "—"}
+                      </td>
+                      <td>
+                        <span className={`badge ${JOB_STATUS_BADGE[run.status] ?? ""}`}>
+                          {JOB_STATUS_LABELS[run.status] || run.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: "12px", fontFamily: "monospace", color: "#6b7280", whiteSpace: "nowrap" }}>
+                        {run.clock || fmtClock(run.started_at)}
+                      </td>
+                      <td style={{ fontSize: "12px", color: "#6b7280", maxWidth: 420 }}>
+                        {run.status === "failed" && run.error ? (
+                          <div style={{ color: "#b3261e", wordBreak: "break-word" }}>{run.error}</div>
+                        ) : (
+                          <div>{fmtStats(run.stats)}</div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ))
+      )}
+
+      <p className="footnote">
+        系统日志来自后台调度任务运行记录（JobRun）：每日抓取政策、政策分析、健康检查、心跳巡检与保留清理，
+        按自然日归档为「每天一份」。失败任务会显示具体错误原因，便于定位与修复。
+      </p>
+    </>
+  );
+}
+
+function AuditLogsView({ objectType, objectId }: { objectType: string | null; objectId: string | null }) {
   const [items, setItems] = useState<AuditItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,18 +277,25 @@ export default function AuditPage() {
         objectId ? `&object_id=${encodeURIComponent(objectId)}` : "",
       ].join("");
       const body = await getAudit(query);
-      if (!body) throw new Error("审计日志加载失败");
+      if (!body) {
+        setItems([]);
+        setTotal(0);
+        setError("操作审计暂不可用，请稍后重试。");
+        return;
+      }
       setItems(body.items || []);
       setTotal(body.total || 0);
       setCurrentPage(1);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "审计日志加载失败");
+      setItems([]);
+      setTotal(0);
+      setError(reason instanceof Error ? reason.message : "操作审计加载失败");
     } finally {
       setLoading(false);
     }
   }, [objectType, objectId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const actors = useMemo(() => [...new Set(items.map((item) => item.actor))].sort(), [items]);
 
@@ -138,16 +347,10 @@ export default function AuditPage() {
   }
 
   return (
-    <main>
-      <div className="pagehead">
-        <div>
-          <div className="eyebrow">AUDIT LOGS</div>
-          <h1>审计日志</h1>
-          <p className="sub">共 {total} 条 · 只追加，保留 ≥7 年 · 时间均为 UTC</p>
-        </div>
-        <div style={{ display: "flex", gap: "9px" }}>
-          <button className="btn primary" onClick={exportCsv} disabled={!filtered.length}>导出 CSV</button>
-        </div>
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: "#8b929c", margin: 0 }}>共 {total} 条操作记录 · 只追加，保留 ≥7 年 · 时间均为 UTC</p>
+        <button className="btn primary" onClick={exportCsv} disabled={!filtered.length}>导出 CSV</button>
       </div>
 
       {(objectType || objectId) && (
@@ -265,8 +468,8 @@ export default function AuditPage() {
       </div>
 
       <p className="footnote">
-        审计日志为只追加模式，所有采集、分析、发布与删除动作均在此留痕。日志保留期限 ≥7 年，满足金融监管合规要求。
+        操作审计为只追加模式，所有采集、分析、发布与删除动作均在此留痕。日志保留期限 ≥7 年，满足金融监管合规要求。
       </p>
-    </main>
+    </>
   );
 }

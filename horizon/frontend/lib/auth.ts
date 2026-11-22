@@ -57,7 +57,7 @@ export const ROLE_CONFIG: Record<DemoRole, {
       { id: "customers", icon: "▤", label: "客户信息", href: "/customers" },
       { id: "sources", icon: "▥", label: "数据源", href: "/sources" },
       { id: "rules", icon: "⌘", label: "Agent 与规则", href: "/rules" },
-      { id: "audit", icon: "≡", label: "审计日志", href: "/audit" },
+      { id: "audit", icon: "≡", label: "系统日志", href: "/audit" },
       { id: "users", icon: "◍", label: "用户管理", href: "/users" },
       { id: "settings", icon: "⚙", label: "系统设置", href: "/settings" },
     ],

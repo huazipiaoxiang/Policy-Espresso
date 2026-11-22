@@ -1,19 +1,82 @@
 """审计查询与导出（04 §4.2 /admin/audit；10 §8 保留 ≥7 年）。"""
 import csv
 import io
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.security import require_api_key, require_roles
-from app.db.models import AuditLog, LLMCallLog
+from app.db.models import AuditLog, JobRun, LLMCallLog, Source
 from app.db.session import get_db
 
 # 审计查询只读，运营角色均可查看（发布中心/原文库的审计跳转入口依赖此权限）；
 # 导出与模型台账仍仅限管理员。
 router = APIRouter(prefix="/admin", tags=["audit"], dependencies=[Depends(require_api_key)])
+
+# 系统运行日志的任务类型标签（JobRun.job_type → 展示名）
+JOB_TYPE_LABELS = {
+    "crawl": "抓取政策",
+    "analyze": "政策分析",
+    "health": "健康检查",
+    "heartbeat": "心跳巡检",
+    "retention": "保留清理",
+    "digest": "摘要生成",
+}
+
+
+@router.get("/system-logs", dependencies=[Depends(require_roles("admin", "processor"))])
+def list_system_logs(days: int = Query(14, ge=1, le=90), db: Session = Depends(get_db)):
+    """系统运行日志（按天分组）：每日抓取/分析/健康检查/心跳/保留等运行记录，含失败错误。
+
+    数据源为 JobRun（调度器每次运行都会落一条），按调度时区自然日归档为「每天一份」，
+    便于运营一眼看到某天系统抓取与运行是否正常、哪些任务出错、错误内容是什么。
+    """
+    tz = ZoneInfo(get_settings().scheduler_timezone)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = db.execute(
+        select(JobRun, Source.code)
+        .outerjoin(Source, JobRun.source_id == Source.id)
+        .where(JobRun.started_at >= since)
+        .order_by(JobRun.started_at.desc())
+    ).all()
+
+    grouped: dict[str, list[dict]] = {}
+    for job, source_code in rows:
+        local = job.started_at.astimezone(tz)
+        day = local.strftime("%Y-%m-%d")
+        grouped.setdefault(day, []).append({
+            "id": job.id,
+            "job_type": job.job_type,
+            "label": JOB_TYPE_LABELS.get(job.job_type, job.job_type),
+            "source_code": source_code,
+            "status": job.status,
+            "error": job.error,
+            "stats": job.stats,
+            "started_at": job.started_at,
+            "finished_at": job.finished_at,
+            # 调度时区本地时钟，直接展示，避免前端再换算时区
+            "clock": local.strftime("%H:%M:%S"),
+        })
+
+    days_out = []
+    for day in sorted(grouped, reverse=True):
+        runs = grouped[day]
+        days_out.append({
+            "date": day,
+            "runs": runs,
+            "summary": {
+                "total": len(runs),
+                "ok": sum(1 for r in runs if r["status"] == "ok"),
+                "failed": sum(1 for r in runs if r["status"] == "failed"),
+                "running": sum(1 for r in runs if r["status"] == "running"),
+            },
+        })
+    return {"days": days_out, "total_days": len(days_out)}
 
 
 @router.get("/audit", dependencies=[Depends(require_roles("admin", "processor"))])

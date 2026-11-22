@@ -191,6 +191,29 @@ export interface AlertItem {
 }
 
 export const getAudit = (query = "") => get<{ items: AuditItem[]; total: number }>(`/admin/audit?page_size=100${query}`);
+
+export interface SystemLogRun {
+  id: string;
+  job_type: string;
+  label: string;
+  source_code: string | null;
+  status: string;
+  error: string | null;
+  stats: Record<string, unknown>;
+  started_at: string;
+  finished_at: string | null;
+  clock: string;
+}
+
+export interface SystemLogDay {
+  date: string;
+  runs: SystemLogRun[];
+  summary: { total: number; ok: number; failed: number; running: number };
+}
+
+export const getSystemLogs = (days = 14) =>
+  get<{ days: SystemLogDay[]; total_days: number }>(`/admin/system-logs?days=${days}`);
+
 export const getAlerts = () => get<{ items: AlertItem[] }>("/alerts");
 
 export interface SourceItem {
