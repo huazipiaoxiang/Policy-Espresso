@@ -400,36 +400,7 @@ export default function FollowUpPage() {
                           <p style={{ fontSize: 12, color: "var(--text-3)", margin: "0 0 8px" }}>
                             影响范围口径：{report.affected_scope_note || "按政策业务线匹配"} · 共 {customers.length} 户 · 数据来源：合成客户数据集（非真实客户）
                           </p>
-                          {customers.length === 0 ? (
-                            <p className="textblock" style={{ margin: 0 }}>该政策暂未匹配到受影响客户，可到政策解读页查看客户库整体影响概况。</p>
-                          ) : (
-                            <div className="tablewrap">
-                              <table>
-                                <thead><tr><th>客户</th><th>业务线</th><th>客群</th><th>贷款规模(亿)</th><th>他行贷款(亿)</th><th>海外业务</th><th>具体影响</th></tr></thead>
-                                <tbody>
-                                  {customers.map((customer) => (
-                                    <tr key={customer.customer_id}>
-                                      <td>{customer.name_masked}</td>
-                                      <td>{customer.business_line}</td>
-                                      <td>{customer.segment || "—"}</td>
-                                      <td>{customer.loan_balance_cny_yi}</td>
-                                      <td>{customer.other_bank_loans_cny_yi}</td>
-                                      <td>{customer.overseas_business?.length ? customer.overseas_business.join("、") : "—"}</td>
-                                      <td style={{ minWidth: 260 }}>
-                                        <details>
-                                          <summary style={{ cursor: "pointer" }}>查看具体影响</summary>
-                                          <div style={{ marginTop: 6, fontSize: 12 }}>
-                                            <p>{customer.impact?.impact_content || "—"}</p>
-                                            <p>{customer.impact?.outcome || ""}</p>
-                                          </div>
-                                        </details>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
+                          {/* 政策运营专员不接触单户客户名单，仅保留户数口径；具体名单仅管理员在政策解读页可见 */}
                         </td>
                       </tr>
                     )}
