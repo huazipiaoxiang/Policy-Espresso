@@ -99,13 +99,24 @@ def list_consumer_reports(
             scope_note = "政策未标注业务线，展示使用者报告中的客户"
         # 运营专员不接触单户精确金额与评分数字，返回前统一去敏
         rows = mask_customer_rows(rows)
+        # 影响概述兜底：旧报告（修复前发送）可能 impact_overview 为空
+        report_data = dict(r.report or {})
+        if not (report_data.get("impact_overview") or "").strip():
+            direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(
+                assessment.direction if assessment else "neutral", "中性",
+            )
+            themes = "、".join(policy.themes or []) if policy else "相关业务领域"
+            report_data["impact_overview"] = (
+                f"该政策整体呈{direction_label}方向，涉及{themes}等主题；"
+                "建议关注政策对相关业务线与客户盘子的整体影响。"
+            )
         items.append({
             "id": r.id,
             "policy_id": r.policy_id,
             "policy_title": policy.title if policy else "",
             "policy_priority": policy.priority if policy else "",
             "actor": r.actor,
-            "report": r.report,
+            "report": report_data,
             "status": r.status,
             "created_at": r.created_at,
             "affected_customers": rows,

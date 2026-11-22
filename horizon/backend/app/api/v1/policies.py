@@ -1054,7 +1054,19 @@ def send_consumer_report(
     policy = db.get(Policy, policy_id)
     if not policy:
         raise not_found("政策", policy_id)
-    report = ConsumerReport(policy_id=policy_id, actor="consumer", report=_consumer_view(db, policy, username))
+    view = _consumer_view(db, policy, username)
+    if not (view.get("impact_overview") or "").strip():
+        # 发送者名下无匹配客户时，补一个基于政策方向的概述，避免报告「影响概述」为空
+        assessment = db.scalars(select(Assessment).where(Assessment.policy_id == policy.id)).first()
+        direction_label = {"positive": "利好", "negative": "利空", "mixed": "利弊并存", "neutral": "中性"}.get(
+            assessment.direction if assessment else "neutral", "中性",
+        )
+        themes = "、".join(policy.themes or []) or "相关业务领域"
+        view["impact_overview"] = (
+            f"该政策整体呈{direction_label}方向，涉及{themes}等主题；"
+            "发送者名下暂无直接匹配客户，建议关注政策对相关业务线与客户盘子的整体影响。"
+        )
+    report = ConsumerReport(policy_id=policy_id, actor="consumer", report=view)
     db.add(report)
     db.commit()
     db.refresh(report)
