@@ -364,8 +364,8 @@ export default function PolicyDetailPage() {
                 {assessment.transmission_chain.length ? <ol className="textblock">{assessment.transmission_chain.map((item, index) => <li key={index}>{item}</li>)}</ol> : <p className="textblock">暂无传导分析，传导路径待人工补写。</p>}
                 <small className="section-label">受影响业务线与客群</small>
                 <p className="textblock">{(assessment.affected.business_lines || []).join("、") || "—"}<br />{(assessment.affected.segments || []).join("、") || "—"}</p>
-                <small className="section-label">客户暴露规模（合成口径）</small>
-                {assessment.affected.exposure_range ? <div className="exposure-box"><strong>{assessment.affected.exposure_range.low}–{assessment.affected.exposure_range.high}</strong> {assessment.affected.exposure_range.currency} {assessment.affected.exposure_range.unit}<br />{assessment.affected.exposure_range.basis}</div> : <p className="textblock">缺少客户暴露数据，暴露规模未评定（合成数据集未覆盖该主题，需人工补充口径）。</p>}
+                <small className="section-label">客户暴露规模</small>
+                {assessment.affected.exposure_range ? <div className="exposure-box"><strong>{assessment.affected.exposure_range.low}–{assessment.affected.exposure_range.high}</strong> {assessment.affected.exposure_range.currency} {assessment.affected.exposure_range.unit}<br />{assessment.affected.exposure_range.basis}</div> : <p className="textblock">缺少客户暴露数据，暴露规模未评定。</p>}
                 <small className="section-label">建议动作</small>
                 {assessment.recommended_actions.length ? <ul className="textblock">{assessment.recommended_actions.map((item, index) => <li key={index}>{typeof item === "string" ? item : <>{item.action}{item.owner ? `（负责人：${item.owner}）` : ""}{item.deadline ? ` · ${item.deadline}` : ""}</>}</li>)}</ul> : <p className="textblock">暂无建议动作，需人工评定后补写。</p>}
               </> : <p className="textblock">当前没有影响分析记录。</p>}
